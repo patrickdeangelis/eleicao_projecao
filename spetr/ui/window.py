@@ -24,8 +24,8 @@ class DesktopWindow:
         self.altura = altura
         self._window = None
 
-    def exibir(self) -> None:
-        """Inicia a interface nativa do sistema operacional."""
+    def exibir(self) -> bool:
+        """Inicia a interface nativa do sistema operacional. Retorna True se rodou com sucesso."""
         try:
             import webview
             logger.info(f"Iniciando PyWebView em {self.url}...")
@@ -37,9 +37,18 @@ class DesktopWindow:
                 min_size=(1024, 650),
                 background_color="#0F172A",  # Slate 900
             )
-            webview.start(debug=False)
+            # No Linux, prioriza GTK (WebKitGTK nativo do sistema)
+            gui_backend = "gtk" if sys.platform.startswith("linux") else None
+            try:
+                webview.start(gui=gui_backend, debug=False)
+            except Exception:
+                webview.start(debug=False)
+            return True
+
         except Exception as e:
-            logger.error(
+            logger.warning(
                 f"Não foi possível abrir janela nativa com PyWebView ({e}). "
                 f"Acesse diretamente pelo navegador no endereço: {self.url}"
             )
+            return False
+

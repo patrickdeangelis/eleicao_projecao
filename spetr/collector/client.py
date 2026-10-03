@@ -27,16 +27,27 @@ class TSEHttpClient:
 
     async def get_client(self) -> httpx.AsyncClient:
         if self._client is None or self._client.is_closed:
-            self._client = httpx.AsyncClient(
-                http2=True,
-                timeout=httpx.Timeout(self.timeout),
-                headers={
-                    "User-Agent": "SPETR-Desktop/1.0 (Pesquisa Eleitoral Estatistica)",
-                    "Accept-Encoding": "gzip, deflate",
-                    "Accept": "application/json"
-                }
-            )
+            headers = {
+                "User-Agent": "SPETR-Desktop/1.0 (Pesquisa Eleitoral Estatistica)",
+                "Accept-Encoding": "gzip, deflate",
+                "Accept": "application/json"
+            }
+            timeout = httpx.Timeout(self.timeout)
+            try:
+                self._client = httpx.AsyncClient(
+                    http2=True,
+                    timeout=timeout,
+                    headers=headers
+                )
+            except ImportError:
+                logger.warning("Pacote 'h2' ausente para HTTP/2; utilizando HTTP/1.1.")
+                self._client = httpx.AsyncClient(
+                    http2=False,
+                    timeout=timeout,
+                    headers=headers
+                )
         return self._client
+
 
     async def fechar(self) -> None:
         if self._client is not None and not self._client.is_closed:

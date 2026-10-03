@@ -105,9 +105,24 @@ def main():
             largura=1366,
             altura=768
         )
-        janela.exibir()
+        sucesso = janela.exibir()
+        if not sucesso:
+            import webbrowser
+            print(f"\n[SPETR PRONTO] Abrindo dashboard no navegador padrão em: {url_ui}")
+            print("Pressione Ctrl+C para encerrar.\n")
+            try:
+                webbrowser.open(url_ui)
+            except Exception:
+                pass
+            try:
+                thread_worker.join()
+            except KeyboardInterrupt:
+                print("\nEncerrando SPETR...")
+
         coordinator.scheduler.parar()
         sys.exit(0)
+
+
 
 
 if __name__ == "__main__":
