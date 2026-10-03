@@ -65,3 +65,34 @@ def test_parse_tse_json_payload():
     assert parsed["candidatos_votos"]["13"] == 1200000
     assert parsed["candidatos_votos"]["22"] == 1000000
     assert parsed["candidatos_meta"]["13"]["nome"] == "Lula"
+
+
+def test_parse_tse_ea20_unificado():
+    import json
+    import os
+
+    path_ea20 = "docs/tse_oficial/br-c0001-e021270-u.json"
+    if not os.path.exists(path_ea20):
+        pytest.skip("Arquivo EA20 oficial não disponível localmente")
+
+    with open(path_ea20, "r", encoding="utf-8") as f:
+        raw_ea20 = json.load(f)
+
+    parsed = parse_tse_json(raw_ea20, uf="BR")
+
+    assert parsed["uf"] == "BR"
+    assert parsed["secoes_total"] == 528951
+    assert parsed["secoes_apuradas"] == 528951
+    assert parsed["pst"] == 100.0
+    assert parsed["eleitores"] == 163079139
+    assert parsed["comparecimento"] == 138863131
+    assert parsed["votos_validos"] == 120704576
+    assert parsed["votos_brancos"] == 9118018
+    assert parsed["votos_nulos"] == 9040537
+    # Candidatos extraídos da árvore carg -> agr -> par -> cand
+    assert len(parsed["candidatos_votos"]) >= 10
+    assert "57" in parsed["candidatos_votos"]
+    assert parsed["candidatos_votos"]["57"] == 10503573
+    assert parsed["candidatos_meta"]["57"]["nome"] == "CANDIDATO 9999"
+    assert parsed["candidatos_meta"]["57"]["status"] == "2º turno"
+

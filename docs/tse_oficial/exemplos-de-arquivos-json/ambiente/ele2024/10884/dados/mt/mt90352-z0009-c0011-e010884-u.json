@@ -1,0 +1,19 @@
+
+{ "ele" : "10884", "t" : "1", "f" : "s", "sup" : "n", "tpabr" : "zona", "cdabr" : "0009", "dg" : "23/07/2024", "hg" : "15:04:23", "dt" : "19/07/2024", "ht" : "16:12:49", "tf" : "n", "and" : "p", "md" : "s", "dv" : "s", "carg" : [ 
+{ "cd" : "11", "nmn" : "Prefeito", "nmm" : "Prefeito", "nmf" : "Prefeita", "nv" : "1", "fed" : [ 
+{ "n" : "555", "sg" : "P-1M/P-1X", "nm" : "Federação A", "com" : "P-1M/P-1X", "npar" : [ "81", "67" ] } ], "agr" : [ 
+{ "n" : "110859035215", "nm" : "Partido P-1A", "tp" : "i", "com" : "P-1A", "vag" : "0", "par" : [ 
+{ "n" : "52", "sg" : "P-1A", "nm" : "Partido P-1A", "nfed" : "", "tvtn" : "29894", "tvan" : "29894", "cand" : [ 
+{ "n" : "52", "sqcand" : "90352170785", "nm" : "CANDIDATO PREF 52", "nmu" : "CAND PREF 52", "dt" : "26/04/1980", "dvt" : "Válido", "seq" : "10", "e" : "n", "st" : "", "vap" : "29894", "pvap" : "33,89", "pvapn" : "33,890350082", "vs" : [ 
+{ "tp" : "v", "sqcand" : "90352170786", "nm" : "VICE CANDIDATO VPREF 52", "nmu" : "VICE CAND VPREF 52", "sgp" : "P-1A" } ] } ] } ] }, 
+{ "n" : "110859035217", "nm" : "Federação A", "tp" : "f", "com" : "P-1M / P-1X", "tvtn" : "0", "tvan" : "28442", "vag" : "0", "par" : [ 
+{ "n" : "67", "sg" : "P-1M", "nm" : "Partido P-1M", "nfed" : "555", "tvtn" : "0", "tvan" : "28442", "cand" : [ 
+{ "n" : "67", "sqcand" : "90352170789", "nm" : "CANDIDATO PREF 67", "nmu" : "CAND PREF 67", "dt" : "12/07/1979", "dvt" : "Anulado", "seq" : "8", "e" : "n", "st" : "", "vap" : "28442", "pvap" : "32,24", "pvapn" : "32,244240885", "vs" : [ 
+{ "tp" : "v", "sqcand" : "90352170790", "nm" : "VICE CANDIDATO VPREF 67", "nmu" : "VICE CAND VPREF 67", "sgp" : "P-1M" } ] } ] } ] }, 
+{ "n" : "110859035216", "nm" : "Coligação Fictícia C001A", "tp" : "c", "com" : "P-1O / P-1P / P-1Q", "tvtn" : "29872", "tvan" : "29872", "par" : [ 
+{ "n" : "69", "sg" : "P-1O", "nm" : "Partido P-1O", "nfed" : "", "tvtn" : "29872", "tvan" : "29872", "cand" : [ 
+{ "n" : "69", "sqcand" : "90352170787", "nm" : "CANDIDATO PREF 69", "nmu" : "CAND PREF 69", "dt" : "03/02/1985", "dvt" : "Válido", "seq" : "9", "e" : "n", "st" : "", "vap" : "29872", "pvap" : "33,87", "pvapn" : "33,865409033", "vs" : [ 
+{ "tp" : "v", "sqcand" : "90352170788", "nm" : "VICE CANDIDATO VPREF 69", "nmu" : "VICE CAND VPREF 69", "sgp" : "P-1O" } ] } ] } ] } ] } ], "s" : 
+{ "ts" : "600", "st" : "600", "pst" : "100,00", "pstn" : "100", "snt" : "0", "psnt" : "0,00", "psntn" : "0", "si" : "600", "psi" : "100,00", "psin" : "100", "sni" : "0", "psni" : "0,00", "psnin" : "0", "sa" : "600", "psa" : "100,00", "psan" : "100", "sna" : "0", "psna" : "0,00", "psnan" : "0" }, "e" : 
+{ "te" : "171450", "est" : "171450", "pest" : "100,00", "pestn" : "100", "esnt" : "0", "pesnt" : "0,00", "pesntn" : "0", "esi" : "171450", "pesi" : "100,00", "pesin" : "100", "esni" : "0", "pesni" : "0,00", "pesnin" : "0", "esa" : "171450", "pesa" : "100,00", "pesan" : "100", "esna" : "0", "pesna" : "0,00", "pesnan" : "0", "c" : "145740", "pc" : "85,00", "pcn" : "85,004374453", "a" : "25710", "pa" : "15,00", "pan" : "14,995625547" }, "v" : 
+{ "tv" : "145740", "vvc" : "88208", "pvvc" : "60,52", "pvvcn" : "60,524221216", "vv" : "59766", "pvv" : "67,76", "pvvn" : "67,755759115", "vnom" : "59766", "pvnom" : "100,00", "pvnomn" : "100", "van" : "28442", "pvan" : "32,24", "pvann" : "32,244240885", "vansj" : "0", "pvansj" : "0,00", "pvansjn" : "0", "vb" : "29876", "pvb" : "20,50", "pvbn" : "20,499519693", "tvn" : "27656", "ptvn" : "18,98", "ptvnn" : "18,976259092", "vn" : "27656", "pvn" : "100,00", "pvnn" : "100", "vnt" : "0", "pvnt" : "0,00", "pvntn" : "0", "vscv" : "0" } }

@@ -1,0 +1,74 @@
+{
+  "dg": "23/07/2024",
+  "hg": "15:04:21",
+  "f": "s",
+  "c": "ele2024",
+  "pl": [
+    {
+      "cd": "9398",
+      "cdpr": "7876",
+      "dt": "21/07/2024",
+      "dtlim": "21/06/2026",
+      "e": [
+        {
+          "cd": "10887",
+          "cdt2": "10888",
+          "nm": "Eleição Suplementar - São Paulo - 9398",
+          "t": "1",
+          "tp": "4",
+          "abr": [
+            {
+              "cd": "sp",
+              "mu": [{ "cd": "71072", "cdi": "3550308" }],
+              "cp": [{ "cd": "11", "ds": "Prefeito", "tp": "1" }]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cd": "9396",
+      "cdpr": "7875",
+      "dt": "21/07/2024",
+      "dtlim": "21/06/2026",
+      "e": [
+        {
+          "cd": "10884",
+          "cdt2": "10885",
+          "nm": "Eleição Ordinária Municipal - 2024 - 9396 - 21/07/2024 1&#186; Turno",
+          "t": "1",
+          "tp": "3",
+          "abr": [
+            {
+              "cd": "br",
+              "cp": [
+                { "cd": "11", "ds": "Prefeito", "tp": "1" },
+                { "cd": "13", "ds": "Vereador", "tp": "2" }
+              ]
+            }
+          ]
+        },
+        {
+          "cd": "10886",
+          "cdt2": "",
+          "nm": "Consulta Popular - Cuiabá - 9396",
+          "t": "1",
+          "tp": "7",
+          "abr": [
+            {
+              "cd": "mt",
+              "mu": [{ "cd": "90670", "cdi": "5103403" }],
+              "cp": [
+                {
+                  "cd": "25",
+                  "ds": "&#09;Voce é a favor para que as partidas de futebol tenham 60 minutos em cada tempo ? ",
+                  "tp": "3"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
