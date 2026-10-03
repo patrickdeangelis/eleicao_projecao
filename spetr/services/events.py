@@ -2,7 +2,7 @@
 Eventos tipados e imutáveis trafegados pelo EventBus.
 """
 from dataclasses import dataclass
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from spetr.domain.entities import SnapshotParcial, ResultadoProjecao
 
 
@@ -20,6 +20,8 @@ class StrataNormalizedEvent:
     timestamp: str
     ciclo_id: int
     snapshots: Dict[str, SnapshotParcial]
+    candidatos_meta: Optional[Dict[str, Dict[str, Any]]] = None
+
 
 
 @dataclass(frozen=True)

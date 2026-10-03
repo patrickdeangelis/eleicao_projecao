@@ -35,6 +35,7 @@ class VectorAggregator:
         # Armazena último estado conhecido de cada entidade para lidar com 304 Not Modified
         self._cache_uf_raw: Dict[str, Dict[str, Any]] = {}
         self._cache_mun_raw: Dict[str, Dict[str, Any]] = {}
+        self._candidatos_meta: Dict[str, Dict[str, Any]] = {}
 
         if self.bus is not None:
             self.bus.subscribe(RawBatchReceivedEvent, self.ao_receber_lote_bruto)
@@ -51,11 +52,13 @@ class VectorAggregator:
                     StrataNormalizedEvent(
                         timestamp=evento.timestamp,
                         ciclo_id=evento.ciclo_id,
-                        snapshots=snapshots
+                        snapshots=snapshots,
+                        candidatos_meta=dict(self._candidatos_meta)
                     )
                 )
         except Exception as e:
             logger.error(f"Erro ao processar lote no VectorAggregator: {e}", exc_info=True)
+
 
     def processar_lote_bruto(
         self,
@@ -76,6 +79,8 @@ class VectorAggregator:
                 uf = chave.replace("UF_", "").upper()
                 parsed = parse_tse_json(payload, uf=uf)
                 self._cache_uf_raw[uf] = parsed
+                if "candidatos_meta" in parsed:
+                    self._candidatos_meta.update(parsed["candidatos_meta"])
             elif chave.startswith("MUN_"):
                 partes = chave.split("_")
                 if len(partes) >= 3:
@@ -83,6 +88,9 @@ class VectorAggregator:
                     cod_mun = partes[2]
                     parsed = parse_tse_json(payload, uf=uf, cod_mun=cod_mun)
                     self._cache_mun_raw[f"{uf}_{cod_mun}"] = parsed
+                    if "candidatos_meta" in parsed:
+                        self._candidatos_meta.update(parsed["candidatos_meta"])
+
 
         snapshots: Dict[str, SnapshotParcial] = {}
 

@@ -8,7 +8,6 @@ from spetr.services.events import (
     ProjectionCalculatedEvent,
     CollectionErrorEvent,
 )
-from spetr.services.pipeline_coordinator import PipelineCoordinator
 
 __all__ = [
     "EventBus",
@@ -16,5 +15,5 @@ __all__ = [
     "StrataNormalizedEvent",
     "ProjectionCalculatedEvent",
     "CollectionErrorEvent",
-    "PipelineCoordinator",
 ]
+

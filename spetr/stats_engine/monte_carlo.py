@@ -65,7 +65,8 @@ class MonteCarloProjectionEngine:
             resultado = self.calcular(
                 snapshots=evento.snapshots,
                 num_simulacoes=self.num_simulacoes,
-                ciclo_id=evento.ciclo_id
+                ciclo_id=evento.ciclo_id,
+                candidatos_meta=evento.candidatos_meta
             )
             if self.bus is not None:
                 await self.bus.publish(
@@ -82,27 +83,52 @@ class MonteCarloProjectionEngine:
         self,
         snapshots: Dict[str, SnapshotParcial],
         num_simulacoes: int = 10000,
-        ciclo_id: int = 1
+        ciclo_id: int = 1,
+        candidatos_meta: Optional[Dict[str, Dict[str, Any]]] = None
     ) -> ResultadoProjecao:
         """
         Executa a projeção probabilística sobre os estratos fornecidos.
         """
         inicio_t = time.perf_counter()
 
-        # Se candidatos ainda não foram explicitamente configurados, descobre a partir dos snapshots
-        if not self.candidatos:
-            cand_nums = set()
-            for snap in snapshots.values():
-                cand_nums.update(snap.votos_candidatos.keys())
-            cands_ordenados = sorted(list(cand_nums))
-            if not cands_ordenados:
-                # Candidatos genéricos 1 e 2 caso ainda não haja dados
-                cands_ordenados = ["13", "22"]
+        # Identifica os números de candidatos presentes nos snapshots recebidos
+        cand_nums_no_lote = set()
+        for snap in snapshots.values():
+            cand_nums_no_lote.update(snap.votos_candidatos.keys())
+
+        cands_atuais = set(self.candidato_indices.keys())
+
+        # Se os candidatos do lote forem diferentes dos atuais (ou se atuais estiver vazio)
+        if cand_nums_no_lote and cand_nums_no_lote != cands_atuais:
+            cands_ordenados = sorted(list(cand_nums_no_lote))
+            meta = candidatos_meta or {}
+            novos_candidatos = []
+            cores_default = ["#38BDF8", "#F43F5E", "#EAB308", "#10B981", "#A855F7", "#F97316"]
+            for i, num in enumerate(cands_ordenados):
+                c_info = meta.get(num, {})
+                nome = c_info.get("nome", f"Candidato {num}")
+                partido = c_info.get("partido", "PART")
+                # Cores padrão para números conhecidos
+                if num == "13":
+                    cor = "#EF4444"
+                elif num == "22":
+                    cor = "#22C55E"
+                else:
+                    cor = cores_default[i % len(cores_default)]
+
+                novos_candidatos.append(
+                    Candidato(numero=num, nome=nome, sigla_partido=partido, cor_hex=cor)
+                )
+            self.configurar_candidatos(novos_candidatos)
+        elif not self.candidatos:
+            # Fallback seguro caso ainda não haja votos apurados em nenhum estrato
+            cands_ordenados = ["13", "22"]
             self.candidatos = [
-                Candidato(numero=n, nome=f"Candidato {n}", sigla_partido="PART")
-                for n in cands_ordenados
+                Candidato(numero="13", nome="Candidato 13", sigla_partido="PT", cor_hex="#EF4444"),
+                Candidato(numero="22", nome="Candidato 22", sigla_partido="PL", cor_hex="#22C55E"),
             ]
             self.candidato_indices = {c.numero: i for i, c in enumerate(self.candidatos)}
+
 
         K = len(self.candidatos)
         estrato_ids = list(snapshots.keys())

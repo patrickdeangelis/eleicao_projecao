@@ -71,14 +71,8 @@ class PipelineCoordinator:
         self.aggregator.configurar_cidades(cidades_por_uf)
         self.scheduler.configurar_alvos(cidades_por_uf, capitais_por_uf)
 
-        # Configura candidatos padrão
-        cands = [
-            Candidato(numero="13", nome="Lula", sigla_partido="PT", cor_hex="#EF4444"),
-            Candidato(numero="22", nome="Bolsonaro", sigla_partido="PL", cor_hex="#22C55E"),
-        ]
-        self.engine.configurar_candidatos(cands)
-
         # Monta a lista de estratos para o motor estatístico
+
         estratos: List[EstratoEleitoral] = []
         priors_especiais = priors_data.get("priors_especiais", {})
         priors_padrao = priors_data.get("priors_padrao", {"13": 0.50, "22": 0.50})
