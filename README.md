@@ -51,12 +51,27 @@ python3 main.py --headless --porta 48291
 ```
 Abra o navegador em `http://127.0.0.1:48291`.
 
-### 4. Executando o Replay / Simulação Passo a Passo
-Para ver a projeção estatística convergindo em tempo real com dados da eleição de 2022:
+### 4. Modo Debug com Servidor Mock do TSE (Candidatos Fictícios e Controle ao Vivo)
+Você pode subir um emulador local que simula a CDN oficial do TSE com candidatos e números fictícios:
+```bash
+# Terminal 1: Inicie o servidor mock da CDN do TSE
+python3 scripts/mock_tse_server.py
+```
+* Abra `http://127.0.0.1:8080/` para acessar o **Painel de Controle** da apuração (pausar, avançar +5%, resetar, pular para 50%, etc.).
+
+Em seguida, em outro terminal, inicie o SPETR conectado ao mock:
+```bash
+# Terminal 2: Conecte o SPETR ao servidor mock
+python3 main.py --mock
+```
+
+### 5. Executando o Replay Histórico de 2022
+Para ver a projeção estatística convergindo em tempo real com dados da eleição presidencial de 2022:
 ```bash
 python3 scripts/simular_apuracao_2022.py
 ```
 Acesse `http://127.0.0.1:48291` para assistir à curva de probabilidade e às faixas de incerteza se estreitarem ao vivo.
+
 
 ---
 

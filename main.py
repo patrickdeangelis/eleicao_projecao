@@ -51,12 +51,18 @@ def main():
     parser.add_argument("--porta", type=int, default=48291, help="Porta local para a API e UI (padrão: 48291)")
     parser.add_argument("--simulacoes", type=int, default=10000, help="Número de simulações de Monte Carlo (padrão: 10000)")
     parser.add_argument("--headless", action="store_true", help="Executar apenas servidor local sem abrir janela nativa")
+    parser.add_argument("--mock", action="store_true", help="Conectar ao servidor mock local (http://127.0.0.1:8080)")
+    parser.add_argument("--tse-url", type=str, default=None, help="URL base da CDN do TSE (padrão: oficial ou mock)")
     args = parser.parse_args()
+
+    # Define URL base do TSE
+    tse_base = args.tse_url or ("http://127.0.0.1:8080" if args.mock else "https://resultados.tse.jus.br")
 
     print("=" * 70)
     print(" SPETR // SISTEMA DE PROJEÇÃO ELEITORAL EM TEMPO REAL")
     print(f" Simulações Monte Carlo: {args.simulacoes:,} por ciclo")
-    print(f" Servidor local: http://127.0.0.1:{args.porta}")
+    print(f" Servidor local UI:      http://127.0.0.1:{args.porta}")
+    print(f" Endpoint TSE de Coleta: {tse_base}")
     print("=" * 70)
 
     # 1. Instancia o coordenador e o barramento desacoplado
@@ -64,8 +70,10 @@ def main():
     coordinator = PipelineCoordinator(
         event_bus=bus,
         db_path="spetr_eleicoes.sqlite",
-        num_simulacoes=args.simulacoes
+        num_simulacoes=args.simulacoes,
+        tse_base_url=tse_base
     )
+
 
     # 2. Cria a aplicação FastAPI
     api_app = create_api_app(

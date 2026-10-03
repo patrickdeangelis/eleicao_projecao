@@ -28,14 +28,16 @@ class PipelineCoordinator:
         self,
         event_bus: Optional[EventBus] = None,
         db_path: str = "spetr_eleicoes.sqlite",
-        num_simulacoes: int = 10000
+        num_simulacoes: int = 10000,
+        tse_base_url: str = "https://resultados.tse.jus.br"
     ):
         self.bus = event_bus or EventBus()
         self.db = SQLiteDatabase(db_path)
         self.repo = ElectionRepository(self.db, event_bus=self.bus)
         self.aggregator = VectorAggregator(event_bus=self.bus)
         self.engine = MonteCarloProjectionEngine(event_bus=self.bus, num_simulacoes=num_simulacoes)
-        self.scheduler = TieredScheduler(event_bus=self.bus)
+        self.scheduler = TieredScheduler(event_bus=self.bus, base_url=tse_base_url)
+
 
         self._carregar_metadados_iniciais()
 

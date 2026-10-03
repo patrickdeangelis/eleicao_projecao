@@ -25,6 +25,7 @@ class TieredScheduler(ICollector):
         self,
         event_bus: Optional[IEventBus] = None,
         http_client: Optional[TSEHttpClient] = None,
+        base_url: str = "https://resultados.tse.jus.br",
         ano_eleicao: str = "2022",
         codigo_eleicao: str = "545",  # 2º turno presidencial de 2022 por padrão
         codigo_cargo: str = "0001",   # 0001 = Presidente
@@ -33,11 +34,13 @@ class TieredScheduler(ICollector):
     ):
         self.bus = event_bus
         self.http_client = http_client or TSEHttpClient()
+        self.base_url = base_url.rstrip("/")
         self.ano = ano_eleicao
         self.cod_eleicao = codigo_eleicao
         self.cod_cargo = codigo_cargo
         self.intervalo_tier1 = intervalo_tier1
         self.intervalo_tier2 = intervalo_tier2
+
 
         self.ufs: List[str] = [
             "AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA",
@@ -63,16 +66,17 @@ class TieredScheduler(ICollector):
     def url_uf(self, uf: str) -> str:
         u = uf.lower()
         return (
-            f"https://resultados.tse.jus.br/oficial/ele{self.ano}/{self.cod_eleicao}/"
+            f"{self.base_url}/oficial/ele{self.ano}/{self.cod_eleicao}/"
             f"dados-simplificados/{u}/{u}-c{self.cod_cargo}-e000{self.cod_eleicao}-r.json"
         )
 
     def url_municipio(self, uf: str, cod_mun: str) -> str:
         u = uf.lower()
         return (
-            f"https://resultados.tse.jus.br/oficial/ele{self.ano}/{self.cod_eleicao}/"
+            f"{self.base_url}/oficial/ele{self.ano}/{self.cod_eleicao}/"
             f"dados-simplificados/{u}/{u}{cod_mun}-c{self.cod_cargo}-e000{self.cod_eleicao}-r.json"
         )
+
 
     async def executar_ciclo_coleta(self, incluir_tier2: bool = True) -> Dict[str, Dict[str, Any]]:
         """
