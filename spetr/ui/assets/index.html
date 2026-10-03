@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPETR - Painel de Projeção Eleitoral em Tempo Real</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header class="header">
+    <div class="header-brand">
+      <span class="brand-badge">SPETR</span>
+      <span class="header-title">ELECTION DECISION DESK &bull; PROJEÇÃO EM TEMPO REAL</span>
+    </div>
+    <div class="header-status">
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <span id="status-dot" class="status-dot"></span>
+        <span id="status-text" class="status-text">CONECTANDO AO COLETOR...</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- Decision Desk Call Alert Banner -->
+    <div id="call-banner" class="call-banner">
+      <div>
+        <div id="call-title" class="call-title">⏳ AGUARDANDO INÍCIO DA TRANSMISSÃO</div>
+        <div id="call-subtitle" class="call-subtitle">O motor probabilístico está conectado e pronto para processar as urnas.</div>
+      </div>
+      <div>
+        <span style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 700;">
+          MODELO BAYESIANO CONJUGADO
+        </span>
+      </div>
+    </div>
+
+    <!-- Barra de Apuração das Urnas -->
+    <section class="progress-card">
+      <div class="progress-header">
+        <span><strong>TOTALIZAÇÃO OFICIAL DAS URNAS</strong></span>
+        <span id="pct-secoes-texto" style="font-size: 1.15rem; font-weight: 800; color: var(--accent-blue);">0,00%</span>
+      </div>
+      <div class="progress-bar-bg">
+        <div id="secoes-bar" class="progress-bar-fill"></div>
+      </div>
+      <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-muted);">
+        <span id="secoes-detalhes">0 de 0 seções apuradas</span>
+        <span>Amostragem Pós-Estratificada (27 UFs + 154 Maiores Cidades)</span>
+      </div>
+    </section>
+
+    <!-- Placar Principal dos Candidatos -->
+    <section id="candidates-container" class="candidates-grid">
+      <!-- Inserido dinamicamente via JS -->
+      <div class="cand-card" style="grid-column: span 2; text-align: center; padding: 3rem;">
+        <div style="color: var(--text-muted); font-size: 1rem;">Aguardando recebimento do primeiro pacote de apuração do TSE...</div>
+      </div>
+    </section>
+
+    <!-- Visualizadores de Incerteza e Evolução -->
+    <section class="analytics-grid">
+      <div class="chart-card">
+        <div class="chart-title">Faixa de Incerteza Bayesiana (IC 95% vs Limiar de 50%)</div>
+        <canvas id="ciCanvas"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Evolução Temporal da Projeção (% Final Estimado)</div>
+        <canvas id="historyCanvas"></canvas>
+      </div>
+    </section>
+
+    <!-- Rodapé Informativo -->
+    <footer class="footer-info">
+      <span id="footer-ts">Sincronização TSE: --:--:--</span>
+      <span id="footer-tempo-mc">Motor Monte Carlo: 0,00 ms</span>
+      <span>SPETR v1.0 &bull; Arquitetura Desacoplada Local</span>
+    </footer>
+
+  </main>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

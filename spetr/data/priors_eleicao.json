@@ -1,0 +1,19 @@
+{
+  "descricao": "Priors de Referência Baseados em Pesquisas de Véspera (Intenção de Voto Válido)",
+  "priors_padrao": {
+    "13": 0.515,
+    "22": 0.485
+  },
+  "priors_regionais": {
+    "NORDESTE": {"13": 0.690, "22": 0.310},
+    "NORTE": {"13": 0.490, "22": 0.510},
+    "CENTRO-OESTE": {"13": 0.400, "22": 0.600},
+    "SUDESTE": {"13": 0.460, "22": 0.540},
+    "SUL": {"13": 0.380, "22": 0.620}
+  },
+  "priors_especiais": {
+    "PB_20516": {"13": 0.540, "22": 0.460},
+    "PB_19852": {"13": 0.485, "22": 0.515},
+    "PB_INTERIOR": {"13": 0.760, "22": 0.240}
+  }
+}

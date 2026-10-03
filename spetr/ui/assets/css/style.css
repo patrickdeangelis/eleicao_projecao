@@ -1,0 +1,335 @@
+/* SPETR Decision Desk CSS */
+:root {
+  --bg-primary: #090D16;
+  --bg-card: #131B2E;
+  --bg-card-hover: #1A243D;
+  --border-color: #233152;
+  --text-main: #F1F5F9;
+  --text-muted: #94A3B8;
+  --accent-blue: #38BDF8;
+  --accent-red: #F43F5E;
+  --accent-yellow: #EAB308;
+  --accent-green: #10B981;
+  --accent-purple: #A855F7;
+  --gold: #F59E0B;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  user-select: none;
+}
+
+.header {
+  background-color: rgba(19, 27, 46, 0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-color);
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.brand-badge {
+  background: linear-gradient(135deg, #2563EB, #7C3AED);
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  font-weight: 800;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  color: #FFF;
+}
+
+.header-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--accent-green);
+  box-shadow: 0 0 10px var(--accent-green);
+  display: inline-block;
+  animation: pulse-glow 2s infinite;
+}
+
+.status-text {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1.5rem 2rem;
+}
+
+/* Call Alert Banner */
+.call-banner {
+  padding: 1rem 1.5rem;
+  border-radius: 10px;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-card);
+  transition: all 0.3s ease;
+}
+
+.call-banner.vitoria {
+  border-color: #3B82F6;
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.15), rgba(19, 27, 46, 0.9));
+  box-shadow: 0 0 25px rgba(37, 99, 235, 0.2);
+}
+
+.call-banner.eleito {
+  border-color: var(--gold);
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.2), rgba(19, 27, 46, 0.9));
+  box-shadow: 0 0 35px rgba(245, 158, 11, 0.3);
+}
+
+.call-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.call-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 0.2rem;
+}
+
+/* Progress Section */
+.progress-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.progress-bar-bg {
+  background-color: #1E293B;
+  border-radius: 999px;
+  height: 12px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-bar-fill {
+  background: linear-gradient(90deg, #3B82F6, #10B981);
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Candidates Grid */
+.candidates-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.cand-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.5rem;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.cand-card:hover {
+  transform: translateY(-2px);
+  border-color: #3B82F6;
+}
+
+.cand-card.leading {
+  border-color: #2563EB;
+  box-shadow: 0 0 25px rgba(37, 99, 235, 0.15);
+}
+
+.cand-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.25rem;
+}
+
+.cand-name {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.cand-party {
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  background-color: #1E293B;
+  border-radius: 4px;
+  color: var(--text-muted);
+}
+
+.cand-numbers {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.cand-proj-pct {
+  font-size: 3.25rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.cand-proj-label {
+  font-size: 0.75rem;
+  color: var(--accent-blue);
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.cand-apurado-row {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 0.75rem;
+}
+
+.cand-metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.metric-pill {
+  background-color: #0F172A;
+  border-radius: 8px;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.metric-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 0.2rem;
+}
+
+.metric-val {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+/* Charts & Interval Visualizer */
+.analytics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.chart-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+}
+
+.chart-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ci-bar-container {
+  margin: 1.5rem 0;
+  position: relative;
+}
+
+.ci-marker-50 {
+  position: absolute;
+  top: -15px;
+  bottom: -15px;
+  left: 50%;
+  width: 2px;
+  background-color: var(--accent-yellow);
+  z-index: 10;
+}
+
+.ci-marker-label {
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.75rem;
+  color: var(--accent-yellow);
+  font-weight: 700;
+}
+
+.footer-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  padding: 1rem 0;
+  border-top: 1px solid var(--border-color);
+}
+
+@keyframes pulse-glow {
+  0% { box-shadow: 0 0 5px var(--accent-green); }
+  50% { box-shadow: 0 0 15px var(--accent-green); }
+  100% { box-shadow: 0 0 5px var(--accent-green); }
+}
