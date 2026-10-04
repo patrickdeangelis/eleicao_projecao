@@ -67,7 +67,12 @@ jobs:
         shell: bash
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt "pyinstaller>=6.10"
+          # Só pacotes pré-compilados para as dependências com código nativo: compilar do fonte
+          # liga a bibliotecas da máquina de build (ex.: cryptography 50+ não tem wheel para Mac
+          # Intel e, compilado, quebra dentro do executável). O pip escolhe a versão mais nova
+          # que tenha wheel para a plataforma.
+          pip install --only-binary=cryptography,cffi,numpy,pydantic-core,pyobjc-core \
+            -r requirements.txt "pyinstaller>=6.10"
           if [ "$RUNNER_OS" = "Linux" ]; then
             # PyGObject >= 3.51 exige girepository-2.0, ausente no Ubuntu 22.04
             pip install "PyGObject<3.51" pycairo
