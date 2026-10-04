@@ -91,6 +91,17 @@
               <input type="number" name="inicio" min="0" max="100" step="1" value="0">
             </label>
           </span>
+          <details class="avancado config-sim" id="personalizar">
+            <summary>Configurar percentuais e velocidade por região</summary>
+            <p class="nota">Percentual de cada candidato nos votos de cada região (cada linha soma 100%) e a
+              razão de velocidade da apuração: <strong>1</strong> = ritmo médio, <strong>2</strong> = começa no dobro,
+              <strong>0,5</strong> = começa na metade e acelera no fim. Toda região chega a 100% no final.</p>
+            <div class="config-rolagem">
+              <table class="tabela compacta config" id="tabela-config"><thead></thead><tbody></tbody></table>
+            </div>
+            <label class="config-check"><input type="checkbox" name="cidades_primeiro" checked> Capitais e cidades grandes apuram antes do interior</label>
+            <div class="previa" id="previa" aria-live="polite"></div>
+          </details>
         </div>
       </div>
 

@@ -53,7 +53,12 @@ python3 main.py --headless            # sem janela: acesse http://127.0.0.1:4829
 A **tela inicial** pergunta como acompanhar a apuração:
 
 1. **Coleta real** (padrão): baixa os arquivos oficiais do TSE. Ano, turno e código da eleição vêm pré-preenchidos (o código é descoberto pelo `ele-c.json` do TSE); as opções avançadas permitem trocar a URL da CDN, o ambiente e ativar a verificação JWS.
-2. **Simular resultados**: sobe um servidor local que imita a CDN do TSE (candidatos fictícios sobre o eleitorado real de 2026), com cenário de 1º ou 2º turno, velocidade e % inicial. O painel ganha o botão **Controlar simulação** (pausar, avançar, pular para 50%/95%).
+2. **Simular resultados**: sobe um servidor local que imita a CDN do TSE (candidatos fictícios sobre o eleitorado real de 2026), com velocidade e % inicial. O painel ganha o botão **Controlar simulação** (pausar, avançar, pular para 50%/95%). Cenários prontos:
+   - `1t`: 1º turno com 10 candidatos (um sub judice);
+   - `2t`: 2º turno equilibrado;
+   - `virada`: 2º turno em que o Nordeste (forte para SILVA) apura cedo e Sul/Sudeste/Centro-Oeste (fortes para SANTOS) apuram tarde — a parcial mostra SILVA na frente até ~80% e SANTOS vence.
+
+   Em **Configurar percentuais e velocidade por região**, cada região recebe o **percentual de cada candidato** (soma 100%) e uma **razão de velocidade** da apuração (1 = ritmo médio; 2 = começa no dobro; 0,5 = começa na metade e acelera no fim; toda região chega a 100%). A tela mostra uma prévia do resultado final e de quanto cada região terá apurado ao longo do tempo.
 
 No painel, **Trocar modo** volta à tela inicial sem reiniciar o app (por exemplo: simular agora e passar para a coleta real quando a apuração começar). Para pular a tela inicial:
 
@@ -78,6 +83,13 @@ Antes do primeiro voto apurado o painel mostra "Aguardando o início da apuraç�
 | `--ambiente` | `oficial` | Pasta de ambiente na CDN |
 | `--verificar-jws` | desativado | Baixa os pares `.jws` e valida a assinatura Ed25519 com a chave `oficial` ou `desenvolvimento` do manual do TSE |
 | `--db` | `spetr_eleicoes.sqlite` | Banco de histórico (cada pleito e execução ficam identificados) |
+
+### Avaliando o modelo num cenário
+`scripts/avaliar_cenario.py` roda a apuração simulada inteira sem servidor e mostra, instante a instante, a parcial, a projeção com a faixa provável, a chance de vitória e quando o painel anunciaria o resultado, comparando com o resultado verdadeiro:
+```bash
+python3 scripts/avaliar_cenario.py --cenario virada
+python3 scripts/avaliar_cenario.py --cenario 2t --ajustes meu_cenario.json   # mesmo formato da tela de configuração
+```
 
 ### 4. Simulador isolado (opcional)
 O mesmo simulador da tela inicial pode rodar como processo separado, para testar o coletor de rede contra outro servidor:

@@ -107,3 +107,57 @@ def test_arquivos_do_painel_sempre_revalidados(tmp_path):
         r = cliente.get("/static/js/app.js")
         assert r.status_code == 200 and r.headers["cache-control"] == "no-cache"
         assert cliente.get("/static/js/app.js", headers={"If-None-Match": r.headers["etag"]}).status_code == 304
+
+
+def test_simulacao_configuravel_percentuais_e_velocidade():
+    from spetr.simulador import EstadoSimulacao, descrever_perfis
+    perfil = descrever_perfis()["virada"]
+    assert set(perfil["ajustes"]["regioes"]) == {"N", "NE", "CO", "SE", "S", "EX"}
+    ne = perfil["ajustes"]["regioes"]["NE"]
+    assert abs(sum(ne["percentuais"].values()) - 100) < 0.2 and ne["velocidade"] > 1
+
+    ajustes = {"regioes": {
+        "NE": {"percentuais": {"99": 70, "88": 30}, "velocidade": 4},
+        "SE": {"percentuais": {"99": 35, "88": 65}, "velocidade": 0.3},
+    }}
+    e = EstadoSimulacao("2t", ajustes=ajustes)
+    previa = e.previa((0.3,))
+    assert abs(previa["final_regioes"]["NE"]["99"] - 70) < 2      # percentuais respeitados
+    assert previa["ritmo"]["0.3"]["regioes"]["NE"] > 70            # Nordeste rápido
+    assert previa["ritmo"]["0.3"]["regioes"]["SE"] < 15            # Sudeste lento
+    e.progresso_global = 1.0
+    assert all(p["apuradas"] == p["secoes"] for p in
+               (e.apurar_unidade(uf, u) for uf in ("BA", "SP") for u in e.unidades_da_uf(uf)))  # todos chegam a 100%
+
+    for invalido in (
+        {"regioes": {"NE": {"percentuais": {"99": 60, "88": 30}}}},   # não soma 100
+        {"regioes": {"NE": {"velocidade": 9}}},                        # fora do limite
+        {"regioes": {"XX": {"velocidade": 1}}},                        # região inexistente
+        {"regioes": {"NE": {"percentuais": {"12": 100}}}},             # candidato inexistente
+    ):
+        with pytest.raises(ValueError):
+            EstadoSimulacao("2t", ajustes=invalido)
+
+
+@pytest.mark.asyncio
+async def test_sessao_inicia_simulacao_personalizada(tmp_path):
+    sessao = SessaoSPETR(EventBus(), db_path=str(tmp_path / "s.sqlite"), num_simulacoes=500)
+    ajustes = {"regioes": {"NE": {"percentuais": {"99": 70, "88": 30}, "velocidade": 3}}}
+    desc = await sessao.iniciar("simulado", {"cenario": "2t", "ajustes": ajustes})
+    try:
+        assert desc["eleicao"]["personalizado"] is True
+        assert sessao.simulador.estado.perfil["apuracao"]["NE"] == ("razao", 3.0)
+        assert desc["eleicao"]["turno"] == 2
+    finally:
+        await sessao.parar()
+    with pytest.raises(ErroSessao):
+        await sessao.iniciar("simulado", {"cenario": "2t", "ajustes": {"regioes": {"NE": {"velocidade": 0}}}})
+
+
+def test_previa_da_simulacao_pela_api(tmp_path):
+    bus = EventBus()
+    with TestClient(create_api_app(event_bus=bus, sessao=SessaoSPETR(bus, db_path=str(tmp_path / "s.sqlite")))) as cliente:
+        ok = cliente.post("/api/v1/simulador/previa", json={"cenario": "virada"})
+        assert ok.status_code == 200 and ok.json()["final"]["88"] > ok.json()["final"]["99"]
+        ruim = cliente.post("/api/v1/simulador/previa", json={"cenario": "virada", "ajustes": {"regioes": {"NE": {"velocidade": 99}}}})
+        assert ruim.status_code == 422

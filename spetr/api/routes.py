@@ -81,6 +81,20 @@ def setup_routes(
             raise HTTPException(status_code=409, detail="Modo fixado na linha de comando")
         return await sessao.parar()
 
+    @router.post("/simulador/previa")
+    async def previa_simulacao(request: Request, corpo: Dict[str, Any] = Body(...)):
+        """Resultado final esperado e ritmo por região de um cenário (com ajustes), sem iniciar nada."""
+        verificar_origem(request)
+        from spetr.simulador import CENARIOS, EstadoSimulacao
+        cenario = str(corpo.get("cenario") or "1t")
+        if cenario not in CENARIOS:
+            raise HTTPException(status_code=422, detail=f"Cenário inválido: {cenario!r}")
+        try:
+            estado = EstadoSimulacao(cenario, ajustes=corpo.get("ajustes") or None)
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=str(e))
+        return await asyncio.to_thread(estado.previa)
+
     # -------------------------------------------------------------- projeção
 
     @router.get("/projecao/atual")

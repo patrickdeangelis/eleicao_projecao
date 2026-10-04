@@ -38,42 +38,178 @@ REGIAO = {
     "ES": "SE", "MG": "SE", "RJ": "SE", "SP": "SE",
     "PR": "S", "RS": "S", "SC": "S", "ZZ": "EX",
 }
-# Velocidade relativa de apuração (o Sudeste e o exterior demoram mais; capitais apuram antes do interior)
-VELOCIDADE_REGIAO = {"N": 1.10, "NE": 1.25, "CO": 1.05, "SE": 0.85, "S": 1.00, "EX": 0.70}
+# Multiplicador de tempo por tipo de unidade: capitais/cidades grandes apuram antes do interior
 VELOCIDADE_TIPO = {"cidade": 1.15, "interior": 0.90}
 
-# Cenários fictícios: (numero, nome, partido, participação base nos válidos, destinação)
-CENARIOS = {
-    "1t": [
-        ("99", "LUCAS SILVA", "PSOC", 0.405, "Válido"),
-        ("88", "MARCOS SANTOS", "PPRO", 0.392, "Válido"),
-        ("45", "ANA COSTA", "PNOV", 0.072, "Válido"),
-        ("30", "PEDRO ALVES", "PLIB", 0.048, "Válido"),
-        ("50", "JULIA ROCHA", "PVER", 0.031, "Válido"),
-        ("15", "RAFAEL LIMA", "PDEM", 0.022, "Válido"),
-        ("16", "BEATRIZ NUNES", "PTRAB", 0.015, "Válido"),
-        ("27", "CARLOS MOURA", "PCRIS", 0.010, "Válido"),
-        ("80", "HELENA DIAS", "PUNI", 0.005, "Válido"),
-        ("77", "JOSE FERREIRA", "PIND", 0.012, "Anulado sub judice"),
-    ],
-    "2t": [
-        ("99", "LUCAS SILVA", "PSOC", 0.506, "Válido"),
-        ("88", "MARCOS SANTOS", "PPRO", 0.494, "Válido"),
-    ],
+# Perfis dos cenários fictícios.
+# candidatos: (numero, nome, partido, participação base nos válidos, destinação)
+# inclinacao_regiao: pontos somados ao 1º candidato (e tirados do 2º) em cada região, ÷ 2
+# apuracao: curva de cada região sobre o relógio global t ∈ [0, 1]:
+#   ("razao", r)   -> 1 − (1 − t)^r  (r = razão de velocidade: 2 começa no dobro do ritmo médio,
+#                                     0,5 começa na metade e acelera no fim; sempre termina em 100%)
+#   ("linear", v)  -> t × v          (cenários 1t/2t: v > 1 adianta; v < 1 atrasa)
+#   ("inicio", k) / ("fim", k)       -> 1 − (1 − t)^k / t^k
+_LINEAR_PADRAO = {"N": ("linear", 1.10), "NE": ("linear", 1.25), "CO": ("linear", 1.05),
+                  "SE": ("linear", 0.85), "S": ("linear", 1.00), "EX": ("linear", 0.70)}
+PERFIS: Dict[str, Dict[str, Any]] = {
+    "1t": {
+        "turno": 1,
+        "descricao": "1º turno · 10 candidatos fictícios (um sub judice)",
+        "candidatos": [
+            ("99", "LUCAS SILVA", "PSOC", 0.405, "Válido"),
+            ("88", "MARCOS SANTOS", "PPRO", 0.392, "Válido"),
+            ("45", "ANA COSTA", "PNOV", 0.072, "Válido"),
+            ("30", "PEDRO ALVES", "PLIB", 0.048, "Válido"),
+            ("50", "JULIA ROCHA", "PVER", 0.031, "Válido"),
+            ("15", "RAFAEL LIMA", "PDEM", 0.022, "Válido"),
+            ("16", "BEATRIZ NUNES", "PTRAB", 0.015, "Válido"),
+            ("27", "CARLOS MOURA", "PCRIS", 0.010, "Válido"),
+            ("80", "HELENA DIAS", "PUNI", 0.005, "Válido"),
+            ("77", "JOSE FERREIRA", "PIND", 0.012, "Anulado sub judice"),
+        ],
+        "inclinacao_regiao": {"N": -0.02, "NE": 0.14, "CO": -0.09, "SE": -0.04, "S": -0.08, "EX": -0.03},
+        "inclinacao_cidade": -0.03,
+        "apuracao": _LINEAR_PADRAO,
+    },
+    "2t": {
+        "turno": 2,
+        "descricao": "2º turno · 2 candidatos fictícios",
+        "candidatos": [
+            ("99", "LUCAS SILVA", "PSOC", 0.506, "Válido"),
+            ("88", "MARCOS SANTOS", "PPRO", 0.494, "Válido"),
+        ],
+        "inclinacao_regiao": {"N": -0.02, "NE": 0.14, "CO": -0.09, "SE": -0.04, "S": -0.08, "EX": -0.03},
+        "inclinacao_cidade": -0.03,
+        "apuracao": _LINEAR_PADRAO,
+    },
+    "virada": {
+        "turno": 2,
+        "descricao": "2º turno com virada · Nordeste (forte para SILVA) apura cedo; Sul, Sudeste e Centro-Oeste (fortes para SANTOS) apuram tarde",
+        "candidatos": [
+            ("99", "LUCAS SILVA", "PSOC", 0.482, "Válido"),
+            ("88", "MARCOS SANTOS", "PPRO", 0.518, "Válido"),
+        ],
+        "inclinacao_regiao": {"N": 0.06, "NE": 0.34, "CO": -0.14, "SE": -0.12, "S": -0.16, "EX": -0.06},
+        "inclinacao_cidade": -0.02,
+        "apuracao": {"NE": ("razao", 3.0), "N": ("razao", 1.0), "CO": ("razao", 0.55),
+                     "SE": ("razao", 0.4), "S": ("razao", 0.5), "EX": ("razao", 0.35)},
+    },
 }
-DESCRICAO_CENARIOS = {
-    "1t": "1º turno · 10 candidatos fictícios (um sub judice)",
-    "2t": "2º turno · 2 candidatos fictícios",
-}
+CENARIOS = {nome: p["candidatos"] for nome, p in PERFIS.items()}
+DESCRICAO_CENARIOS = {nome: p["descricao"] for nome, p in PERFIS.items()}
+TURNO_CENARIO = {nome: p["turno"] for nome, p in PERFIS.items()}
+
+NOMES_REGIAO = {"N": "Norte", "NE": "Nordeste", "CO": "Centro-Oeste", "SE": "Sudeste", "S": "Sul", "EX": "Exterior"}
+VELOCIDADE_TIPO_UNIFORME = {"cidade": 1.0, "interior": 1.0}
+RAZAO_MIN, RAZAO_MAX = 0.2, 5.0
+
+
+def _razao_equivalente(curva) -> float:
+    """Razão de velocidade que melhor representa uma curva dos cenários prontos."""
+    tipo, par = curva
+    if tipo in ("razao", "inicio"):
+        return round(par, 2)
+    if tipo == "fim":
+        return round(max(RAZAO_MIN, 1.0 / par), 2)
+    return round(min(RAZAO_MAX, max(RAZAO_MIN, par)), 2)
+
+
+_PERFIS_DESCRITOS: Optional[Dict[str, Any]] = None
+
+
+def descrever_perfis() -> Dict[str, Any]:
+    """
+    Cada cenário pronto no formato dos ajustes (pré-preenche a configuração): percentual final de
+    cada candidato em cada região e a razão de velocidade de cada região.
+    """
+    global _PERFIS_DESCRITOS
+    if _PERFIS_DESCRITOS is None:
+        saida = {}
+        for nome, p in PERFIS.items():
+            estado = EstadoSimulacao(nome)
+            saida[nome] = {
+                "descricao": p["descricao"],
+                "turno": p["turno"],
+                "candidatos": [{"n": c[0], "nm": c[1], "sub_judice": c[4] != "Válido"} for c in p["candidatos"]],
+                "ajustes": {
+                    "regioes": {
+                        reg: {"percentuais": estado.percentuais_finais(reg),
+                              "velocidade": _razao_equivalente(p["apuracao"].get(reg, ("linear", 1.0)))}
+                        for reg in NOMES_REGIAO
+                    },
+                    "cidades_primeiro": True,
+                },
+            }
+        _PERFIS_DESCRITOS = saida
+    return _PERFIS_DESCRITOS
+
+
+def _numero(valor: Any, nome: str, minimo: float, maximo: float) -> float:
+    try:
+        v = float(valor)
+    except (TypeError, ValueError):
+        raise ValueError(f"{nome}: valor inválido ({valor!r})")
+    if not minimo <= v <= maximo:
+        raise ValueError(f"{nome}: use um valor entre {minimo:g} e {maximo:g}")
+    return v
+
+
+def aplicar_ajustes(perfil: Dict[str, Any], ajustes: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Cópia do perfil com os ajustes do usuário:
+    - regioes: {N|NE|CO|SE|S|EX: {percentuais: {numero: % dos votos nominais}, velocidade: razão (0,2 a 5)}}
+      Os percentuais de cada região precisam somar 100%.
+    - cidades_primeiro: capitais e cidades grandes apuram antes do interior
+    """
+    if not ajustes:
+        return perfil
+    numeros = [c[0] for c in perfil["candidatos"]]
+    novo = {**perfil, "apuracao": dict(perfil["apuracao"]), "percentuais_regiao": {}}
+    for reg, cfg in (ajustes.get("regioes") or {}).items():
+        if reg not in NOMES_REGIAO:
+            raise ValueError(f"Região desconhecida: {reg!r}")
+        nome_reg = NOMES_REGIAO[reg]
+        if "percentuais" in cfg:
+            pcts = {}
+            for n, v in cfg["percentuais"].items():
+                if n not in numeros:
+                    raise ValueError(f"Candidato {n!r} não existe neste cenário")
+                pcts[n] = _numero(v, f"{nome_reg}, candidato {n}", 0, 100)
+            soma = sum(pcts.values())
+            if abs(soma - 100) > 0.5:
+                raise ValueError(f"Os percentuais de {nome_reg} somam {soma:.1f}%; precisam somar 100%")
+            novo["percentuais_regiao"][reg] = {n: v / soma for n, v in pcts.items()}
+        if "velocidade" in cfg:
+            novo["apuracao"][reg] = ("razao", _numero(cfg["velocidade"], f"Velocidade de {nome_reg}", RAZAO_MIN, RAZAO_MAX))
+    if "cidades_primeiro" in ajustes:
+        novo["velocidade_tipo"] = VELOCIDADE_TIPO if ajustes["cidades_primeiro"] else VELOCIDADE_TIPO_UNIFORME
+    return novo
+
+
 # Ritmo do relógio da simulação: (segundos entre avanços, avanço em fração das seções)
 VELOCIDADES = {
     "lenta": (10.0, 0.01),
     "normal": (6.0, 0.02),
     "rapida": (4.0, 0.05),
 }
-# Inclinação regional e cidade x interior para os dois primeiros candidatos
-INCLINACAO_REGIAO = {"N": -0.02, "NE": 0.14, "CO": -0.09, "SE": -0.04, "S": -0.08, "EX": -0.03}
-INCLINACAO_CIDADE = -0.03
+
+
+def progresso_por_curva(t: float, curva) -> float:
+    """
+    Fração apurada de uma unidade quando o relógio global está em t (0 a 1).
+    ("razao", r): 1 − (1 − t)^r. r é a razão de velocidade: o ritmo no início em relação ao
+    ritmo médio (r = 1 linear; r = 2 começa no dobro; r = 0,5 começa na metade e acelera no fim).
+    Toda região chega a 100% em t = 1.
+    """
+    t = min(1.0, max(0.0, t))
+    tipo, par = curva
+    if tipo == "razao":
+        return 1.0 - (1.0 - t) ** par
+    if tipo == "inicio":
+        return 1.0 - (1.0 - t) ** par
+    if tipo == "fim":
+        return t ** par
+    return min(1.0, t * par)
 
 
 def _agora_http() -> str:
@@ -107,6 +243,7 @@ class EstadoSimulacao:
         velocidade: str = "normal",
         progresso_inicial: float = 0.0,
         data_dir: Path = DATA_DIR,
+        ajustes: Optional[Dict[str, Any]] = None,
     ):
         if cenario not in CENARIOS:
             raise ValueError(f"Cenário desconhecido: {cenario!r}. Opções: {list(CENARIOS)}")
@@ -119,9 +256,11 @@ class EstadoSimulacao:
         self.pausado: bool = False
         self.versao_ciclo: int = 1
         self.ultima_modificacao: str = _agora_http()
+        self.perfil = aplicar_ajustes(PERFIS[cenario], ajustes)
+        self.personalizado = bool(ajustes)
         self.candidatos = [
             {"n": n, "nm": nm, "cc": cc, "meta_pct": meta, "dvt": dvt}
-            for n, nm, cc, meta, dvt in CENARIOS[cenario]
+            for n, nm, cc, meta, dvt in self.perfil["candidatos"]
         ]
         self.ufs_data: Dict[str, Any] = {}
         self.cidades_data: Dict[str, List[str]] = {}
@@ -172,8 +311,10 @@ class EstadoSimulacao:
     def apurar_unidade(self, uf: str, u: Dict[str, Any]) -> Dict[str, Any]:
         """Números apurados de uma unidade no progresso global atual."""
         regiao = REGIAO.get(uf, "SE")
-        velocidade = VELOCIDADE_REGIAO[regiao] * VELOCIDADE_TIPO[u["tipo"]] * (1.0 + _ruido(u["id"] + "v", 0.08))
-        p = min(1.0, self.progresso_global * velocidade) if self.progresso_global < 1.0 else 1.0
+        # Relógio da unidade: o global, adiantado/atrasado pelo tipo (cidade × interior) e um ruído próprio
+        t = self.progresso_global * self.perfil.get("velocidade_tipo", VELOCIDADE_TIPO)[u["tipo"]] * (1.0 + _ruido(u["id"] + "v", 0.08))
+        curva = self.perfil["apuracao"].get(regiao, ("linear", 1.0))
+        p = progresso_por_curva(t, curva) if self.progresso_global < 1.0 else 1.0
         apuradas = int(round(u["secoes"] * p))
         eleit_apurados = int(u["eleitores"] * apuradas / u["secoes"])
 
@@ -183,13 +324,21 @@ class EstadoSimulacao:
         nulos = int(comparecimento * 0.035)
         nominais = comparecimento - brancos - nulos
 
-        pesos = [c["meta_pct"] for c in self.candidatos]
-        inclinacao = INCLINACAO_REGIAO[regiao] + (INCLINACAO_CIDADE if u["tipo"] == "cidade" else 0.0) + _ruido(u["id"], 0.05)
+        definidos = self.perfil.get("percentuais_regiao", {}).get(regiao)
+        if definidos:
+            # Percentuais configurados para a região; cidades e interior variam um pouco em torno deles
+            pesos = [definidos.get(c["n"], 0.0) for c in self.candidatos]
+            inclinacao = (self.perfil["inclinacao_cidade"] if u["tipo"] == "cidade" else 0.0) + _ruido(u["id"], 0.03)
+        else:
+            pesos = [c["meta_pct"] for c in self.candidatos]
+            inclinacao = (self.perfil["inclinacao_regiao"].get(regiao, 0.0)
+                          + (self.perfil["inclinacao_cidade"] if u["tipo"] == "cidade" else 0.0)
+                          + _ruido(u["id"], 0.05))
         if len(pesos) >= 2:
             pesos[0] = max(0.01, pesos[0] + inclinacao / 2)
             pesos[1] = max(0.01, pesos[1] - inclinacao / 2)
         for i in range(2, len(pesos)):
-            pesos[i] *= 1.0 + _ruido(u["id"] + str(i), 0.5)
+            pesos[i] *= 1.0 + _ruido(u["id"] + str(i), 0.2 if definidos else 0.5)
         soma = sum(pesos)
         votos = [int(nominais * w / soma) for w in pesos]
         votos[0] += nominais - sum(votos)
@@ -245,6 +394,60 @@ class EstadoSimulacao:
             "cand": cand,
         }
 
+    def percentuais_finais(self, regiao: str) -> Dict[str, float]:
+        """% de cada candidato nos votos nominais da região ao fim da apuração."""
+        original = self.progresso_global
+        self.progresso_global = 1.0
+        try:
+            t = self.somar([self.apurar_unidade(uf, u) for uf, r in REGIAO.items() if r == regiao
+                            for u in self.unidades_da_uf(uf)])
+        finally:
+            self.progresso_global = original
+        soma = sum(t["votos"]) or 1
+        return {c["n"]: round(v / soma * 100, 1) for c, v in zip(self.candidatos, t["votos"])}
+
+    def lote_completo(self) -> Dict[str, Dict[str, Any]]:
+        """Todos os arquivos (UFs e cidades) no instante atual, com as chaves usadas pelo coletor."""
+        lote: Dict[str, Dict[str, Any]] = {}
+        for uf in REGIAO:
+            partes = []
+            for u in self.unidades_da_uf(uf):
+                apurado = self.apurar_unidade(uf, u)
+                partes.append(apurado)
+                if u["tipo"] == "cidade":
+                    lote[f"MUN_{u['id']}"] = self.gerar_payload(apurado)
+            lote[f"UF_{uf}"] = self.gerar_payload(self.somar(partes))
+        return lote
+
+    def previa(self, marcos=(0.25, 0.5, 0.75)) -> Dict[str, Any]:
+        """Resultado final esperado e quanto cada região terá apurado em alguns instantes."""
+        original = self.progresso_global
+        try:
+            self.progresso_global = 1.0
+            finais = {reg: self.somar([self.apurar_unidade(uf, u) for uf, r in REGIAO.items() if r == reg
+                                       for u in self.unidades_da_uf(uf)]) for reg in sorted(set(REGIAO.values()))}
+            total = self.somar(list(finais.values()))
+            validos = [i for i, c in enumerate(self.candidatos) if c["dvt"] == "Válido"]
+
+            def partes(t):
+                soma = sum(t["votos"][i] for i in validos) or 1
+                return {self.candidatos[i]["n"]: round(t["votos"][i] / soma * 100, 2) for i in validos}
+
+            ritmo = {}
+            for m in marcos:
+                self.progresso_global = m
+                por_reg = {}
+                for reg in finais:
+                    unidades = [self.apurar_unidade(uf, u) for uf, r in REGIAO.items() if r == reg for u in self.unidades_da_uf(uf)]
+                    soma = self.somar(unidades)
+                    por_reg[reg] = round(soma["apuradas"] / max(1, soma["secoes"]) * 100, 1)
+                tudo = self.somar([self.apurar_unidade(uf, u) for uf in REGIAO for u in self.unidades_da_uf(uf)])
+                ritmo[str(m)] = {"nacional": round(tudo["apuradas"] / max(1, tudo["secoes"]) * 100, 1),
+                                 "regioes": por_reg, "parcial": partes(tudo)}
+            return {"final": partes(total), "final_regioes": {r: partes(t) for r, t in finais.items()}, "ritmo": ritmo}
+        finally:
+            self.progresso_global = original
+
     def resumo(self) -> Dict[str, Any]:
         return {
             "progresso": round(self.progresso_global * 100.0, 2),
@@ -290,7 +493,7 @@ def _painel_html(estado: EstadoSimulacao) -> str:
 <body>
   <div class="cartao">
     <h1>Simulador de apuração</h1>
-    <p class="sub">{e(DESCRICAO_CENARIOS[estado.cenario])} · ritmo {e(ritmo)} · {'pausado' if estado.pausado else 'em andamento'}</p>
+    <p class="sub">{e(DESCRICAO_CENARIOS[estado.cenario])}{' (personalizado)' if estado.personalizado else ''} · ritmo {e(ritmo)} · {'pausado' if estado.pausado else 'em andamento'}</p>
     <div class="pct" id="pct">{p_pct:.1f}%</div>
     <div class="barra"><span style="width:{p_pct:.1f}%"></span></div>
     <div class="botoes">

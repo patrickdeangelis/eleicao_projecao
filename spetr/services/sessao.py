@@ -17,6 +17,9 @@ from spetr.simulador import (
     CENARIOS,
     DESCRICAO_CENARIOS,
     ELEICAO_SIMULADA,
+    TURNO_CENARIO,
+    NOMES_REGIAO,
+    descrever_perfis,
     VELOCIDADES,
     EstadoSimulacao,
     SimuladorLocal,
@@ -78,6 +81,8 @@ class SessaoSPETR:
             "opcoes": {
                 "padroes_reais": self.padroes_reais,
                 "cenarios": DESCRICAO_CENARIOS,
+                "perfis": descrever_perfis(),
+                "regioes": NOMES_REGIAO,
                 "velocidades": {k: f"+{p * 100:.0f}% a cada {s:.0f}s" for k, (s, p) in VELOCIDADES.items()},
                 "jws": list(CHAVES_TSE),
             },
@@ -146,20 +151,27 @@ class SessaoSPETR:
         if not 0.0 <= inicio <= 100.0:
             raise ErroSessao("Percentual inicial deve estar entre 0 e 100")
 
-        self.simulador = SimuladorLocal(EstadoSimulacao(cenario, velocidade, inicio / 100.0))
+        ajustes = opcoes.get("ajustes") or None
+        try:
+            estado = EstadoSimulacao(cenario, velocidade, inicio / 100.0, ajustes=ajustes)
+        except ValueError as e:
+            raise ErroSessao(str(e))
+        self.simulador = SimuladorLocal(estado)
         url = await self.simulador.iniciar()
         # Servidor local: sem risco de bloqueio, então a coleta pode ser bem mais rápida
         cliente = TSEHttpClient(pacing=PacingManager(max_concurrent=32, max_rate_per_sec=400.0))
         self.coordinator = PipelineCoordinator(
             event_bus=self.bus, db_path=self.db_path, num_simulacoes=self.num_simulacoes,
             tse_base_url=url, ano_eleicao=ANO_SIMULADO, codigo_eleicao=ELEICAO_SIMULADA,
-            codigo_cargo="1", turno=2 if cenario == "2t" else 1, formato="r", ambiente="oficial",
+            codigo_cargo="1", turno=TURNO_CENARIO[cenario], formato="r", ambiente="oficial",
             http_client=cliente, intervalo_tier1=4.0, intervalo_tier2=4.0,
-            rotulo_eleicao=f"simulado/{cenario}",
+            rotulo_eleicao=f"simulado/{cenario}{'-personalizado' if ajustes else ''}",
         )
         self.info = {
-            "mock": True, "simulado": True, "cenario": cenario, "descricao": DESCRICAO_CENARIOS[cenario],
-            "velocidade": velocidade, "turno": 2 if cenario == "2t" else 1, "cargo": "1",
+            "mock": True, "simulado": True, "cenario": cenario,
+            "descricao": DESCRICAO_CENARIOS[cenario] + (" (personalizado)" if ajustes else ""),
+            "personalizado": bool(ajustes),
+            "velocidade": velocidade, "turno": TURNO_CENARIO[cenario], "cargo": "1",
             "fonte": url, "simulacoes": self.num_simulacoes,
         }
 

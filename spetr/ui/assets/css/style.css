@@ -320,3 +320,23 @@ a.botao { text-decoration: none; display: inline-block; }
 a.botao { text-decoration: none; display: inline-block; }
 .erro { color: var(--critico); font-size: 0.86rem; }
 
+
+/* configuração da simulação */
+.config-sim summary { margin-top: 0.2rem; }
+.config-sim .nota { margin: 0.4rem 0 0.5rem; line-height: 1.45; }
+.config-rolagem { overflow-x: auto; border: 1px solid var(--borda); border-radius: 8px; }
+.tabela.config th, .tabela.config td { padding: 0.25rem 0.35rem; }
+.tabela.config input[type="number"] {
+  width: 4.4rem; font: inherit; font-size: 0.8rem; color: var(--texto); background: var(--pagina);
+  border: 1px solid var(--borda); border-radius: 5px; padding: 0.2rem 0.3rem; text-align: right;
+}
+.tabela.config td.soma { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tabela.config td.soma.erro { color: var(--critico); font-weight: 700; }
+.tabela.config .botao-mini { margin-left: 0.3rem; }
+.tabela.config th.vel, .tabela.config td.vel { border-left: 1px solid var(--grade); }
+.config-check { display: flex; align-items: center; gap: 0.45rem; font-size: 0.82rem; color: var(--texto-2); margin: 0.6rem 0 0.4rem; }
+.previa { background: var(--pagina); border: 1px solid var(--borda); border-radius: 8px; padding: 0.6rem 0.75rem; font-size: 0.8rem; color: var(--texto-2); }
+.previa strong { color: var(--texto); }
+.previa ul { margin: 0.35rem 0 0; padding-left: 1.1rem; }
+.previa li { margin: 0.15rem 0; }
+.previa .erro { color: var(--critico); }
