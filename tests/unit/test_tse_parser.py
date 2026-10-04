@@ -86,13 +86,23 @@ def test_parse_tse_ea20_unificado():
     assert parsed["pst"] == 100.0
     assert parsed["eleitores"] == 163079139
     assert parsed["comparecimento"] == 138863131
-    assert parsed["votos_validos"] == 120704576
+    # Base oficial = válidos nominais ('vv'), sem os votos anulados ('vvc' = 120.704.576)
+    assert parsed["votos_validos"] == 100982116
     assert parsed["votos_brancos"] == 9118018
     assert parsed["votos_nulos"] == 9040537
     # Candidatos extraídos da árvore carg -> agr -> par -> cand
-    assert len(parsed["candidatos_votos"]) >= 10
-    assert "57" in parsed["candidatos_votos"]
-    assert parsed["candidatos_votos"]["57"] == 10503573
+    assert len(parsed["candidatos_votos"]) == 11
+    # 57 ('Anulado sub judice') e 60 ('Anulado') ficam fora dos válidos
+    assert "57" not in parsed["candidatos_votos"]
+    assert "60" not in parsed["candidatos_votos"]
+    assert parsed["candidatos_anulados"] == {"57": 10503573, "60": 9075260}
+    assert sum(parsed["candidatos_votos"].values()) == parsed["votos_validos"]
     assert parsed["candidatos_meta"]["57"]["nome"] == "CANDIDATO 9999"
     assert parsed["candidatos_meta"]["57"]["status"] == "2º turno"
+    assert parsed["candidatos_meta"]["57"]["voto_valido"] is False
+
+
+def test_parse_float_br_ponto_decimal():
+    assert parse_float_br("50.12") == 50.12
+    assert parse_float_br("100") == 100.0
 

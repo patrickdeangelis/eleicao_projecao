@@ -1,30 +1,196 @@
 {
-  "AC": {"nome": "Acre", "capital_cod": "01120", "capital_nome": "Rio Branco", "eleitores": 588433, "secoes": 2132},
-  "AL": {"nome": "Alagoas", "capital_cod": "27855", "capital_nome": "Maceió", "eleitores": 2325656, "secoes": 7329},
-  "AM": {"nome": "Amazonas", "capital_cod": "02550", "capital_nome": "Manaus", "eleitores": 2647748, "secoes": 8780},
-  "AP": {"nome": "Amapá", "capital_cod": "06050", "capital_nome": "Macapá", "eleitores": 550696, "secoes": 1948},
-  "BA": {"nome": "Bahia", "capital_cod": "38490", "capital_nome": "Salvador", "eleitores": 11291528, "secoes": 37279},
-  "CE": {"nome": "Ceará", "capital_cod": "13897", "capital_nome": "Fortaleza", "eleitores": 6820673, "secoes": 22807},
-  "DF": {"nome": "Distrito Federal", "capital_cod": "97012", "capital_nome": "Brasília", "eleitores": 2209707, "secoes": 6748},
-  "ES": {"nome": "Espírito Santo", "capital_cod": "57053", "capital_nome": "Vitória", "eleitores": 2928096, "secoes": 9694},
-  "GO": {"nome": "Goiás", "capital_cod": "92738", "capital_nome": "Goiânia", "eleitores": 4870354, "secoes": 15998},
-  "MA": {"nome": "Maranhão", "capital_cod": "09210", "capital_nome": "São Luís", "eleitores": 5042999, "secoes": 17871},
-  "MG": {"nome": "Minas Gerais", "capital_cod": "41238", "capital_nome": "Belo Horizonte", "eleitores": 16290870, "secoes": 50920},
-  "MS": {"nome": "Mato Grosso do Sul", "capital_cod": "90514", "capital_nome": "Campo Grande", "eleitores": 1996510, "secoes": 6891},
-  "MT": {"nome": "Mato Grosso", "capital_cod": "90123", "capital_nome": "Cuiabá", "eleitores": 2469414, "secoes": 8362},
-  "PA": {"nome": "Pará", "capital_cod": "04278", "capital_nome": "Belém", "eleitores": 6082956, "secoes": 20499},
-  "PB": {"nome": "Paraíba", "capital_cod": "20516", "capital_nome": "João Pessoa", "eleitores": 3056480, "secoes": 10338},
-  "PE": {"nome": "Pernambuco", "capital_cod": "24570", "capital_nome": "Recife", "eleitores": 7018098, "secoes": 23108},
-  "PI": {"nome": "Piauí", "capital_cod": "12190", "capital_nome": "Teresina", "eleitores": 2573810, "secoes": 9260},
-  "PR": {"nome": "Paraná", "capital_cod": "75353", "capital_nome": "Curitiba", "eleitores": 8475632, "secoes": 27289},
-  "RJ": {"nome": "Rio de Janeiro", "capital_cod": "60011", "capital_nome": "Rio de Janeiro", "eleitores": 12827296, "secoes": 37233},
-  "RN": {"nome": "Rio Grande do Norte", "capital_cod": "17612", "capital_nome": "Natal", "eleitores": 2554727, "secoes": 8779},
-  "RO": {"nome": "Rondônia", "capital_cod": "00035", "capital_nome": "Porto Velho", "eleitores": 1230987, "secoes": 4353},
-  "RR": {"nome": "Roraima", "capital_cod": "03018", "capital_nome": "Boa Vista", "eleitores": 366240, "secoes": 1279},
-  "RS": {"nome": "Rio Grande do Sul", "capital_cod": "85995", "capital_nome": "Porto Alegre", "eleitores": 8593469, "secoes": 28659},
-  "SC": {"nome": "Santa Catarina", "capital_cod": "81051", "capital_nome": "Florianópolis", "eleitores": 5489658, "secoes": 17870},
-  "SE": {"nome": "Sergipe", "capital_cod": "31054", "capital_nome": "Aracaju", "eleitores": 1671801, "secoes": 5609},
-  "SP": {"nome": "São Paulo", "capital_cod": "71072", "capital_nome": "São Paulo", "eleitores": 34667793, "secoes": 101626},
-  "TO": {"nome": "Tocantins", "capital_cod": "73431", "capital_nome": "Palmas", "eleitores": 1094003, "secoes": 4181},
-  "ZZ": {"nome": "Exterior", "capital_cod": "29998", "capital_nome": "Exterior", "eleitores": 697078, "secoes": 1018}
+ "AC": {
+  "nome": "Acre",
+  "eleitores": 613742,
+  "secoes": 2270,
+  "capital_cod": "01392",
+  "capital_nome": "RIO BRANCO"
+ },
+ "AL": {
+  "nome": "Alagoas",
+  "eleitores": 2442126,
+  "secoes": 7101,
+  "capital_cod": "27855",
+  "capital_nome": "MACEIÓ"
+ },
+ "AM": {
+  "nome": "Amazonas",
+  "eleitores": 2798611,
+  "secoes": 8157,
+  "capital_cod": "02550",
+  "capital_nome": "MANAUS"
+ },
+ "AP": {
+  "nome": "Amapá",
+  "eleitores": 576988,
+  "secoes": 1914,
+  "capital_cod": "06050",
+  "capital_nome": "MACAPÁ"
+ },
+ "BA": {
+  "nome": "Bahia",
+  "eleitores": 11312752,
+  "secoes": 35476,
+  "capital_cod": "38490",
+  "capital_nome": "SALVADOR"
+ },
+ "CE": {
+  "nome": "Ceará",
+  "eleitores": 6996545,
+  "secoes": 23765,
+  "capital_cod": "13897",
+  "capital_nome": "FORTALEZA"
+ },
+ "DF": {
+  "nome": "Distrito Federal",
+  "eleitores": 2258320,
+  "secoes": 6969,
+  "capital_cod": "97012",
+  "capital_nome": "BRASÍLIA"
+ },
+ "ES": {
+  "nome": "Espírito Santo",
+  "eleitores": 2991650,
+  "secoes": 9844,
+  "capital_cod": "57053",
+  "capital_nome": "VITÓRIA"
+ },
+ "GO": {
+  "nome": "Goiás",
+  "eleitores": 5080590,
+  "secoes": 15686,
+  "capital_cod": "93734",
+  "capital_nome": "GOIÂNIA"
+ },
+ "MA": {
+  "nome": "Maranhão",
+  "eleitores": 5183115,
+  "secoes": 18093,
+  "capital_cod": "09210",
+  "capital_nome": "SÃO LUÍS"
+ },
+ "MG": {
+  "nome": "Minas Gerais",
+  "eleitores": 16372372,
+  "secoes": 52062,
+  "capital_cod": "41238",
+  "capital_nome": "BELO HORIZONTE"
+ },
+ "MS": {
+  "nome": "Mato Grosso do Sul",
+  "eleitores": 2024430,
+  "secoes": 7106,
+  "capital_cod": "90514",
+  "capital_nome": "CAMPO GRANDE"
+ },
+ "MT": {
+  "nome": "Mato Grosso",
+  "eleitores": 2637801,
+  "secoes": 8287,
+  "capital_cod": "90670",
+  "capital_nome": "CUIABÁ"
+ },
+ "PA": {
+  "nome": "Pará",
+  "eleitores": 6262397,
+  "secoes": 20827,
+  "capital_cod": "04278",
+  "capital_nome": "BELÉM"
+ },
+ "PB": {
+  "nome": "Paraíba",
+  "eleitores": 3248531,
+  "secoes": 10712,
+  "capital_cod": "20516",
+  "capital_nome": "JOÃO PESSOA"
+ },
+ "PE": {
+  "nome": "Pernambuco",
+  "eleitores": 7223450,
+  "secoes": 21418,
+  "capital_cod": "25313",
+  "capital_nome": "RECIFE"
+ },
+ "PI": {
+  "nome": "Piauí",
+  "eleitores": 2704758,
+  "secoes": 10225,
+  "capital_cod": "12190",
+  "capital_nome": "TERESINA"
+ },
+ "PR": {
+  "nome": "Paraná",
+  "eleitores": 8613657,
+  "secoes": 27142,
+  "capital_cod": "75353",
+  "capital_nome": "CURITIBA"
+ },
+ "RJ": {
+  "nome": "Rio de Janeiro",
+  "eleitores": 12857648,
+  "secoes": 37675,
+  "capital_cod": "60011",
+  "capital_nome": "RIO DE JANEIRO"
+ },
+ "RN": {
+  "nome": "Rio Grande do Norte",
+  "eleitores": 2659825,
+  "secoes": 8115,
+  "capital_cod": "17612",
+  "capital_nome": "NATAL"
+ },
+ "RO": {
+  "nome": "Rondônia",
+  "eleitores": 1265893,
+  "secoes": 4698,
+  "capital_cod": "00035",
+  "capital_nome": "PORTO VELHO"
+ },
+ "RR": {
+  "nome": "Roraima",
+  "eleitores": 401521,
+  "secoes": 1519,
+  "capital_cod": "03018",
+  "capital_nome": "BOA VISTA"
+ },
+ "RS": {
+  "nome": "Rio Grande do Sul",
+  "eleitores": 8522545,
+  "secoes": 27547,
+  "capital_cod": "88013",
+  "capital_nome": "PORTO ALEGRE"
+ },
+ "SC": {
+  "nome": "Santa Catarina",
+  "eleitores": 5734651,
+  "secoes": 17326,
+  "capital_cod": "81051",
+  "capital_nome": "FLORIANÓPOLIS"
+ },
+ "SE": {
+  "nome": "Sergipe",
+  "eleitores": 1740135,
+  "secoes": 5923,
+  "capital_cod": "31054",
+  "capital_nome": "ARACAJU"
+ },
+ "SP": {
+  "nome": "São Paulo",
+  "eleitores": 34122892,
+  "secoes": 103656,
+  "capital_cod": "71072",
+  "capital_nome": "SÃO PAULO"
+ },
+ "TO": {
+  "nome": "Tocantins",
+  "eleitores": 1182023,
+  "secoes": 4384,
+  "capital_cod": "73440",
+  "capital_nome": "PALMAS"
+ },
+ "ZZ": {
+  "nome": "Exterior",
+  "eleitores": 916534,
+  "secoes": 1351
+ }
 }

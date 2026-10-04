@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS snapshots_apuracao (
     votos_brancos INTEGER NOT NULL,
     votos_nulos INTEGER NOT NULL,
     votos_candidatos_json TEXT NOT NULL,
+    eleicao TEXT NOT NULL DEFAULT '',
+    execucao_id TEXT NOT NULL DEFAULT '',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -34,6 +36,11 @@ CREATE TABLE IF NOT EXISTS projecoes_historico (
     lider_margem REAL NOT NULL,
     tempo_computacao_ms REAL NOT NULL,
     candidatos_json TEXT NOT NULL,
+    eleicao TEXT NOT NULL DEFAULT '',
+    execucao_id TEXT NOT NULL DEFAULT '',
+    prob_segundo_turno REAL NOT NULL DEFAULT 0,
+    ufs_sem_dados_json TEXT NOT NULL DEFAULT '[]',
+    analise_json TEXT NOT NULL DEFAULT '{}',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -42,3 +49,5 @@ ON projecoes_historico (ciclo_id);
 
 CREATE INDEX IF NOT EXISTS idx_projecoes_ts 
 ON projecoes_historico (timestamp);
+
+-- Índices sobre colunas adicionadas por migração ficam em database.py (MIGRACOES)

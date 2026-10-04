@@ -17,6 +17,18 @@ def calcular_parametros_posteriores(
     return prior_alphas + votos_observados
 
 
+def limitar_concentracao(alphas: np.ndarray, concentracao_max: float) -> np.ndarray:
+    """
+    Reescala cada linha para que sum_k alpha_{h,k} <= concentracao_max, preservando a média.
+    Modela sobredispersão: as urnas restantes não são amostra aleatória das já apuradas.
+    """
+    if concentracao_max is None or concentracao_max <= 0:
+        return alphas
+    soma = alphas.sum(axis=1, keepdims=True)
+    fator = np.minimum(1.0, concentracao_max / np.where(soma == 0, 1.0, soma))
+    return np.maximum(alphas * fator, 1e-3)
+
+
 def amostrar_proporcoes_monte_carlo(
     alphas_post: np.ndarray,        # shape: (H, K)
     num_simulacoes: int = 10000,

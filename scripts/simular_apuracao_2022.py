@@ -120,8 +120,15 @@ async def rodar_simulacao():
     coordinator = PipelineCoordinator(
         event_bus=bus,
         db_path="spetr_simulacao.sqlite",
-        num_simulacoes=5000
+        num_simulacoes=5000,
+        ano_eleicao="2022",
+        codigo_eleicao="545",
+        turno=2,
+        formato="r",
     )
+    # A simulação só gera PB e SP: restringe o universo a essas UFs para que as demais
+    # não entrem na projeção como "sem dados" (projetadas pelo prior).
+    coordinator.engine.inicializar_ufs({}, prior_padrao=coordinator.engine.prior_padrao)
     api_app = create_api_app(event_bus=bus, repository=coordinator.repo)
 
     # Inicia servidor web local em background

@@ -13,12 +13,15 @@ O **SPETR** é uma solução completa e de grau profissional para projeção e a
 Diferente de placares tradicionais que apenas exibem a soma das urnas que já chegaram, o SPETR utiliza **Pós-Estratificação em 4 Níveis**, **Inferência Bayesiana Sequencial (Dirichlet-Multinomial)** e **10.000 simulações de Monte Carlo por ciclo** para projetar com precisão matemática o resultado final antes que a apuração atinja a totalização.
 
 ### Destaques e Diferenciais
-- **Estratificação por Cidades > 100k + Subtração Vetorial:** Isola as ~154 maiores cidades do país e calcula o "Interior Remanescente" por álgebra vetorial ($\text{Interior} = \text{Total}_{\text{UF}} - \sum \text{Cidades}_{>100\text{k}}$). Isso elimina distorções intrarregionais (como o caso paraibano: João Pessoa ~54% x Campina Grande ~48.5% x Sertão ~75%).
+- **Estratificação por Cidades > 100k + Subtração Vetorial:** Isola os 221 municípios com ≥ 100 mil eleitores e as capitais (gerados do eleitorado oficial de 2026 por `scripts/gerar_metadados_eleitorado.py`) e calcula o "Interior Remanescente" por álgebra vetorial ($\text{Interior} = \text{Total}_{\text{UF}} - \sum \text{Cidades}_{>100\text{k}}$). Isso elimina distorções intrarregionais (como o caso paraibano: João Pessoa ~54% x Campina Grande ~48.5% x Sertão ~75%).
 - **Proteção Total contra WAF do TSE:** Limite contínuo de 9 a 12 requisições por segundo com semáforo de concorrência (`asyncio.Semaphore(15)`) e cache condicional (`HTTP 304 / If-Modified-Since`), reduzindo o consumo de banda em mais de 85% e blindando o IP contra banimentos.
-- **Performance Sub-Milissegundo:** Motor estatístico vetorizado em C via NumPy que executa 10.000 eleições completas em **~128 ms** (< 1% de uso de CPU).
+- **Motor Vetorizado:** Motor estatístico em NumPy que executa 10.000 eleições completas em **~0,2 s com 2 candidatos e ~0,8 s com 13 candidatos**, em thread separada para não travar a API/SSE.
+- **Incerteza Realista:** além da posterior Dirichlet (com concentração limitada), o modelo aplica choques correlacionados por UF e nacionais e incerteza de comparecimento sobre os votos restantes — um empate técnico com 10% apurado não é anunciado.
+- **Regra de Maioria Absoluta:** "vitória" significa > 50% dos votos válidos. No 1º turno o painel projeta *Segundo Turno* quando ninguém deve alcançar a maioria.
 - **Arquitetura Desacoplada (Clean Architecture + Hexagonal):** O motor de cálculo não depende de banco ou rede; a comunicação é orquestrada por um barramento de eventos em memória (`EventBus`).
 - **Persistência WAL & Time-Travel:** Banco de dados SQLite nativo configurado em modo WAL (*Write-Ahead Logging*), permitindo auditar qualquer ciclo passado sem travar o coletor.
-- **Interface Desktop de Transmissão:** Dashboard estilo *Decision Desk* com animações a 60 FPS, Server-Sent Events (SSE), faixas visuais de incerteza (IC 95%), e *call decisions* automáticas (*Vitória Projetada* e *Matematicamente Eleito*).
+- **Painel completo de apuração:** resultado real de todos os candidatos, curvas por atualização (apurado, projeção com IC 95%, probabilidades, ritmo), distribuições simuladas, "o que falta apurar", mapa das UFs, regiões, a heurística de estratos (capitais × cidades × interior) e tabela por UF — tudo em SVG local, sem CDN, nos temas claro e escuro. `?estatico=1` desenha sem stream (impressão) e `?tema=claro|escuro` força o tema.
+- **Interface Desktop de Transmissão:** Dashboard estilo *Decision Desk* com animações a 60 FPS, Server-Sent Events (SSE), faixas visuais de incerteza (IC 95%), e *call decisions* automáticas (*Vitória Projetada*, *Segundo Turno Projetado* e *Matematicamente Eleito*). Chamadas estatísticas exigem ≥ 10% das seções e todas as UFs com dados.
 
 ---
 
@@ -41,28 +44,54 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. Executando o Dashboard Desktop
+### 3. Executando
 ```bash
-# Modo com janela nativa desktop (PyWebView):
-python3 main.py
-
-# Ou modo servidor local (caso esteja em servidor sem display gráfico):
-python3 main.py --headless --porta 48291
+python3 main.py                       # janela desktop, abre a tela inicial
+python3 main.py --headless            # sem janela: acesse http://127.0.0.1:48291
 ```
-Abra o navegador em `http://127.0.0.1:48291`.
 
-### 4. Modo Debug com Servidor Mock do TSE (Candidatos Fictícios e Controle ao Vivo)
-Você pode subir um emulador local que simula a CDN oficial do TSE com candidatos e números fictícios:
+A **tela inicial** pergunta como acompanhar a apuração:
+
+1. **Coleta real** (padrão): baixa os arquivos oficiais do TSE. Ano, turno e código da eleição vêm pré-preenchidos (o código é descoberto pelo `ele-c.json` do TSE); as opções avançadas permitem trocar a URL da CDN, o ambiente e ativar a verificação JWS.
+2. **Simular resultados**: sobe um servidor local que imita a CDN do TSE (candidatos fictícios sobre o eleitorado real de 2026), com cenário de 1º ou 2º turno, velocidade e % inicial. O painel ganha o botão **Controlar simulação** (pausar, avançar, pular para 50%/95%).
+
+No painel, **Trocar modo** volta à tela inicial sem reiniciar o app (por exemplo: simular agora e passar para a coleta real quando a apuração começar). Para pular a tela inicial:
+
 ```bash
-# Terminal 1: Inicie o servidor mock da CDN do TSE
-python3 scripts/mock_tse_server.py
+python3 main.py --modo real                          # coleta real direto
+python3 main.py --modo real --eleicao 6257 --verificar-jws oficial
+python3 main.py --modo simulado --cenario 1t --velocidade rapida
+python3 main.py --modo real --ano 2022 --eleicao 545 --turno 2 --formato r   # eleição antiga (Dados Simplificados)
 ```
-* Abra `http://127.0.0.1:8080/` para acessar o **Painel de Controle** da apuração (pausar, avançar +5%, resetar, pular para 50%, etc.).
 
-Em seguida, em outro terminal, inicie o SPETR conectado ao mock:
+Antes do primeiro voto apurado o painel mostra "Aguardando o início da apuração" (os arquivos do TSE já existem, zerados) e nada é projetado.
+
+| Opção | Padrão | Descrição |
+|---|---|---|
+| `--modo` | tela inicial | `real` ou `simulado`: inicia direto, sem a tela inicial |
+| `--cenario` / `--velocidade` | `1t` / `normal` | Opções do modo simulado |
+| `--ano` | `2026` | Ciclo eleitoral (`ele{ano}`) |
+| `--eleicao` | descoberta automática | Código da eleição no TSE; obrigatório no formato `r` |
+| `--cargo` | `1` | Código do cargo (1 = Presidente) |
+| `--turno` | `1` | Turno usado na descoberta automática |
+| `--formato` | `u` (2024+) / `r` | `u` = Resultado Unificado EA20 (`/dados/…-u.json`); `r` = Dados Simplificados (`/dados-simplificados/…-r.json`) |
+| `--ambiente` | `oficial` | Pasta de ambiente na CDN |
+| `--verificar-jws` | desativado | Baixa os pares `.jws` e valida a assinatura Ed25519 com a chave `oficial` ou `desenvolvimento` do manual do TSE |
+| `--db` | `spetr_eleicoes.sqlite` | Banco de histórico (cada pleito e execução ficam identificados) |
+
+### 4. Simulador isolado (opcional)
+O mesmo simulador da tela inicial pode rodar como processo separado, para testar o coletor de rede contra outro servidor:
 ```bash
-# Terminal 2: Conecte o SPETR ao servidor mock
-python3 main.py --mock
+python3 scripts/mock_tse_server.py --cenario 1t --velocidade normal   # terminal 1 (painel em http://127.0.0.1:8080/)
+python3 main.py --mock                                                 # terminal 2: coleta "real" apontando para :8080
+```
+
+### Atualizando os metadados de estratificação
+Os arquivos `spetr/data/ufs_metadados.json`, `cidades_100k.json` e `municipios_meta.json` são gerados a partir do eleitorado oficial do TSE:
+```bash
+curl -LO https://cdn.tse.jus.br/estatistica/sead/odsele/eleitorado_locais_votacao/eleitorado_local_votacao_2026.zip
+unzip eleitorado_local_votacao_2026.zip -d eleitorado
+python3 scripts/gerar_metadados_eleitorado.py eleitorado --config-mun docs/tse_oficial/mun-e021270-cm.json
 ```
 
 ### 5. Executando o Replay Histórico de 2022
@@ -86,21 +115,29 @@ Cobertura dos testes:
 - `test_vector_subtraction.py`: Prova matemática da decomposição do interior (caso Paraíba).
 - `test_bayesian_dirichlet.py`: Atualização de parâmetros $\boldsymbol{\alpha}_{\text{post}}$ e amostragem estocástica.
 - `test_monte_carlo.py`: Performance de 10.000 iterações em < 200 ms e regras de Call Decision.
-- `test_tse_parser.py`: Robustez na conversão de números brasileiros com vírgulas e pontos.
+- `test_tse_parser.py`: Conversão de números brasileiros e exclusão de votos anulados (`dvt`) usando o JSON oficial do simulado 2026.
+- `test_correcoes_auditoria.py`: URLs 2026 e descoberta via `ele-c.json`, regra de maioria absoluta, calibração da incerteza, UFs sem dados, consistência do Interior, pacing nas retentativas, JWS, histórico por execução e migração do banco.
 - `test_full_pipeline_replay.py`: Teste de integração assíncrona ponta a ponta pelo `EventBus`.
 
 ---
 
-## 📦 Gerando o Executável Standalone (Zero Dependências)
+## 📦 Gerando o Executável Standalone
 
-Para empacotar a aplicação em um executável único (`.exe`, `.AppImage` ou `.dmg`):
+O `spetr.spec` (PyInstaller) gera um executável único com Python, bibliotecas, painel, simulador e metadados embutidos. Quem recebe o arquivo não precisa instalar nada: basta abrir.
 
 ```bash
-uv pip install pyinstaller
-pyinstaller spetr.spec --clean
+uv pip install pyinstaller                                   # dentro do .venv do projeto
+.venv/bin/python -m PyInstaller spetr.spec --clean --noconfirm   # ~1 min; resultado em dist/spetr (≈ 67 MB no Linux)
+./dist/spetr                                                 # tela inicial; ou ./dist/spetr --modo real
 ```
 
-O binário final auto-contido será gerado na pasta `dist/spetr`.
+> **Use sempre o Python do `.venv`** (`.venv/bin/python -m PyInstaller`), não o comando `pyinstaller` solto: ele pode ser o do Python do sistema. No Fedora, o NumPy do sistema usa FlexiBLAS e o executável aborta ao abrir com `flexiblas Failed to load the BLAS fallback library`. O `spetr.spec` detecta esse caso e interrompe o build com a instrução correta.
+
+- **Um build por sistema:** o PyInstaller não faz compilação cruzada. Gere o `.exe` no Windows, o binário de macOS no macOS e o de Linux no Linux, a partir do mesmo `spetr.spec`.
+- **Janela:** Linux usa GTK/WebKitGTK do sistema (o spec embute só o tema Adwaita e o idioma pt_BR); Windows usa o WebView2 (Edge), já presente no Windows 10/11; macOS usa o WebKit nativo. Sem janela disponível, o app abre o navegador padrão.
+- **Banco de histórico:** no executável fica na pasta de dados do usuário (`~/.local/share/spetr`, `%APPDATA%\SPETR` ou `~/Library/Application Support/SPETR`); use `--db` para outro local.
+- **Console:** `console=True` no spec mantém o terminal com os logs da coleta. Para esconder no Windows, troque para `console=False`.
+- **Tamanho:** o spec exclui pacotes que entram por acidente (testes, Qt, temas de ícones do sistema). Se o build crescer muito, confira `build/spetr/warn-spetr.txt` e a lista `excludes`.
 
 ---
 

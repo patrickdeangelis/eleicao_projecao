@@ -1,0 +1,1107 @@
+{
+ "AC_01392": {
+  "nome": "RIO BRANCO",
+  "eleitores": 270174,
+  "secoes": 908
+ },
+ "AL_27855": {
+  "nome": "MACEIÓ",
+  "eleitores": 646463,
+  "secoes": 1661
+ },
+ "AL_27057": {
+  "nome": "ARAPIRACA",
+  "eleitores": 158990,
+  "secoes": 446
+ },
+ "AM_02550": {
+  "nome": "MANAUS",
+  "eleitores": 1477265,
+  "secoes": 4013
+ },
+ "AP_06050": {
+  "nome": "MACAPÁ",
+  "eleitores": 321597,
+  "secoes": 1027
+ },
+ "BA_38490": {
+  "nome": "SALVADOR",
+  "eleitores": 1955479,
+  "secoes": 5124
+ },
+ "BA_35157": {
+  "nome": "FEIRA DE SANTANA",
+  "eleitores": 435631,
+  "secoes": 1218
+ },
+ "BA_39659": {
+  "nome": "VITÓRIA DA CONQUISTA",
+  "eleitores": 265595,
+  "secoes": 766
+ },
+ "BA_34134": {
+  "nome": "CAMAÇARI",
+  "eleitores": 210762,
+  "secoes": 564
+ },
+ "BA_36692": {
+  "nome": "JUAZEIRO",
+  "eleitores": 165666,
+  "secoes": 495
+ },
+ "BA_36854": {
+  "nome": "LAURO DE FREITAS",
+  "eleitores": 163871,
+  "secoes": 413
+ },
+ "BA_35971": {
+  "nome": "ITABUNA",
+  "eleitores": 141524,
+  "secoes": 453
+ },
+ "BA_35734": {
+  "nome": "ILHÉUS",
+  "eleitores": 130310,
+  "secoes": 409
+ },
+ "BA_36617": {
+  "nome": "JEQUIÉ",
+  "eleitores": 119040,
+  "secoes": 359
+ },
+ "BA_38075": {
+  "nome": "PORTO SEGURO",
+  "eleitores": 116587,
+  "secoes": 323
+ },
+ "BA_33138": {
+  "nome": "ALAGOINHAS",
+  "eleitores": 114417,
+  "secoes": 366
+ },
+ "BA_33634": {
+  "nome": "BARREIRAS",
+  "eleitores": 109227,
+  "secoes": 325
+ },
+ "BA_39934": {
+  "nome": "TEIXEIRA DE FREITAS",
+  "eleitores": 105045,
+  "secoes": 303
+ },
+ "CE_13897": {
+  "nome": "FORTALEZA",
+  "eleitores": 1795713,
+  "secoes": 5335
+ },
+ "CE_13730": {
+  "nome": "CAUCAIA",
+  "eleitores": 249622,
+  "secoes": 783
+ },
+ "CE_14478": {
+  "nome": "JUAZEIRO DO NORTE",
+  "eleitores": 200346,
+  "secoes": 646
+ },
+ "CE_15857": {
+  "nome": "MARACANAÚ",
+  "eleitores": 179488,
+  "secoes": 559
+ },
+ "CE_15598": {
+  "nome": "SOBRAL",
+  "eleitores": 153073,
+  "secoes": 502
+ },
+ "CE_14290": {
+  "nome": "ITAPIPOCA",
+  "eleitores": 103228,
+  "secoes": 361
+ },
+ "DF_97012": {
+  "nome": "BRASÍLIA",
+  "eleitores": 2258320,
+  "secoes": 6969
+ },
+ "ES_56995": {
+  "nome": "SERRA",
+  "eleitores": 361737,
+  "secoes": 1093
+ },
+ "ES_57037": {
+  "nome": "VILA VELHA",
+  "eleitores": 347987,
+  "secoes": 1119
+ },
+ "ES_56251": {
+  "nome": "CARIACICA",
+  "eleitores": 274339,
+  "secoes": 842
+ },
+ "ES_57053": {
+  "nome": "VITÓRIA",
+  "eleitores": 267102,
+  "secoes": 799
+ },
+ "ES_56235": {
+  "nome": "CACHOEIRO DE ITAPEMIRIM",
+  "eleitores": 134177,
+  "secoes": 480
+ },
+ "ES_56634": {
+  "nome": "LINHARES",
+  "eleitores": 122598,
+  "secoes": 379
+ },
+ "ES_56472": {
+  "nome": "GUARAPARI",
+  "eleitores": 101964,
+  "secoes": 313
+ },
+ "GO_93734": {
+  "nome": "GOIÂNIA",
+  "eleitores": 1019261,
+  "secoes": 3043
+ },
+ "GO_92274": {
+  "nome": "APARECIDA DE GOIÂNIA",
+  "eleitores": 341263,
+  "secoes": 930
+ },
+ "GO_92215": {
+  "nome": "ANÁPOLIS",
+  "eleitores": 288292,
+  "secoes": 847
+ },
+ "GO_95710": {
+  "nome": "RIO VERDE",
+  "eleitores": 153307,
+  "secoes": 471
+ },
+ "GO_94455": {
+  "nome": "LUZIÂNIA",
+  "eleitores": 136763,
+  "secoes": 397
+ },
+ "GO_93343": {
+  "nome": "ÁGUAS LINDAS DE GOIÁS",
+  "eleitores": 125210,
+  "secoes": 322
+ },
+ "MA_09210": {
+  "nome": "SÃO LUÍS",
+  "eleitores": 761443,
+  "secoes": 2273
+ },
+ "MA_08036": {
+  "nome": "IMPERATRIZ",
+  "eleitores": 195325,
+  "secoes": 600
+ },
+ "MA_08893": {
+  "nome": "SÃO JOSÉ DE RIBAMAR",
+  "eleitores": 131324,
+  "secoes": 403
+ },
+ "MA_09377": {
+  "nome": "TIMON",
+  "eleitores": 124767,
+  "secoes": 402
+ },
+ "MA_07579": {
+  "nome": "CAXIAS",
+  "eleitores": 113420,
+  "secoes": 406
+ },
+ "MG_41238": {
+  "nome": "BELO HORIZONTE",
+  "eleitores": 1966966,
+  "secoes": 4927
+ },
+ "MG_54038": {
+  "nome": "UBERLÂNDIA",
+  "eleitores": 540033,
+  "secoes": 1703
+ },
+ "MG_43710": {
+  "nome": "CONTAGEM",
+  "eleitores": 463466,
+  "secoes": 1359
+ },
+ "MG_47333": {
+  "nome": "JUIZ DE FORA",
+  "eleitores": 395457,
+  "secoes": 1256
+ },
+ "MG_41335": {
+  "nome": "BETIM",
+  "eleitores": 301594,
+  "secoes": 1008
+ },
+ "MG_48658": {
+  "nome": "MONTES CLAROS",
+  "eleitores": 283875,
+  "secoes": 921
+ },
+ "MG_54011": {
+  "nome": "UBERABA",
+  "eleitores": 236838,
+  "secoes": 795
+ },
+ "MG_50911": {
+  "nome": "RIBEIRÃO DAS NEVES",
+  "eleitores": 218584,
+  "secoes": 662
+ },
+ "MG_45535": {
+  "nome": "GOVERNADOR VALADARES",
+  "eleitores": 193573,
+  "secoes": 661
+ },
+ "MG_46256": {
+  "nome": "IPATINGA",
+  "eleitores": 176630,
+  "secoes": 543
+ },
+ "MG_44458": {
+  "nome": "DIVINÓPOLIS",
+  "eleitores": 171705,
+  "secoes": 501
+ },
+ "MG_53430": {
+  "nome": "SETE LAGOAS",
+  "eleitores": 167416,
+  "secoes": 535
+ },
+ "MG_51551": {
+  "nome": "SANTA LUZIA",
+  "eleitores": 164668,
+  "secoes": 479
+ },
+ "MG_50350": {
+  "nome": "POÇOS DE CALDAS",
+  "eleitores": 122866,
+  "secoes": 401
+ },
+ "MG_45950": {
+  "nome": "IBIRITÉ",
+  "eleitores": 122338,
+  "secoes": 353
+ },
+ "MG_49590": {
+  "nome": "PATOS DE MINAS",
+  "eleitores": 116646,
+  "secoes": 372
+ },
+ "MG_50490": {
+  "nome": "POUSO ALEGRE",
+  "eleitores": 112425,
+  "secoes": 360
+ },
+ "MG_53716": {
+  "nome": "TEÓFILO OTONI",
+  "eleitores": 106567,
+  "secoes": 335
+ },
+ "MG_54135": {
+  "nome": "VARGINHA",
+  "eleitores": 104607,
+  "secoes": 305
+ },
+ "MS_90514": {
+  "nome": "CAMPO GRANDE",
+  "eleitores": 641185,
+  "secoes": 2189
+ },
+ "MS_90735": {
+  "nome": "DOURADOS",
+  "eleitores": 166869,
+  "secoes": 583
+ },
+ "MT_90670": {
+  "nome": "CUIABÁ",
+  "eleitores": 456517,
+  "secoes": 1338
+ },
+ "MT_91677": {
+  "nome": "VÁRZEA GRANDE",
+  "eleitores": 194985,
+  "secoes": 581
+ },
+ "MT_91510": {
+  "nome": "RONDONÓPOLIS",
+  "eleitores": 177622,
+  "secoes": 547
+ },
+ "MT_89850": {
+  "nome": "SINOP",
+  "eleitores": 127167,
+  "secoes": 346
+ },
+ "PA_04278": {
+  "nome": "BELÉM",
+  "eleitores": 1048781,
+  "secoes": 2989
+ },
+ "PA_04154": {
+  "nome": "ANANINDEUA",
+  "eleitores": 358249,
+  "secoes": 1058
+ },
+ "PA_05355": {
+  "nome": "SANTARÉM",
+  "eleitores": 253605,
+  "secoes": 872
+ },
+ "PA_05835": {
+  "nome": "PARAUAPEBAS",
+  "eleitores": 201342,
+  "secoes": 586
+ },
+ "PA_04839": {
+  "nome": "MARABÁ",
+  "eleitores": 179940,
+  "secoes": 583
+ },
+ "PA_04472": {
+  "nome": "CASTANHAL",
+  "eleitores": 143934,
+  "secoes": 455
+ },
+ "PA_04014": {
+  "nome": "ABAETETUBA",
+  "eleitores": 123890,
+  "secoes": 388
+ },
+ "PA_04413": {
+  "nome": "CAMETÁ",
+  "eleitores": 106190,
+  "secoes": 357
+ },
+ "PA_04251": {
+  "nome": "BARCARENA",
+  "eleitores": 102889,
+  "secoes": 322
+ },
+ "PB_20516": {
+  "nome": "JOÃO PESSOA",
+  "eleitores": 591750,
+  "secoes": 1714
+ },
+ "PB_19810": {
+  "nome": "CAMPINA GRANDE",
+  "eleitores": 305258,
+  "secoes": 957
+ },
+ "PB_21750": {
+  "nome": "SANTA RITA",
+  "eleitores": 103539,
+  "secoes": 332
+ },
+ "PE_25313": {
+  "nome": "RECIFE",
+  "eleitores": 1230407,
+  "secoes": 3481
+ },
+ "PE_24570": {
+  "nome": "JABOATÃO DOS GUARARAPES",
+  "eleitores": 498555,
+  "secoes": 1342
+ },
+ "PE_24910": {
+  "nome": "OLINDA",
+  "eleitores": 301943,
+  "secoes": 893
+ },
+ "PE_23817": {
+  "nome": "CARUARU",
+  "eleitores": 255270,
+  "secoes": 708
+ },
+ "PE_25216": {
+  "nome": "PETROLINA",
+  "eleitores": 249120,
+  "secoes": 730
+ },
+ "PE_25135": {
+  "nome": "PAULISTA",
+  "eleitores": 237186,
+  "secoes": 661
+ },
+ "PE_23574": {
+  "nome": "CABO DE SANTO AGOSTINHO",
+  "eleitores": 172140,
+  "secoes": 496
+ },
+ "PE_26298": {
+  "nome": "CAMARAGIBE",
+  "eleitores": 127152,
+  "secoes": 355
+ },
+ "PE_26271": {
+  "nome": "VITÓRIA DE SANTO ANTÃO",
+  "eleitores": 103948,
+  "secoes": 309
+ },
+ "PI_12190": {
+  "nome": "TERESINA",
+  "eleitores": 592974,
+  "secoes": 1843
+ },
+ "PI_11533": {
+  "nome": "PARNAÍBA",
+  "eleitores": 118423,
+  "secoes": 435
+ },
+ "PR_75353": {
+  "nome": "CURITIBA",
+  "eleitores": 1415148,
+  "secoes": 4056
+ },
+ "PR_76678": {
+  "nome": "LONDRINA",
+  "eleitores": 394978,
+  "secoes": 1200
+ },
+ "PR_76910": {
+  "nome": "MARINGÁ",
+  "eleitores": 302812,
+  "secoes": 974
+ },
+ "PR_77771": {
+  "nome": "PONTA GROSSA",
+  "eleitores": 258390,
+  "secoes": 781
+ },
+ "PR_74934": {
+  "nome": "CASCAVEL",
+  "eleitores": 239954,
+  "secoes": 707
+ },
+ "PR_78859": {
+  "nome": "SÃO JOSÉ DOS PINHAIS",
+  "eleitores": 227539,
+  "secoes": 641
+ },
+ "PR_75639": {
+  "nome": "FOZ DO IGUAÇU",
+  "eleitores": 209121,
+  "secoes": 626
+ },
+ "PR_75132": {
+  "nome": "COLOMBO",
+  "eleitores": 161954,
+  "secoes": 486
+ },
+ "PR_75833": {
+  "nome": "GUARAPUAVA",
+  "eleitores": 133846,
+  "secoes": 438
+ },
+ "PR_74357": {
+  "nome": "ARAUCÁRIA",
+  "eleitores": 112066,
+  "secoes": 341
+ },
+ "PR_77453": {
+  "nome": "PARANAGUÁ",
+  "eleitores": 108469,
+  "secoes": 322
+ },
+ "PR_79278": {
+  "nome": "TOLEDO",
+  "eleitores": 108119,
+  "secoes": 355
+ },
+ "RJ_60011": {
+  "nome": "RIO DE JANEIRO",
+  "eleitores": 4952612,
+  "secoes": 12635
+ },
+ "RJ_58971": {
+  "nome": "SÃO GONÇALO",
+  "eleitores": 653184,
+  "secoes": 2019
+ },
+ "RJ_58335": {
+  "nome": "DUQUE DE CAXIAS",
+  "eleitores": 634694,
+  "secoes": 1975
+ },
+ "RJ_58696": {
+  "nome": "NOVA IGUAÇU",
+  "eleitores": 614931,
+  "secoes": 1830
+ },
+ "RJ_58653": {
+  "nome": "NITERÓI",
+  "eleitores": 412252,
+  "secoes": 1327
+ },
+ "RJ_58190": {
+  "nome": "CAMPOS DOS GOYTACAZES",
+  "eleitores": 370466,
+  "secoes": 1190
+ },
+ "RJ_58041": {
+  "nome": "BELFORD ROXO",
+  "eleitores": 346172,
+  "secoes": 1008
+ },
+ "RJ_59013": {
+  "nome": "SÃO JOÃO DE MERITI",
+  "eleitores": 340128,
+  "secoes": 1090
+ },
+ "RJ_58777": {
+  "nome": "PETRÓPOLIS",
+  "eleitores": 239569,
+  "secoes": 804
+ },
+ "RJ_59250": {
+  "nome": "VOLTA REDONDA",
+  "eleitores": 221957,
+  "secoes": 705
+ },
+ "RJ_58491": {
+  "nome": "MAGÉ",
+  "eleitores": 192902,
+  "secoes": 621
+ },
+ "RJ_58475": {
+  "nome": "MACAÉ",
+  "eleitores": 186241,
+  "secoes": 559
+ },
+ "RJ_58530": {
+  "nome": "MARICÁ",
+  "eleitores": 185609,
+  "secoes": 521
+ },
+ "RJ_58130": {
+  "nome": "CABO FRIO",
+  "eleitores": 179682,
+  "secoes": 530
+ },
+ "RJ_58378": {
+  "nome": "ITABORAÍ",
+  "eleitores": 177920,
+  "secoes": 540
+ },
+ "RJ_58670": {
+  "nome": "NOVA FRIBURGO",
+  "eleitores": 155366,
+  "secoes": 525
+ },
+ "RJ_58017": {
+  "nome": "ANGRA DOS REIS",
+  "eleitores": 137071,
+  "secoes": 443
+ },
+ "RJ_58467": {
+  "nome": "MESQUITA",
+  "eleitores": 136302,
+  "secoes": 410
+ },
+ "RJ_58076": {
+  "nome": "BARRA MANSA",
+  "eleitores": 133855,
+  "secoes": 452
+ },
+ "RJ_59153": {
+  "nome": "TERESÓPOLIS",
+  "eleitores": 133712,
+  "secoes": 422
+ },
+ "RJ_58637": {
+  "nome": "NILÓPOLIS",
+  "eleitores": 128648,
+  "secoes": 428
+ },
+ "RJ_58033": {
+  "nome": "ARARUAMA",
+  "eleitores": 111370,
+  "secoes": 325
+ },
+ "RJ_58203": {
+  "nome": "RIO DAS OSTRAS",
+  "eleitores": 107737,
+  "secoes": 316
+ },
+ "RJ_58122": {
+  "nome": "QUEIMADOS",
+  "eleitores": 104602,
+  "secoes": 326
+ },
+ "RJ_58394": {
+  "nome": "ITAGUAÍ",
+  "eleitores": 100542,
+  "secoes": 313
+ },
+ "RN_17612": {
+  "nome": "NATAL",
+  "eleitores": 573148,
+  "secoes": 1477
+ },
+ "RN_17590": {
+  "nome": "MOSSORÓ",
+  "eleitores": 188013,
+  "secoes": 564
+ },
+ "RN_17795": {
+  "nome": "PARNAMIRIM",
+  "eleitores": 147649,
+  "secoes": 427
+ },
+ "RO_00035": {
+  "nome": "PORTO VELHO",
+  "eleitores": 367902,
+  "secoes": 1285
+ },
+ "RR_03018": {
+  "nome": "BOA VISTA",
+  "eleitores": 241509,
+  "secoes": 869
+ },
+ "RS_88013": {
+  "nome": "PORTO ALEGRE",
+  "eleitores": 1064200,
+  "secoes": 3077
+ },
+ "RS_85995": {
+  "nome": "CAXIAS DO SUL",
+  "eleitores": 342998,
+  "secoes": 1125
+ },
+ "RS_85898": {
+  "nome": "CANOAS",
+  "eleitores": 253142,
+  "secoes": 760
+ },
+ "RS_87912": {
+  "nome": "PELOTAS",
+  "eleitores": 244459,
+  "secoes": 757
+ },
+ "RS_88412": {
+  "nome": "SANTA MARIA",
+  "eleitores": 207115,
+  "secoes": 636
+ },
+ "RS_86835": {
+  "nome": "GRAVATAÍ",
+  "eleitores": 192077,
+  "secoes": 539
+ },
+ "RS_87718": {
+  "nome": "NOVO HAMBURGO",
+  "eleitores": 174486,
+  "secoes": 553
+ },
+ "RS_88773": {
+  "nome": "SÃO LEOPOLDO",
+  "eleitores": 162766,
+  "secoes": 480
+ },
+ "RS_89630": {
+  "nome": "VIAMÃO",
+  "eleitores": 161662,
+  "secoes": 483
+ },
+ "RS_88153": {
+  "nome": "RIO GRANDE",
+  "eleitores": 150202,
+  "secoes": 460
+ },
+ "RS_87858": {
+  "nome": "PASSO FUNDO",
+  "eleitores": 150021,
+  "secoes": 446
+ },
+ "RS_85111": {
+  "nome": "ALVORADA",
+  "eleitores": 135997,
+  "secoes": 426
+ },
+ "RS_88390": {
+  "nome": "SANTA CRUZ DO SUL",
+  "eleitores": 105305,
+  "secoes": 327
+ },
+ "RS_85618": {
+  "nome": "CACHOEIRINHA",
+  "eleitores": 102594,
+  "secoes": 277
+ },
+ "RS_89010": {
+  "nome": "SAPUCAIA DO SUL",
+  "eleitores": 102445,
+  "secoes": 310
+ },
+ "SC_81795": {
+  "nome": "JOINVILLE",
+  "eleitores": 443225,
+  "secoes": 1234
+ },
+ "SC_81051": {
+  "nome": "FLORIANÓPOLIS",
+  "eleitores": 423969,
+  "secoes": 1207
+ },
+ "SC_80470": {
+  "nome": "BLUMENAU",
+  "eleitores": 269370,
+  "secoes": 754
+ },
+ "SC_83275": {
+  "nome": "SÃO JOSÉ",
+  "eleitores": 195574,
+  "secoes": 550
+ },
+ "SC_81612": {
+  "nome": "ITAJAÍ",
+  "eleitores": 183857,
+  "secoes": 525
+ },
+ "SC_80810": {
+  "nome": "CHAPECÓ",
+  "eleitores": 164327,
+  "secoes": 458
+ },
+ "SC_82333": {
+  "nome": "PALHOÇA",
+  "eleitores": 154633,
+  "secoes": 415
+ },
+ "SC_80896": {
+  "nome": "CRICIÚMA",
+  "eleitores": 154435,
+  "secoes": 446
+ },
+ "SC_81752": {
+  "nome": "JARAGUÁ DO SUL",
+  "eleitores": 131454,
+  "secoes": 384
+ },
+ "SC_81833": {
+  "nome": "LAGES",
+  "eleitores": 125222,
+  "secoes": 393
+ },
+ "SC_80390": {
+  "nome": "BALNEÁRIO CAMBORIÚ",
+  "eleitores": 111138,
+  "secoes": 318
+ },
+ "SC_80551": {
+  "nome": "BRUSQUE",
+  "eleitores": 101563,
+  "secoes": 283
+ },
+ "SE_31054": {
+  "nome": "ARACAJU",
+  "eleitores": 422179,
+  "secoes": 1354
+ },
+ "SE_31950": {
+  "nome": "NOSSA SENHORA DO SOCORRO",
+  "eleitores": 123924,
+  "secoes": 375
+ },
+ "SP_71072": {
+  "nome": "SÃO PAULO",
+  "eleitores": 9145124,
+  "secoes": 26683
+ },
+ "SP_64777": {
+  "nome": "GUARULHOS",
+  "eleitores": 948908,
+  "secoes": 2851
+ },
+ "SP_62910": {
+  "nome": "CAMPINAS",
+  "eleitores": 873613,
+  "secoes": 2531
+ },
+ "SP_70750": {
+  "nome": "SÃO BERNARDO DO CAMPO",
+  "eleitores": 626647,
+  "secoes": 2011
+ },
+ "SP_67890": {
+  "nome": "OSASCO",
+  "eleitores": 583991,
+  "secoes": 1641
+ },
+ "SP_70572": {
+  "nome": "SANTO ANDRÉ",
+  "eleitores": 573503,
+  "secoes": 1742
+ },
+ "SP_70998": {
+  "nome": "SÃO JOSÉ DOS CAMPOS",
+  "eleitores": 540217,
+  "secoes": 1561
+ },
+ "SP_71455": {
+  "nome": "SOROCABA",
+  "eleitores": 531342,
+  "secoes": 1664
+ },
+ "SP_69698": {
+  "nome": "RIBEIRÃO PRETO",
+  "eleitores": 473134,
+  "secoes": 1449
+ },
+ "SP_70718": {
+  "nome": "SANTOS",
+  "eleitores": 348832,
+  "secoes": 1076
+ },
+ "SP_70971": {
+  "nome": "SÃO JOSÉ DO RIO PRETO",
+  "eleitores": 344760,
+  "secoes": 1041
+ },
+ "SP_66192": {
+  "nome": "JUNDIAÍ",
+  "eleitores": 337851,
+  "secoes": 974
+ },
+ "SP_67130": {
+  "nome": "MOGI DAS CRUZES",
+  "eleitores": 334039,
+  "secoes": 978
+ },
+ "SP_63770": {
+  "nome": "DIADEMA",
+  "eleitores": 331016,
+  "secoes": 937
+ },
+ "SP_68756": {
+  "nome": "PIRACICABA",
+  "eleitores": 311212,
+  "secoes": 907
+ },
+ "SP_66893": {
+  "nome": "MAUÁ",
+  "eleitores": 310407,
+  "secoes": 927
+ },
+ "SP_62138": {
+  "nome": "BARUERI",
+  "eleitores": 298024,
+  "secoes": 814
+ },
+ "SP_63134": {
+  "nome": "CARAPICUÍBA",
+  "eleitores": 290495,
+  "secoes": 840
+ },
+ "SP_62197": {
+  "nome": "BAURU",
+  "eleitores": 278336,
+  "secoes": 877
+ },
+ "SP_69213": {
+  "nome": "PRAIA GRANDE",
+  "eleitores": 265311,
+  "secoes": 764
+ },
+ "SP_65633": {
+  "nome": "ITAQUAQUECETUBA",
+  "eleitores": 258019,
+  "secoes": 747
+ },
+ "SP_71218": {
+  "nome": "SÃO VICENTE",
+  "eleitores": 256025,
+  "secoes": 766
+ },
+ "SP_64254": {
+  "nome": "FRANCA",
+  "eleitores": 241902,
+  "secoes": 732
+ },
+ "SP_71838": {
+  "nome": "TAUBATÉ",
+  "eleitores": 239956,
+  "secoes": 729
+ },
+ "SP_64750": {
+  "nome": "GUARUJÁ",
+  "eleitores": 238913,
+  "secoes": 696
+ },
+ "SP_71510": {
+  "nome": "SUZANO",
+  "eleitores": 235588,
+  "secoes": 718
+ },
+ "SP_66397": {
+  "nome": "LIMEIRA",
+  "eleitores": 219483,
+  "secoes": 734
+ },
+ "SP_71579": {
+  "nome": "TABOÃO DA SERRA",
+  "eleitores": 212014,
+  "secoes": 599
+ },
+ "SP_64017": {
+  "nome": "EMBU DAS ARTES",
+  "eleitores": 206389,
+  "secoes": 634
+ },
+ "SP_71498": {
+  "nome": "SUMARÉ",
+  "eleitores": 199975,
+  "secoes": 579
+ },
+ "SP_70793": {
+  "nome": "SÃO CARLOS",
+  "eleitores": 196964,
+  "secoes": 578
+ },
+ "SP_63614": {
+  "nome": "COTIA",
+  "eleitores": 194159,
+  "secoes": 558
+ },
+ "SP_65110": {
+  "nome": "INDAIATUBA",
+  "eleitores": 192534,
+  "secoes": 571
+ },
+ "SP_61310": {
+  "nome": "AMERICANA",
+  "eleitores": 181216,
+  "secoes": 517
+ },
+ "SP_66818": {
+  "nome": "MARÍLIA",
+  "eleitores": 172936,
+  "secoes": 579
+ },
+ "SP_65897": {
+  "nome": "JACAREÍ",
+  "eleitores": 171394,
+  "secoes": 553
+ },
+ "SP_61638": {
+  "nome": "ARARAQUARA",
+  "eleitores": 170310,
+  "secoes": 602
+ },
+ "SP_65510": {
+  "nome": "ITAPEVI",
+  "eleitores": 168609,
+  "secoes": 487
+ },
+ "SP_69299": {
+  "nome": "PRESIDENTE PRUDENTE",
+  "eleitores": 165528,
+  "secoes": 580
+ },
+ "SP_61727": {
+  "nome": "HORTOLÂNDIA",
+  "eleitores": 164481,
+  "secoes": 489
+ },
+ "SP_69795": {
+  "nome": "RIO CLARO",
+  "eleitores": 151298,
+  "secoes": 447
+ },
+ "SP_70777": {
+  "nome": "SÃO CAETANO DO SUL",
+  "eleitores": 147744,
+  "secoes": 391
+ },
+ "SP_61557": {
+  "nome": "ARAÇATUBA",
+  "eleitores": 145128,
+  "secoes": 493
+ },
+ "SP_70173": {
+  "nome": "SANTA BÁRBARA D'OESTE",
+  "eleitores": 138487,
+  "secoes": 395
+ },
+ "SP_62510": {
+  "nome": "BRAGANÇA PAULISTA",
+  "eleitores": 131308,
+  "secoes": 371
+ },
+ "SP_64157": {
+  "nome": "FERRAZ DE VASCONCELOS",
+  "eleitores": 128931,
+  "secoes": 445
+ },
+ "SP_65790": {
+  "nome": "ITU",
+  "eleitores": 128825,
+  "secoes": 373
+ },
+ "SP_64270": {
+  "nome": "FRANCISCO MORATO",
+  "eleitores": 126796,
+  "secoes": 353
+ },
+ "SP_65455": {
+  "nome": "ITAPECERICA DA SERRA",
+  "eleitores": 124081,
+  "secoes": 361
+ },
+ "SP_68616": {
+  "nome": "PINDAMONHANGABA",
+  "eleitores": 119275,
+  "secoes": 396
+ },
+ "SP_61816": {
+  "nome": "ATIBAIA",
+  "eleitores": 119210,
+  "secoes": 360
+ },
+ "SP_65471": {
+  "nome": "ITAPETININGA",
+  "eleitores": 114451,
+  "secoes": 386
+ },
+ "SP_67156": {
+  "nome": "MOGI GUAÇU",
+  "eleitores": 114358,
+  "secoes": 348
+ },
+ "SP_70475": {
+  "nome": "SANTANA DE PARNAÍBA",
+  "eleitores": 111635,
+  "secoes": 305
+ },
+ "SP_62499": {
+  "nome": "BOTUCATU",
+  "eleitores": 111048,
+  "secoes": 327
+ },
+ "SP_64297": {
+  "nome": "FRANCO DA ROCHA",
+  "eleitores": 107865,
+  "secoes": 292
+ },
+ "SP_63118": {
+  "nome": "CARAGUATATUBA",
+  "eleitores": 106446,
+  "secoes": 383
+ },
+ "TO_73440": {
+  "nome": "PALMAS",
+  "eleitores": 219783,
+  "secoes": 673
+ },
+ "TO_92410": {
+  "nome": "ARAGUAÍNA",
+  "eleitores": 124170,
+  "secoes": 416
+ }
+}

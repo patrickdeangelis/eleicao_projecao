@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPETR · Início</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <header class="topo">
+    <div class="topo-titulo">
+      <h1>SPETR</h1>
+      <span class="topo-sub">Sistema de Projeção Eleitoral em Tempo Real</span>
+    </div>
+    <div class="topo-acoes">
+      <button class="botao" id="botao-tema" type="button" aria-label="Alternar tema claro/escuro">Tema</button>
+    </div>
+  </header>
+
+  <main class="inicio">
+    <h2 class="inicio-titulo">Como você quer acompanhar a apuração?</h2>
+    <p class="nota" id="sessao-atual" hidden></p>
+
+    <form id="form-inicio" novalidate>
+      <div class="opcoes-modo" role="radiogroup" aria-label="Modo de operação">
+        <div class="opcao-modo" data-modo="real">
+          <label class="opcao-cabeca">
+            <input type="radio" name="modo" value="real" checked>
+            <strong>Coleta real</strong>
+            <span class="selo">TSE</span>
+          </label>
+          <span class="opcao-desc">Baixa os arquivos oficiais de resultado do TSE e projeta o resultado a cada atualização.</span>
+
+          <span class="campos">
+            <label class="campo">
+              <span class="campo-rotulo">Ano</span>
+              <input type="text" name="ano" inputmode="numeric" maxlength="4">
+            </label>
+            <label class="campo">
+              <span class="campo-rotulo">Turno</span>
+              <select name="turno">
+                <option value="1">1º turno</option>
+                <option value="2">2º turno</option>
+              </select>
+            </label>
+            <label class="campo">
+              <span class="campo-rotulo">Código da eleição</span>
+              <input type="text" name="eleicao" inputmode="numeric" placeholder="automático (ele-c.json)">
+            </label>
+          </span>
+          <details class="avancado">
+            <summary>Opções avançadas</summary>
+            <span class="campos">
+              <label class="campo largo">
+                <span class="campo-rotulo">URL da CDN</span>
+                <input type="url" name="tse_url">
+            </label>
+              <label class="campo">
+                <span class="campo-rotulo">Ambiente</span>
+                <input type="text" name="ambiente">
+            </label>
+              <label class="campo">
+                <span class="campo-rotulo">Verificar assinatura JWS</span>
+                <select name="jws">
+                  <option value="">Não verificar</option>
+                </select>
+            </label>
+            </span>
+          </details>
+        </div>
+
+        <div class="opcao-modo" data-modo="simulado">
+          <label class="opcao-cabeca">
+            <input type="radio" name="modo" value="simulado">
+            <strong>Simular resultados</strong>
+            <span class="selo">local</span>
+          </label>
+          <span class="opcao-desc">Abre um servidor local que imita a CDN do TSE, com candidatos fictícios sobre o eleitorado real de 2026, para testar o painel e a heurística.</span>
+
+          <span class="campos">
+            <label class="campo largo">
+              <span class="campo-rotulo">Cenário</span>
+              <select name="cenario"></select>
+            </label>
+            <label class="campo">
+              <span class="campo-rotulo">Velocidade</span>
+              <select name="velocidade"></select>
+            </label>
+            <label class="campo">
+              <span class="campo-rotulo">Começar em (% das seções)</span>
+              <input type="number" name="inicio" min="0" max="100" step="1" value="0">
+            </label>
+          </span>
+        </div>
+      </div>
+
+      <div class="inicio-acoes">
+        <button type="submit" class="botao primario" id="botao-iniciar">Iniciar coleta real</button>
+        <a class="botao" href="/" id="voltar-painel" hidden>Voltar ao painel</a>
+        <span class="erro" id="erro" role="alert" aria-live="assertive"></span>
+      </div>
+    </form>
+  </main>
+
+  <script src="/static/js/inicio.js"></script>
+</body>
+</html>

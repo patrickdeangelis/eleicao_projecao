@@ -2,7 +2,7 @@
 Entidades puras do domínio do SPETR.
 """
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from spetr.domain.value_objects import StatusCall, TipoEstrato
 
 
@@ -12,6 +12,10 @@ class Candidato:
     nome: str
     sigla_partido: str
     cor_hex: str = "#2563EB"
+    vice: str = ""
+    coligacao: str = ""
+    composicao: str = ""
+    nome_completo: str = ""
 
 
 @dataclass(frozen=True)
@@ -45,6 +49,7 @@ class SnapshotParcial:
     votos_brancos: int
     votos_nulos: int
     votos_candidatos: Dict[str, int]         # {num_cand: votos_nominais}
+    votos_anulados: int = 0                  # votos de candidatos com destinação "Anulado"/"sub judice"
 
     @property
     def perc_secoes_apuradas(self) -> float:
@@ -76,7 +81,12 @@ class ProjecaoCandidato:
     perc_projetado: float                    # % final esperado (E[p])
     ic_inferior_95: float                    # Percentil 2.5%
     ic_superior_95: float                    # Percentil 97.5%
-    prob_vitoria: float                      # P(p > 50%) em [0.0, 1.0]
+    prob_vitoria: float                      # P(eleito): P(p > 50% dos válidos) quando exige maioria absoluta
+    prob_lideranca: float = 0.0              # P(terminar em 1º lugar)
+    vice: str = ""
+    coligacao: str = ""
+    composicao: str = ""
+    nome_completo: str = ""
 
 
 @dataclass(frozen=True)
@@ -94,3 +104,6 @@ class ResultadoProjecao:
     vencedor_projetado: Optional[str]
     lider_margem: float                      # Diferença percentual projetada entre 1º e 2º
     tempo_computacao_ms: float
+    prob_segundo_turno: float = 0.0          # P(ninguém atingir maioria absoluta)
+    ufs_sem_dados: List[str] = field(default_factory=list)  # UFs projetadas só pelo prior
+    analise: Dict[str, Any] = field(default_factory=dict)   # painel: nacional, UFs, regiões, estratos, distribuições

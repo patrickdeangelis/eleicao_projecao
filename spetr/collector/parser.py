@@ -6,17 +6,21 @@ Trata conversões numéricas brasileiras (vírgula decimal) e campos nulos/omiss
 """
 from typing import Dict, Any, List, Optional
 import logging
+import unicodedata
 
 logger = logging.getLogger("spetr.collector.parser")
 
 
 def parse_float_br(val: Any) -> float:
-    """Converte '50,12' ou 50.12 para float."""
+    """Converte '50,12', '1.250,50', '50.12' ou 50.12 para float."""
     if val is None:
         return 0.0
     if isinstance(val, (int, float)):
         return float(val)
-    s = str(val).strip().replace(".", "").replace(",", ".")
+    s = str(val).strip()
+    # Só trata o ponto como separador de milhar quando há vírgula decimal
+    if "," in s:
+        s = s.replace(".", "").replace(",", ".")
     try:
         return float(s)
     except ValueError:
@@ -36,6 +40,23 @@ def parse_int_br(val: Any) -> int:
         return int(s)
     except ValueError:
         return 0
+
+
+def _normalizar(texto: str) -> str:
+    sem_acento = unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode("ascii")
+    return sem_acento.strip().lower()
+
+
+def voto_e_valido(destinacao: Any) -> bool:
+    """
+    Interpreta o campo 'dvt' (destinação do voto) do TSE.
+    Votos com destinação 'Anulado' ou 'Anulado sub judice' não entram nos válidos.
+    Ausência do campo (formatos antigos/mock) é tratada como válido.
+    """
+    if destinacao is None:
+        return True
+    d = _normalizar(str(destinacao))
+    return not d.startswith("anulado")
 
 
 def parse_tse_json(raw: Dict[str, Any], uf: str, cod_mun: Optional[str] = None) -> Dict[str, Any]:
@@ -70,35 +91,58 @@ def parse_tse_json(raw: Dict[str, Any], uf: str, cod_mun: Optional[str] = None) 
     # 3. Parsing de Votos Válidos, Brancos e Nulos (compatível com flat ou dict EA20 'v': {'vvc', 'vb', 'vn'})
     v_raw = raw.get("v")
     if isinstance(v_raw, dict):
-        votos_validos = parse_int_br(v_raw.get("vvc", v_raw.get("vv", 0)))
+        # 'vv' = válidos nominais (oficial); 'vvc' inclui votos anulados apurados em separado
+        votos_validos = parse_int_br(v_raw.get("vv", v_raw.get("vvc", 0)))
         votos_brancos = parse_int_br(v_raw.get("vb", 0))
         votos_nulos = parse_int_br(v_raw.get("vn", v_raw.get("tvn", 0)))
     else:
-        votos_validos = parse_int_br(raw.get("vvc", raw.get("vv", 0)))
+        votos_validos = parse_int_br(raw.get("vv", raw.get("vvc", 0)))
         votos_brancos = parse_int_br(raw.get("vb", 0))
         votos_nulos = parse_int_br(raw.get("vn", 0))
 
     # 4. Parsing de Candidatos (compatível com flat 'cand' ou hierárquico EA20 carg -> agr -> par -> cand)
     candidatos = {}
     candidatos_meta = {}
+    candidatos_anulados = {}
 
-    def registrar_candidato(c: Dict[str, Any], default_partido: str = ""):
+    def registrar_candidato(c: Dict[str, Any], default_partido: str = "", agr: Optional[Dict[str, Any]] = None):
         numero = str(c.get("n", "")).strip()
         if not numero:
             return
         votos = parse_int_br(c.get("vap", 0))
         pvap = parse_float_br(c.get("pvap", 0.0))
-        nome = str(c.get("nm", c.get("nmu", numero))).strip()
+        # Nome de urna ("LULA") é o nome pelo qual o candidato é conhecido; o civil fica como complemento
+        nome_completo = str(c.get("nm") or c.get("nmu") or numero).strip()
+        nome = str(c.get("nmu") or nome_completo).strip()
+        vices = c.get("vs") or []
+        vice = str(vices[0].get("nmu") or vices[0].get("nm") or "").strip() if vices and isinstance(vices[0], dict) else ""
+        # Coligação (tp "c") ou federação (tp "f"); partido isolado (tp "i") não tem nome próprio
+        coligacao = ""
+        composicao = ""
+        if agr and str(agr.get("tp", "")) in ("c", "f"):
+            coligacao = str(agr.get("nm") or "").strip()
+            composicao = str(agr.get("com") or "").strip()
         partido = str(c.get("sgp", c.get("cc", c.get("p", default_partido)))).split("-")[0].strip()
         status = str(c.get("st", "")).strip()
+        destinacao = c.get("dvt")
+        valido = voto_e_valido(destinacao)
 
-        candidatos[numero] = votos
+        if valido:
+            candidatos[numero] = votos
+        else:
+            candidatos_anulados[numero] = votos
         candidatos_meta[numero] = {
             "nome": nome,
+            "nome_completo": nome_completo,
+            "vice": vice,
+            "coligacao": coligacao,
+            "composicao": composicao,
             "partido": partido,
             "votos": votos,
             "pvap": pvap,
             "status": status,
+            "destinacao": str(destinacao).strip() if destinacao is not None else "Válido",
+            "voto_valido": valido,
         }
 
     # Formato A: lista direta na raiz 'cand'
@@ -114,7 +158,7 @@ def parse_tse_json(raw: Dict[str, Any], uf: str, cod_mun: Optional[str] = None) 
                 for par in agr.get("par", []):
                     sg_partido = par.get("sg", "")
                     for c in par.get("cand", []):
-                        registrar_candidato(c, default_partido=sg_partido)
+                        registrar_candidato(c, default_partido=sg_partido, agr=agr)
 
     # Timestamp de geração
     dg = raw.get("dg", "")
@@ -135,5 +179,6 @@ def parse_tse_json(raw: Dict[str, Any], uf: str, cod_mun: Optional[str] = None) 
         "votos_brancos": votos_brancos,
         "votos_nulos": votos_nulos,
         "candidatos_votos": candidatos,
+        "candidatos_anulados": candidatos_anulados,
         "candidatos_meta": candidatos_meta,
     }

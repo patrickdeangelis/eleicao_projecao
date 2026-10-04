@@ -3,25 +3,85 @@ Rotas da API Local FastAPI do SPETR.
 """
 import asyncio
 import json
-from typing import Optional
-from fastapi import APIRouter, Query, HTTPException
-from fastapi.responses import StreamingResponse, JSONResponse
+from typing import Any, Dict, Optional
+from urllib.parse import urlparse
 
-from spetr.api.sse_broadcaster import SSEBroadcaster
+from fastapi import APIRouter, Body, HTTPException, Query, Request
+from fastapi.responses import JSONResponse, StreamingResponse
+
+from spetr.api.sse_broadcaster import SSEBroadcaster, serializar_resultado
 from spetr.domain.interfaces import IRepository
 
-router = APIRouter(prefix="/api/v1")
+
+def verificar_origem(request: Request) -> None:
+    """
+    Bloqueia requisições que alteram estado vindas de outros sites abertos no navegador:
+    exige JSON e, se houver cabeçalho Origin, que seja a própria origem do SPETR.
+    """
+    if not request.headers.get("content-type", "").startswith("application/json"):
+        raise HTTPException(status_code=415, detail="Envie application/json")
+    origem = request.headers.get("origin")
+    if origem and origem != "null":
+        alvo = urlparse(origem)
+        if f"{alvo.hostname}:{alvo.port}" != f"{request.url.hostname}:{request.url.port}":
+            raise HTTPException(status_code=403, detail="Origem não permitida")
 
 
-def setup_routes(broadcaster: SSEBroadcaster, repo: Optional[IRepository] = None) -> APIRouter:
+def setup_routes(
+    broadcaster: SSEBroadcaster,
+    repo: Optional[IRepository] = None,
+    info_eleicao: Optional[Dict[str, Any]] = None,
+    sessao: Optional[Any] = None,
+) -> APIRouter:
+    router = APIRouter(prefix="/api/v1")
+
+    def repositorio() -> Optional[IRepository]:
+        return sessao.repo if sessao is not None else repo
+
+    def info() -> Dict[str, Any]:
+        return sessao.info if sessao is not None else (info_eleicao or {})
 
     @router.get("/status")
     async def get_status():
         return {
             "sistema": "SPETR - Sistema de Projeção Eleitoral em Tempo Real",
-            "versao": "1.0.0",
-            "status": "operacional"
+            "versao": "1.2.0",
+            "status": "operacional",
+            "eleicao": info(),
+            "modo": sessao.modo if sessao is not None else None,
+            "simulador_url": sessao.simulador.url if sessao is not None and sessao.simulador else None,
+            "ultimo_aviso": broadcaster.ultimo_aviso,
         }
+
+    # ---------------------------------------------------------------- sessão
+
+    @router.get("/sessao")
+    async def get_sessao():
+        if sessao is None:
+            return {"ativa": True, "modo": None, "eleicao": info()}
+        return {**sessao.descrever(), "ultimo_aviso": broadcaster.ultimo_aviso}
+
+    @router.post("/sessao/iniciar")
+    async def iniciar_sessao(request: Request, corpo: Dict[str, Any] = Body(...)):
+        verificar_origem(request)
+        if sessao is None:
+            raise HTTPException(status_code=409, detail="Modo fixado na linha de comando")
+        from spetr.services.sessao import ErroSessao
+        try:
+            return await sessao.iniciar(str(corpo.get("modo", "")), corpo.get("opcoes") or {})
+        except ErroSessao as e:
+            raise HTTPException(status_code=422, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Falha ao iniciar: {e}")
+
+    @router.post("/sessao/parar")
+    async def parar_sessao(request: Request):
+        verificar_origem(request)
+        if sessao is None:
+            raise HTTPException(status_code=409, detail="Modo fixado na linha de comando")
+        return await sessao.parar()
+
+    # -------------------------------------------------------------- projeção
 
     @router.get("/projecao/atual")
     async def get_projecao_atual():
@@ -35,13 +95,12 @@ def setup_routes(broadcaster: SSEBroadcaster, repo: Optional[IRepository] = None
         async def event_generator():
             q = await broadcaster.connect()
             try:
-                # Envia handshake inicial
                 yield ": sse handshake estabelecido\n\n"
                 while True:
                     try:
                         # Timeout de 15 segundos para enviar heartbeat (keep-alive)
-                        msg = await asyncio.wait_for(q.get(), timeout=15.0)
-                        yield f"event: projecao_update\ndata: {msg}\n\n"
+                        evento, msg = await asyncio.wait_for(q.get(), timeout=15.0)
+                        yield f"event: {evento}\ndata: {msg}\n\n"
                     except asyncio.TimeoutError:
                         yield ": keepalive\n\n"
             finally:
@@ -58,59 +117,22 @@ def setup_routes(broadcaster: SSEBroadcaster, repo: Optional[IRepository] = None
         )
 
     @router.get("/projecao/historico")
-    async def get_historico(limite: int = Query(default=100, le=500)):
-        if repo is None:
+    async def get_historico(limite: int = Query(default=2000, ge=1, le=5000)):
+        """Série temporal da execução atual (resumo por ciclo) para as curvas do painel."""
+        r = repositorio()
+        if r is None:
             return []
-        hist = repo.obter_historico_projecoes(limite=limite)
-        return [
-            {
-                "timestamp": p.timestamp,
-                "ciclo_id": p.ciclo_id,
-                "secoes_apuradas": p.secoes_apuradas,
-                "perc_secoes": p.perc_secoes_apuradas,
-                "status_call": p.status_call.value if hasattr(p.status_call, "value") else str(p.status_call),
-                "vencedor_projetado": p.vencedor_projetado,
-                "lider_margem": p.lider_margem,
-                "candidatos": [
-                    {
-                        "numero": c.numero,
-                        "nome": c.nome,
-                        "perc_apurado": c.perc_apurado,
-                        "perc_projetado": c.perc_projetado,
-                        "ic_inferior_95": c.ic_inferior_95,
-                        "ic_superior_95": c.ic_superior_95,
-                        "prob_vitoria": c.prob_vitoria
-                    }
-                    for c in p.candidatos
-                ]
-            }
-            for p in hist
-        ]
+        hist = await asyncio.to_thread(r.obter_historico_projecoes, limite)
+        return [serializar_resultado(p, completo=False) for p in hist]
 
     @router.get("/projecao/time-travel")
     async def get_time_travel(timestamp: str = Query(...)):
-        if repo is None:
-            raise HTTPException(status_code=503, detail="Repositório não disponível")
-        p = repo.obter_projecao_em_tempo(timestamp)
+        r = repositorio()
+        if r is None:
+            raise HTTPException(status_code=503, detail="Nenhuma sessão ativa")
+        p = await asyncio.to_thread(r.obter_projecao_em_tempo, timestamp)
         if not p:
             raise HTTPException(status_code=404, detail="Nenhum snapshot encontrado para o timestamp informado")
-        return {
-            "timestamp": p.timestamp,
-            "ciclo_id": p.ciclo_id,
-            "secoes_apuradas": p.secoes_apuradas,
-            "perc_secoes": p.perc_secoes_apuradas,
-            "candidatos": [
-                {
-                    "numero": c.numero,
-                    "nome": c.nome,
-                    "perc_apurado": c.perc_apurado,
-                    "perc_projetado": c.perc_projetado,
-                    "ic_inferior_95": c.ic_inferior_95,
-                    "ic_superior_95": c.ic_superior_95,
-                    "prob_vitoria": c.prob_vitoria
-                }
-                for c in p.candidatos
-            ]
-        }
+        return serializar_resultado(p)
 
     return router

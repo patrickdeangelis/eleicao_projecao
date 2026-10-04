@@ -1,11 +1,18 @@
 """
 Agendador de Coleta Escalonada (Tiered Polling Scheduler).
 Coordena o ritmo de requisições:
-- Tier 1: 27 UFs + 27 Capitais a cada 15 segundos
-- Tier 2: ~127 Cidades > 100k a cada 30 segundos
+- Tier 1: UFs + Capitais a cada `intervalo_tier1` segundos
+- Tier 2: demais cidades > 100k a cada `intervalo_tier2` segundos (o 1º ciclo sempre inclui o Tier 2)
+
+Formatos de URL suportados:
+- "u" (Eleições 2024+, Resultado Unificado EA20):
+  {base}/{ambiente}/ele{ano}/{eleicao}/dados/{uf}/{uf}{mun}-c{cargo:04}-e{eleicao:06}-u.json
+- "r" (Eleições até 2022, Dados Simplificados):
+  {base}/{ambiente}/ele{ano}/{eleicao}/dados-simplificados/{uf}/{uf}{mun}-c{cargo:04}-e{eleicao:06}-r.json
 """
 import asyncio
 import datetime
+import time
 from typing import Dict, List, Optional, Any
 import logging
 
@@ -14,6 +21,8 @@ from spetr.collector.client import TSEHttpClient
 from spetr.services.events import RawBatchReceivedEvent, CollectionErrorEvent
 
 logger = logging.getLogger("spetr.collector.scheduler")
+
+FORMATOS_VALIDOS = ("u", "r")
 
 
 class TieredScheduler(ICollector):
@@ -26,21 +35,28 @@ class TieredScheduler(ICollector):
         event_bus: Optional[IEventBus] = None,
         http_client: Optional[TSEHttpClient] = None,
         base_url: str = "https://resultados.tse.jus.br",
-        ano_eleicao: str = "2022",
-        codigo_eleicao: str = "545",  # 2º turno presidencial de 2022 por padrão
-        codigo_cargo: str = "0001",   # 0001 = Presidente
+        ano_eleicao: str = "2026",
+        codigo_eleicao: Optional[str] = None,  # None = descobrir via ele-c.json (formato "u")
+        codigo_cargo: str = "1",              # 1 = Presidente
+        turno: int = 1,
+        formato: str = "u",
+        ambiente: str = "oficial",
         intervalo_tier1: float = 15.0,
         intervalo_tier2: float = 30.0,
     ):
+        if formato not in FORMATOS_VALIDOS:
+            raise ValueError(f"Formato inválido: '{formato}'. Opções: {FORMATOS_VALIDOS}")
         self.bus = event_bus
         self.http_client = http_client or TSEHttpClient()
         self.base_url = base_url.rstrip("/")
-        self.ano = ano_eleicao
-        self.cod_eleicao = codigo_eleicao
-        self.cod_cargo = codigo_cargo
+        self.ano = str(ano_eleicao)
+        self.cod_eleicao = str(codigo_eleicao) if codigo_eleicao else None
+        self.cod_cargo = str(int(codigo_cargo))
+        self.turno = int(turno)
+        self.formato = formato
+        self.ambiente = ambiente.strip("/")
         self.intervalo_tier1 = intervalo_tier1
         self.intervalo_tier2 = intervalo_tier2
-
 
         self.ufs: List[str] = [
             "AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA",
@@ -53,6 +69,7 @@ class TieredScheduler(ICollector):
 
         self._rodando = False
         self._ciclo_contador = 0
+        self._ultimo_tier2: Optional[float] = None
         self._tarefa_loop: Optional[asyncio.Task] = None
 
     def configurar_alvos(
@@ -63,39 +80,90 @@ class TieredScheduler(ICollector):
         self.cidades_por_uf = cidades_por_uf
         self.capitais_por_uf = capitais_por_uf
 
-    def url_uf(self, uf: str) -> str:
+    # ------------------------------------------------------------------ URLs
+
+    @property
+    def url_config_eleicoes(self) -> str:
+        return f"{self.base_url}/{self.ambiente}/comum/config/ele-c.json"
+
+    def _url_arquivo(self, uf: str, cod_mun: str = "") -> str:
+        if self.cod_eleicao is None:
+            raise RuntimeError("Código da eleição ainda não definido (use --eleicao ou aguarde a descoberta)")
         u = uf.lower()
+        cargo = self.cod_cargo.zfill(4)
+        eleicao6 = self.cod_eleicao.zfill(6)
+        pasta = "dados" if self.formato == "u" else "dados-simplificados"
         return (
-            f"{self.base_url}/oficial/ele{self.ano}/{self.cod_eleicao}/"
-            f"dados-simplificados/{u}/{u}-c{self.cod_cargo}-e000{self.cod_eleicao}-r.json"
+            f"{self.base_url}/{self.ambiente}/ele{self.ano}/{self.cod_eleicao}/{pasta}/{u}/"
+            f"{u}{cod_mun}-c{cargo}-e{eleicao6}-{self.formato}.json"
         )
+
+    def url_uf(self, uf: str) -> str:
+        return self._url_arquivo(uf)
 
     def url_municipio(self, uf: str, cod_mun: str) -> str:
-        u = uf.lower()
-        return (
-            f"{self.base_url}/oficial/ele{self.ano}/{self.cod_eleicao}/"
-            f"dados-simplificados/{u}/{u}{cod_mun}-c{self.cod_cargo}-e000{self.cod_eleicao}-r.json"
-        )
+        return self._url_arquivo(uf, cod_mun)
 
+    # ----------------------------------------------------- Descoberta (EA11)
+
+    @staticmethod
+    def escolher_eleicao(config: Dict[str, Any], ano: str, cargo: str, turno: int) -> Optional[str]:
+        """Seleciona no ele-c.json (EA11) o código da eleição do ciclo/cargo/turno pedidos."""
+        ciclo = f"ele{ano}"
+        for pleito in config.get("pl", []):
+            if pleito.get("c") != ciclo:
+                continue
+            for eleicao in pleito.get("e", []):
+                if str(eleicao.get("t", "")) != str(turno):
+                    continue
+                cargos = {
+                    str(cp.get("cd"))
+                    for abr in eleicao.get("abr", [])
+                    for cp in abr.get("cp", [])
+                }
+                if cargo in cargos:
+                    return str(eleicao.get("cd"))
+        return None
+
+    async def resolver_eleicao(self) -> bool:
+        """Garante que o código da eleição está definido. Retorna True se pronto para coletar."""
+        if self.cod_eleicao is not None:
+            return True
+        resultado = await self.http_client.fetch_json(self.url_config_eleicoes, verificar_assinatura=False)
+        if resultado.payload is None:
+            logger.error(f"Não foi possível baixar {self.url_config_eleicoes} para descobrir a eleição.")
+            return False
+        cod = self.escolher_eleicao(resultado.payload, self.ano, self.cod_cargo, self.turno)
+        if cod is None:
+            logger.error(
+                f"Nenhuma eleição em ele{self.ano} com cargo {self.cod_cargo} e turno {self.turno} "
+                f"no arquivo de configuração. Informe --eleicao manualmente."
+            )
+            return False
+        self.cod_eleicao = cod
+        logger.info(f"Eleição descoberta via ele-c.json: {cod} (ele{self.ano}, cargo {self.cod_cargo}, {self.turno}º turno)")
+        return True
+
+    # ----------------------------------------------------------------- Coleta
 
     async def executar_ciclo_coleta(self, incluir_tier2: bool = True) -> Dict[str, Dict[str, Any]]:
         """
         Executa um lote de consultas com semáforo e conditional caching.
         Retorna dicionário contendo os payloads brutos obtidos.
         """
+        batch, _, _ = await self._coletar(incluir_tier2)
+        return batch
+
+    async def _coletar(self, incluir_tier2: bool):
         urls_tarefas = []
 
-        # 1. Tier 1: Todas as 27 UFs
+        # 1. Tier 1: Todas as UFs (+ exterior)
         for uf in self.ufs:
-            chave = f"UF_{uf}"
-            url = self.url_uf(uf)
-            urls_tarefas.append((chave, url))
+            urls_tarefas.append((f"UF_{uf}", self.url_uf(uf)))
 
         # 2. Tier 1: Capitais
         for uf, cod_cap in self.capitais_por_uf.items():
-            chave = f"MUN_{uf}_{cod_cap}"
-            url = self.url_municipio(uf, cod_cap)
-            urls_tarefas.append((chave, url))
+            urls_tarefas.append((f"MUN_{uf}_{cod_cap}", self.url_municipio(uf, cod_cap)))
 
         # 3. Tier 2: Cidades restantes > 100k
         if incluir_tier2:
@@ -103,25 +171,25 @@ class TieredScheduler(ICollector):
                 cap = self.capitais_por_uf.get(uf)
                 for cod in codigos:
                     if cod != cap:
-                        chave = f"MUN_{uf}_{cod}"
-                        url = self.url_municipio(uf, cod)
-                        urls_tarefas.append((chave, url))
+                        urls_tarefas.append((f"MUN_{uf}_{cod}", self.url_municipio(uf, cod)))
 
         async def consultar_item(chave: str, url: str):
-            payload, modificado = await self.http_client.fetch_json(url)
-            return chave, payload, modificado
+            return chave, await self.http_client.fetch_json(url)
 
         resultados = await asyncio.gather(*[consultar_item(k, u) for k, u in urls_tarefas])
 
         batch: Dict[str, Dict[str, Any]] = {}
         total_modificados = 0
-        for chave, payload, modificado in resultados:
-            if payload is not None:
-                batch[chave] = payload
-                if modificado:
+        falhas: List[str] = []
+        for chave, res in resultados:
+            if res.falhou:
+                falhas.append(chave)
+            if res.payload is not None:
+                batch[chave] = res.payload
+                if res.modificado:
                     total_modificados += 1
 
-        return batch
+        return batch, total_modificados, falhas
 
     async def iniciar_loop(self) -> None:
         """Inicia o loop contínuo de polling com o agendamento escalonado."""
@@ -129,13 +197,35 @@ class TieredScheduler(ICollector):
         logger.info("Iniciando loop do TieredScheduler...")
 
         while self._rodando:
-            self._ciclo_contador += 1
-            # A cada 2 ciclos (a cada 30s), fazemos o Tier 2
-            incluir_tier2 = (self._ciclo_contador % 2 == 0)
-
             try:
-                batch = await self.executar_ciclo_coleta(incluir_tier2=incluir_tier2)
+                if not await self.resolver_eleicao():
+                    await self._publicar_erro("Código da eleição indefinido; nova tentativa no próximo ciclo")
+                    await asyncio.sleep(self.intervalo_tier1)
+                    continue
+
+                self._ciclo_contador += 1
+                agora = time.monotonic()
+                incluir_tier2 = (
+                    self._ultimo_tier2 is None
+                    or agora - self._ultimo_tier2 >= self.intervalo_tier2 - 0.5
+                )
+                if incluir_tier2:
+                    self._ultimo_tier2 = agora
+
+                batch, modificados, falhas = await self._coletar(incluir_tier2)
                 ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+                if falhas:
+                    sem_dados = [k for k in falhas if k not in batch]
+                    logger.warning(
+                        f"Ciclo {self._ciclo_contador}: {len(falhas)} arquivo(s) falharam "
+                        f"({len(sem_dados)} sem nenhum dado em cache): {', '.join(falhas[:10])}"
+                        f"{'...' if len(falhas) > 10 else ''}"
+                    )
+                    await self._publicar_erro(
+                        f"{len(falhas)} arquivo(s) falharam no ciclo {self._ciclo_contador}; "
+                        f"{len(sem_dados)} sem dado algum"
+                    )
 
                 if self.bus is not None and batch:
                     await self.bus.publish(
@@ -143,22 +233,25 @@ class TieredScheduler(ICollector):
                             timestamp=ts,
                             ciclo_id=self._ciclo_contador,
                             total_arquivos=len(batch),
-                            arquivos_modificados=len(batch),
+                            arquivos_modificados=modificados,
                             payload_bruto=batch
                         )
                     )
             except Exception as e:
                 logger.error(f"Erro no ciclo de coleta do scheduler: {e}", exc_info=True)
-                if self.bus is not None:
-                    await self.bus.publish(
-                        CollectionErrorEvent(
-                            timestamp=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                            origem="TieredScheduler",
-                            mensagem=str(e)
-                        )
-                    )
+                await self._publicar_erro(str(e))
 
             await asyncio.sleep(self.intervalo_tier1)
+
+    async def _publicar_erro(self, mensagem: str) -> None:
+        if self.bus is not None:
+            await self.bus.publish(
+                CollectionErrorEvent(
+                    timestamp=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    origem="TieredScheduler",
+                    mensagem=mensagem
+                )
+            )
 
     def parar(self) -> None:
         """Sinaliza para parar o loop."""

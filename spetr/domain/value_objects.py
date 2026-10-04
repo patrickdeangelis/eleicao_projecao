@@ -18,6 +18,7 @@ class StatusCall(str, Enum):
     INDEFINIDO = "INDEFINIDO"
     VITORIA_PROJETADA = "VITORIA_PROJETADA"
     MATEMATICAMENTE_ELEITO = "MATEMATICAMENTE_ELEITO"
+    SEGUNDO_TURNO_PROJETADO = "SEGUNDO_TURNO_PROJETADO"
 
 
 class TipoEstrato(str, Enum):
@@ -32,6 +33,16 @@ UF_VALIDAS: Tuple[str, ...] = (
     "MG", "MS", "MT", "PA", "PB", "PE", "PI", "PR", "RJ", "RN",
     "RO", "RR", "RS", "SC", "SE", "SP", "TO", "ZZ"
 )
+
+REGIAO_POR_UF = {
+    "AC": "Norte", "AM": "Norte", "AP": "Norte", "PA": "Norte", "RO": "Norte", "RR": "Norte", "TO": "Norte",
+    "AL": "Nordeste", "BA": "Nordeste", "CE": "Nordeste", "MA": "Nordeste", "PB": "Nordeste",
+    "PE": "Nordeste", "PI": "Nordeste", "RN": "Nordeste", "SE": "Nordeste",
+    "DF": "Centro-Oeste", "GO": "Centro-Oeste", "MS": "Centro-Oeste", "MT": "Centro-Oeste",
+    "ES": "Sudeste", "MG": "Sudeste", "RJ": "Sudeste", "SP": "Sudeste",
+    "PR": "Sul", "RS": "Sul", "SC": "Sul",
+    "ZZ": "Exterior",
+}
 
 
 @dataclass(frozen=True)

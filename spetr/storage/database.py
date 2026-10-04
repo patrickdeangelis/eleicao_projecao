@@ -11,6 +11,22 @@ logger = logging.getLogger("spetr.storage.database")
 
 SCHEMA_FILE = Path(__file__).parent / "schema.sql"
 
+# Colunas acrescentadas depois da primeira versão do schema: (tabela, coluna, definição)
+MIGRACOES = [
+    ("snapshots_apuracao", "eleicao", "TEXT NOT NULL DEFAULT ''"),
+    ("snapshots_apuracao", "execucao_id", "TEXT NOT NULL DEFAULT ''"),
+    ("projecoes_historico", "eleicao", "TEXT NOT NULL DEFAULT ''"),
+    ("projecoes_historico", "execucao_id", "TEXT NOT NULL DEFAULT ''"),
+    ("projecoes_historico", "prob_segundo_turno", "REAL NOT NULL DEFAULT 0"),
+    ("projecoes_historico", "ufs_sem_dados_json", "TEXT NOT NULL DEFAULT '[]'"),
+    ("projecoes_historico", "analise_json", "TEXT NOT NULL DEFAULT '{}'"),
+]
+
+INDICES_POS_MIGRACAO = [
+    "CREATE INDEX IF NOT EXISTS idx_projecoes_eleicao_ts ON projecoes_historico (eleicao, timestamp)",
+    "CREATE INDEX IF NOT EXISTS idx_projecoes_execucao ON projecoes_historico (execucao_id, id)",
+]
+
 
 class SQLiteDatabase:
     """Gerenciador de conexão SQLite WAL."""
@@ -47,6 +63,13 @@ class SQLiteDatabase:
             with open(SCHEMA_FILE, "r", encoding="utf-8") as f:
                 schema_sql = f.read()
             conn.executescript(schema_sql)
+            for tabela, coluna, definicao in MIGRACOES:
+                existentes = {r[1] for r in conn.execute(f"PRAGMA table_info({tabela})")}
+                if coluna not in existentes:
+                    conn.execute(f"ALTER TABLE {tabela} ADD COLUMN {coluna} {definicao}")
+                    logger.info(f"Migração: coluna {tabela}.{coluna} adicionada")
+            for ddl in INDICES_POS_MIGRACAO:
+                conn.execute(ddl)
             conn.commit()
             conn.close()
             logger.info(f"Banco de dados SQLite inicializado em WAL mode: {self.db_path}")

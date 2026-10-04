@@ -2,7 +2,9 @@
 Repositório de Dados do SPETR.
 Implementa a interface IRepository para persistência e recuperação histórica.
 """
+import asyncio
 import json
+import uuid
 from typing import List, Optional, Dict, Any
 import logging
 
@@ -22,9 +24,22 @@ logger = logging.getLogger("spetr.storage.repository")
 class ElectionRepository(IRepository):
     """Repositório de persistência SQLite com suporte a Time-Travel."""
 
-    def __init__(self, db: SQLiteDatabase, event_bus: Optional[IEventBus] = None):
+    def __init__(
+        self,
+        db: SQLiteDatabase,
+        event_bus: Optional[IEventBus] = None,
+        eleicao: str = "",
+        execucao_id: Optional[str] = None,
+    ):
+        """
+        eleicao: identifica o pleito (ambiente/ano/código/cargo/turno). O time-travel busca
+                 em todas as execuções do mesmo pleito.
+        execucao_id: identifica esta execução do programa. O histórico mostra só a execução atual.
+        """
         self.db = db
         self.bus = event_bus
+        self.eleicao = eleicao
+        self.execucao_id = execucao_id or uuid.uuid4().hex[:12]
 
         if self.bus is not None:
             self.bus.subscribe(ProjectionCalculatedEvent, self._ao_calcular_projecao)
@@ -32,13 +47,13 @@ class ElectionRepository(IRepository):
 
     async def _ao_calcular_projecao(self, evento: ProjectionCalculatedEvent) -> None:
         try:
-            self.salvar_projecao(evento.resultado)
+            await asyncio.to_thread(self.salvar_projecao, evento.resultado)
         except Exception as e:
             logger.error(f"Erro ao salvar projeção no banco: {e}", exc_info=True)
 
     async def _ao_normalizar_estratos(self, evento: StrataNormalizedEvent) -> None:
         try:
-            self.salvar_snapshots(list(evento.snapshots.values()))
+            await asyncio.to_thread(self.salvar_snapshots, list(evento.snapshots.values()))
         except Exception as e:
             logger.error(f"Erro ao salvar snapshots no banco: {e}", exc_info=True)
 
@@ -52,8 +67,9 @@ class ElectionRepository(IRepository):
             INSERT INTO snapshots_apuracao (
                 estrato_id, timestamp, secoes_total, secoes_apuradas,
                 eleitores_aptos, comparecimento, abstencao, votos_validos,
-                votos_brancos, votos_nulos, votos_candidatos_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                votos_brancos, votos_nulos, votos_candidatos_json,
+                eleicao, execucao_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         rows = [
             (
@@ -67,7 +83,9 @@ class ElectionRepository(IRepository):
                 s.votos_validos,
                 s.votos_brancos,
                 s.votos_nulos,
-                json.dumps(s.votos_candidatos)
+                json.dumps(s.votos_candidatos),
+                self.eleicao,
+                self.execucao_id,
             )
             for s in snapshots
         ]
@@ -82,8 +100,9 @@ class ElectionRepository(IRepository):
                 timestamp, ciclo_id, total_secoes, secoes_apuradas,
                 perc_secoes, total_eleitores, total_validos_apurados,
                 total_validos_projetados, status_call, vencedor_projetado,
-                lider_margem, tempo_computacao_ms, candidatos_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                lider_margem, tempo_computacao_ms, candidatos_json,
+                eleicao, execucao_id, prob_segundo_turno, ufs_sem_dados_json, analise_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         cands_json = json.dumps([
             {
@@ -98,6 +117,11 @@ class ElectionRepository(IRepository):
                 "ic_inferior_95": c.ic_inferior_95,
                 "ic_superior_95": c.ic_superior_95,
                 "prob_vitoria": c.prob_vitoria,
+                "prob_lideranca": c.prob_lideranca,
+                "vice": c.vice,
+                "coligacao": c.coligacao,
+                "composicao": c.composicao,
+                "nome_completo": c.nome_completo,
             }
             for c in p.candidatos
         ])
@@ -116,7 +140,12 @@ class ElectionRepository(IRepository):
                 p.vencedor_projetado,
                 p.lider_margem,
                 p.tempo_computacao_ms,
-                cands_json
+                cands_json,
+                self.eleicao,
+                self.execucao_id,
+                p.prob_segundo_turno,
+                json.dumps(p.ufs_sem_dados),
+                json.dumps(p.analise, separators=(",", ":")),
             ))
 
     def obter_historico_projecoes(self, limite: int = 100) -> List[ResultadoProjecao]:
@@ -125,10 +154,17 @@ class ElectionRepository(IRepository):
         cursor = conn.cursor()
         cursor.execute(
             """
-            SELECT * FROM projecoes_historico 
+            SELECT *, json_object(
+                'nacional', json(json_extract(analise_json, '$.nacional')),
+                'faltam', json(json_extract(analise_json, '$.faltam')),
+                'prob_top2', json(json_extract(analise_json, '$.prob_top2')),
+                'aguardando', json(json_extract(analise_json, '$.aguardando'))
+            ) AS analise_resumo
+            FROM projecoes_historico
+            WHERE execucao_id = ?
             ORDER BY id DESC LIMIT ?
             """,
-            (limite,)
+            (self.execucao_id, limite)
         )
         rows = cursor.fetchall()
         resultados = []
@@ -143,10 +179,10 @@ class ElectionRepository(IRepository):
         cursor.execute(
             """
             SELECT * FROM projecoes_historico
-            WHERE timestamp <= ?
-            ORDER BY timestamp DESC LIMIT 1
+            WHERE eleicao = ? AND timestamp <= ?
+            ORDER BY timestamp DESC, id DESC LIMIT 1
             """,
-            (timestamp,)
+            (self.eleicao, timestamp)
         )
         row = cursor.fetchone()
         if not row:
@@ -167,7 +203,12 @@ class ElectionRepository(IRepository):
                 perc_projetado=c["perc_projetado"],
                 ic_inferior_95=c["ic_inferior_95"],
                 ic_superior_95=c["ic_superior_95"],
-                prob_vitoria=c["prob_vitoria"]
+                prob_vitoria=c["prob_vitoria"],
+                prob_lideranca=c.get("prob_lideranca", 0.0),
+                vice=c.get("vice", ""),
+                coligacao=c.get("coligacao", ""),
+                composicao=c.get("composicao", ""),
+                nome_completo=c.get("nome_completo", ""),
             )
             for c in cands_data
         ]
@@ -191,5 +232,9 @@ class ElectionRepository(IRepository):
             status_call=status_enum,
             vencedor_projetado=r["vencedor_projetado"],
             lider_margem=r["lider_margem"],
-            tempo_computacao_ms=r["tempo_computacao_ms"]
+            tempo_computacao_ms=r["tempo_computacao_ms"],
+            prob_segundo_turno=r["prob_segundo_turno"],
+            ufs_sem_dados=json.loads(r["ufs_sem_dados_json"]),
+            # No histórico só o resumo é extraído (SQLite JSON1), evitando decodificar a análise inteira
+            analise=json.loads(r["analise_resumo"] if "analise_resumo" in r.keys() else r["analise_json"]),
         )
