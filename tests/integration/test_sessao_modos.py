@@ -161,3 +161,13 @@ def test_previa_da_simulacao_pela_api(tmp_path):
         assert ok.status_code == 200 and ok.json()["final"]["88"] > ok.json()["final"]["99"]
         ruim = cliente.post("/api/v1/simulador/previa", json={"cenario": "virada", "ajustes": {"regioes": {"NE": {"velocidade": 99}}}})
         assert ruim.status_code == 422
+
+
+def test_vies_de_ordem_muda_a_parcial_mas_nao_o_resultado_final():
+    from spetr.simulador import EstadoSimulacao
+    sem = EstadoSimulacao("2t", ajustes={"regioes": {"SE": {"vies": 0}}}).previa((0.2,))
+    com = EstadoSimulacao("2t", ajustes={"regioes": {reg: {"vies": 20} for reg in ("N", "NE", "CO", "SE", "S", "EX")}}).previa((0.2,))
+    assert abs(sem["final"]["99"] - com["final"]["99"]) < 0.05                      # final igual
+    assert com["ritmo"]["0.2"]["parcial"]["99"] > sem["ritmo"]["0.2"]["parcial"]["99"] + 5   # parcial pende para o 1º
+    with pytest.raises(ValueError):
+        EstadoSimulacao("2t", ajustes={"regioes": {"NE": {"vies": 80}}})

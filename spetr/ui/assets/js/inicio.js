@@ -76,6 +76,8 @@ function preencherConfig() {
       texto: `${sobrenome(c.nm)}${c.sub_judice ? '*' : ''} %` })),
     el('th', { classe: 'num', texto: 'Soma' }),
     el('th', { classe: 'num vel', texto: 'Velocidade', title: '1 = ritmo médio · 2 = começa no dobro · 0,5 = começa na metade' }),
+    el('th', { classe: 'num', texto: 'Viés de ordem',
+      title: `Pontos a mais para ${cands[0].nm} nas primeiras urnas de cada cidade (negativo favorece ${cands[1].nm}); some até o fim da apuração` }),
   ]));
   for (const [reg, nomeReg] of Object.entries(config.regioes)) {
     const valores = perfil.ajustes.regioes[reg] || { percentuais: {}, velocidade: 1 };
@@ -93,6 +95,10 @@ function preencherConfig() {
     tr.appendChild(el('td', { classe: 'num vel' }, [el('input', {
       type: 'number', min: '0.2', max: '5', step: '0.1', 'data-vel': '1',
       'aria-label': `${nomeReg}: razão de velocidade da apuração`, value: String(valores.velocidade ?? 1),
+    })]));
+    tr.appendChild(el('td', { classe: 'num' }, [el('input', {
+      type: 'number', min: '-40', max: '40', step: '1', 'data-vies': '1',
+      'aria-label': `${nomeReg}: viés de ordem em pontos`, value: String(valores.vies ?? 0),
     })]));
     tbody.appendChild(tr);
   }
@@ -128,7 +134,11 @@ function coletarAjustes() {
   for (const tr of document.querySelectorAll('#tabela-config tbody tr')) {
     const percentuais = {};
     for (const i of tr.querySelectorAll('input[data-cand]')) percentuais[i.dataset.cand] = parseFloat(i.value) || 0;
-    regioes[tr.dataset.regiao] = { percentuais, velocidade: parseFloat(tr.querySelector('input[data-vel]').value) || 1 };
+    regioes[tr.dataset.regiao] = {
+      percentuais,
+      velocidade: parseFloat(tr.querySelector('input[data-vel]').value) || 1,
+      vies: parseFloat(tr.querySelector('input[data-vies]').value) || 0,
+    };
   }
   return { regioes, cidades_primeiro: form.cidades_primeiro.checked };
 }

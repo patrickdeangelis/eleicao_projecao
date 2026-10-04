@@ -57,8 +57,9 @@ A **tela inicial** pergunta como acompanhar a apuração:
    - `1t`: 1º turno com 10 candidatos (um sub judice);
    - `2t`: 2º turno equilibrado;
    - `virada`: 2º turno em que o Nordeste (forte para SILVA) apura cedo e Sul/Sudeste/Centro-Oeste (fortes para SANTOS) apuram tarde — a parcial mostra SILVA na frente até ~80% e SANTOS vence.
+   - `vies`: a mesma virada e, além disso, um **viés de ordem**: em cada cidade/interior as primeiras urnas favorecem SILVA e o efeito some até o fim (testa o modelo quando a parcial de cada lugar não representa o que falta).
 
-   Em **Configurar percentuais e velocidade por região**, cada região recebe o **percentual de cada candidato** (soma 100%) e uma **razão de velocidade** da apuração (1 = ritmo médio; 2 = começa no dobro; 0,5 = começa na metade e acelera no fim; toda região chega a 100%). A tela mostra uma prévia do resultado final e de quanto cada região terá apurado ao longo do tempo.
+   Em **Configurar percentuais e velocidade por região**, cada região recebe o **percentual de cada candidato** (soma 100%) e uma **razão de velocidade** da apuração (1 = ritmo médio; 2 = começa no dobro; 0,5 = começa na metade e acelera no fim; toda região chega a 100%) e um **viés de ordem** em pontos (vantagem extra do 1º candidato nas primeiras urnas de cada cidade; some até o fim, sem mudar o resultado final). A tela mostra uma prévia do resultado final e de quanto cada região terá apurado ao longo do tempo.
 
 No painel, **Trocar modo** volta à tela inicial sem reiniciar o app (por exemplo: simular agora e passar para a coleta real quando a apuração começar). Para pular a tela inicial:
 

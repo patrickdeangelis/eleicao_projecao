@@ -95,6 +95,14 @@ PERFIS: Dict[str, Dict[str, Any]] = {
                      "SE": ("razao", 0.4), "S": ("razao", 0.5), "EX": ("razao", 0.35)},
     },
 }
+# Viés de ordem: dentro de cada cidade/interior, as primeiras urnas favorecem SILVA e o efeito
+# some até o fim (viola de propósito a suposição de que o já apurado representa o que falta).
+PERFIS["vies"] = {
+    **PERFIS["virada"],
+    "descricao": "2º turno com viés de ordem · além da virada regional, as primeiras urnas de cada cidade favorecem SILVA",
+    "vies_ordem": {"N": 0.10, "NE": 0.10, "CO": 0.14, "SE": 0.14, "S": 0.14, "EX": 0.10},
+}
+
 CENARIOS = {nome: p["candidatos"] for nome, p in PERFIS.items()}
 DESCRICAO_CENARIOS = {nome: p["descricao"] for nome, p in PERFIS.items()}
 TURNO_CENARIO = {nome: p["turno"] for nome, p in PERFIS.items()}
@@ -134,7 +142,8 @@ def descrever_perfis() -> Dict[str, Any]:
                 "ajustes": {
                     "regioes": {
                         reg: {"percentuais": estado.percentuais_finais(reg),
-                              "velocidade": _razao_equivalente(p["apuracao"].get(reg, ("linear", 1.0)))}
+                              "velocidade": _razao_equivalente(p["apuracao"].get(reg, ("linear", 1.0))),
+                              "vies": round(p.get("vies_ordem", {}).get(reg, 0.0) * 100, 1)}
                         for reg in NOMES_REGIAO
                     },
                     "cidades_primeiro": True,
@@ -157,14 +166,17 @@ def _numero(valor: Any, nome: str, minimo: float, maximo: float) -> float:
 def aplicar_ajustes(perfil: Dict[str, Any], ajustes: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     """
     Cópia do perfil com os ajustes do usuário:
-    - regioes: {N|NE|CO|SE|S|EX: {percentuais: {numero: % dos votos nominais}, velocidade: razão (0,2 a 5)}}
-      Os percentuais de cada região precisam somar 100%.
+    - regioes: {N|NE|CO|SE|S|EX: {percentuais: {numero: % dos votos nominais}, velocidade: razão (0,2 a 5),
+               vies: viés de ordem em pontos (-40 a 40)}}
+      Os percentuais de cada região precisam somar 100%. O viés de ordem é a vantagem extra do
+      1º candidato sobre o 2º nas primeiras urnas de cada cidade/interior; diminui até zero no fim.
     - cidades_primeiro: capitais e cidades grandes apuram antes do interior
     """
     if not ajustes:
         return perfil
     numeros = [c[0] for c in perfil["candidatos"]]
-    novo = {**perfil, "apuracao": dict(perfil["apuracao"]), "percentuais_regiao": {}}
+    novo = {**perfil, "apuracao": dict(perfil["apuracao"]), "percentuais_regiao": {},
+            "vies_ordem": dict(perfil.get("vies_ordem", {}))}
     for reg, cfg in (ajustes.get("regioes") or {}).items():
         if reg not in NOMES_REGIAO:
             raise ValueError(f"Região desconhecida: {reg!r}")
@@ -181,6 +193,8 @@ def aplicar_ajustes(perfil: Dict[str, Any], ajustes: Optional[Dict[str, Any]]) -
             novo["percentuais_regiao"][reg] = {n: v / soma for n, v in pcts.items()}
         if "velocidade" in cfg:
             novo["apuracao"][reg] = ("razao", _numero(cfg["velocidade"], f"Velocidade de {nome_reg}", RAZAO_MIN, RAZAO_MAX))
+        if "vies" in cfg:
+            novo["vies_ordem"][reg] = _numero(cfg["vies"], f"Viés de ordem de {nome_reg}", -40, 40) / 100
     if "cidades_primeiro" in ajustes:
         novo["velocidade_tipo"] = VELOCIDADE_TIPO if ajustes["cidades_primeiro"] else VELOCIDADE_TIPO_UNIFORME
     return novo
@@ -334,6 +348,9 @@ class EstadoSimulacao:
             inclinacao = (self.perfil["inclinacao_regiao"].get(regiao, 0.0)
                           + (self.perfil["inclinacao_cidade"] if u["tipo"] == "cidade" else 0.0)
                           + _ruido(u["id"], 0.05))
+        # Viés de ordem: as urnas apuradas até aqui (p) pendem para o 1º candidato; com tudo
+        # apurado (p = 1) o efeito é zero e o resultado final não muda
+        inclinacao += self.perfil.get("vies_ordem", {}).get(regiao, 0.0) * (1.0 - p)
         if len(pesos) >= 2:
             pesos[0] = max(0.01, pesos[0] + inclinacao / 2)
             pesos[1] = max(0.01, pesos[1] - inclinacao / 2)
