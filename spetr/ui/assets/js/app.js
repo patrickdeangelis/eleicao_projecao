@@ -12,6 +12,7 @@ const state = {
   eixo: 'tempo',
   aba: 'geral',
   modoMapa: 'lider',
+  modoCorrida: 'votos',
   ufSelecionada: null,
   ordemUf: { chave: 'restantes', desc: true },
   slots: {},              // número do candidato -> slot de cor (fixo para a entidade)
@@ -404,18 +405,26 @@ function renderGeral(d) {
   const nums = candidatosDosGraficos();
   const atualPor = Object.fromEntries(d.candidatos.map((c) => [c.numero, c]));
 
-  // Corrida até 100%
+  // Corrida até 100%: votos acumulados ou % dos válidos, com projeção pontilhada até 100%
   const total = d.total_validos_projetados || 0;
+  const emVotos = state.modoCorrida !== 'pct';
   G.corrida(document.getElementById('g-corrida'), {
     vazio: SEM_SELECAO,
     xFmt: (v) => `${fmt1.format(v)}%`,
-    yFmt: compacto,
-    yFmtEixo: (v) => (v >= 1e6 ? `${fmtInt.format(v / 1e6)} mi` : compacto(v)),
+    yFmt: emVotos ? compacto : (v) => pct(v, 1),
+    yFmtEixo: emVotos ? (v) => (v >= 1e6 ? `${fmtInt.format(v / 1e6)} mi` : compacto(v)) : (v) => `${v}%`,
+    margemDireita: emVotos ? 160 : 118,
+    opacidadeArea: emVotos ? 0.22 : 0.08,
     series: nums.map((n) => {
-      const s = serieHistorico(n, (r, c) => ({ x: r.perc_secoes_apuradas, y: c.votos_apurados }));
-      s.pontos.unshift({ x: 0, y: 0 });
       const c = atualPor[n];
-      s.final = { y: c.media_projetada, lo: c.ic_inferior_95 / 100 * total, hi: c.ic_superior_95 / 100 * total };
+      const s = serieHistorico(n, (r, h) => (emVotos
+        ? { x: r.perc_secoes_apuradas, y: h.votos_apurados, det: pct(h.perc_apurado, 1) }
+        : { x: r.perc_secoes_apuradas, y: h.perc_apurado, det: `${compacto(h.votos_apurados)} votos` }));
+      if (emVotos) s.pontos.unshift({ x: 0, y: 0 });
+      s.final = emVotos
+        ? { y: c.media_projetada, lo: c.ic_inferior_95 / 100 * total, hi: c.ic_superior_95 / 100 * total,
+            rotulo: `${fmt1.format(c.media_projetada / 1e6)} mi · ${pct(c.perc_projetado, 1)}` }
+        : { y: c.perc_projetado, lo: c.ic_inferior_95, hi: c.ic_superior_95 };
       return s;
     }),
   });
@@ -674,13 +683,28 @@ function renderApuracao(d) {
     );
   }
 
+  // UFs agrupadas por região (ordem geográfica), cada grupo com a média da região
   const a = d.analise || {};
-  const ufs = [...(a.ufs || [])].sort((x, y) => pctApurado(y) - pctApurado(x));
+  const ORDEM_REGIAO = ['Norte', 'Nordeste', 'Centro-Oeste', 'Sudeste', 'Sul', 'Exterior'];
+  const ufs = [...(a.ufs || [])].sort((x, y) => (ORDEM_REGIAO.indexOf(x.regiao) - ORDEM_REGIAO.indexOf(y.regiao))
+    || (pctApurado(y) - pctApurado(x)));
+  const grupos = [];
+  ufs.forEach((u, i) => {
+    const g = grupos[grupos.length - 1];
+    if (g && g.regiao === u.regiao) g.fim = i;
+    else grupos.push({ regiao: u.regiao, inicio: i, fim: i });
+  });
+  for (const g of grupos) {
+    const r = (a.regioes || []).find((x) => x.regiao === g.regiao);
+    g.media = r ? +pctApurado(r).toFixed(1) : undefined;
+    g.nome = g.regiao === 'Exterior' ? 'Ext.' : `${g.regiao}${g.media !== undefined ? ` ${fmt1.format(g.media)}%` : ''}`;
+  }
   G.colunas(document.getElementById('g-apuracao-uf'), {
+    grupos,
     categorias: ufs.map((u) => u.uf),
     titulos: ufs.map((u) => NOMES_UF[u.uf] || u.uf),
     valores: ufs.map((u) => +pctApurado(u).toFixed(1)),
-    detalhes: ufs.map((u) => `das seções · ${compacto(u.restantes_esperados)} válidos a apurar`),
+    detalhes: ufs.map((u) => `das seções · ${u.regiao} · ${compacto(u.restantes_esperados)} válidos a apurar`),
     fmt: (v) => pct(v, 1), fmtEixo: (v) => `${v}%`, max: 100,
     ref: d.perc_secoes_apuradas, refRotulo: `Brasil ${pct(d.perc_secoes_apuradas, 1)}`,
   });
@@ -957,6 +981,21 @@ function iniciarControles() {
         o.setAttribute('aria-pressed', String(o === b));
       }
       if (state.atual) renderMapa(state.atual);
+    });
+  }
+
+  state.modoCorrida = recuperar('spetr-corrida', 'votos');
+  for (const b of document.querySelectorAll('[data-corrida]')) {
+    b.classList.toggle('ativo', b.dataset.corrida === state.modoCorrida);
+    b.setAttribute('aria-pressed', String(b.dataset.corrida === state.modoCorrida));
+    b.addEventListener('click', () => {
+      state.modoCorrida = b.dataset.corrida;
+      armazenar('spetr-corrida', state.modoCorrida);
+      for (const o of document.querySelectorAll('[data-corrida]')) {
+        o.classList.toggle('ativo', o === b);
+        o.setAttribute('aria-pressed', String(o === b));
+      }
+      if (state.atual && !emEspera(state.atual)) renderGeral(state.atual);
     });
   }
 

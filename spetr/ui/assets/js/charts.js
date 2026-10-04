@@ -384,18 +384,18 @@ const Graficos = (() => {
     const grafico = instancia(container, 300);
     const b = base();
     const agora = Math.max(...series.map((s) => s.pontos[s.pontos.length - 1].x));
-    const maxY = Math.max(...series.map((s) => Math.max(s.final.hi || 0, s.final.y)));
+    const maxY = Math.max(...series.map((s) => Math.max(s.final.hi || 0, s.final.y, ...s.pontos.map((p) => p.y))));
     const [, yMax] = limitesBonitos(0, maxY * 1.04);
 
     const opcoes = [];
     series.forEach((s, i) => {
       const ult = s.pontos[s.pontos.length - 1];
       opcoes.push({
-        id: `real-${s.id}`, name: s.rotulo, type: 'line', data: s.pontos.map((p) => [p.x, p.y]),
+        id: `real-${s.id}`, name: s.rotulo, type: 'line', data: s.pontos.map((p) => [p.x, p.y, p.det ?? '']),
         showSymbol: false, smooth: 0.2, z: 3,
         lineStyle: { color: s.cor, width: 2 },
         itemStyle: { color: s.cor },
-        areaStyle: { color: s.cor, opacity: 0.22 },
+        areaStyle: { color: s.cor, opacity: cfg.opacidadeArea ?? 0.22 },
         markLine: i === 0 ? {
           silent: true, symbol: 'none',
           lineStyle: { color: token('--texto-3'), type: [4, 4], width: 1 },
@@ -408,7 +408,7 @@ const Graficos = (() => {
         showSymbol: false, z: 2, silent: true, tooltip: { show: false },
         lineStyle: { color: s.cor, width: 2, type: [2, 4] },
         endLabel: i < (cfg.maxRotulos || 6) ? {
-          show: true, formatter: () => `${s.rotuloCurto || s.rotulo} ${cfg.yFmt(s.final.y)}`,
+          show: true, formatter: () => `${s.rotuloCurto || s.rotulo} ${s.final.rotulo || cfg.yFmt(s.final.y)}`,
           color: token('--texto-2'), fontSize: 11, fontWeight: 600, distance: 8,
         } : { show: false },
         labelLayout: { moveOverlap: 'shiftY' },
@@ -424,7 +424,7 @@ const Graficos = (() => {
 
     grafico.setOption({
       ...semEixo(b),
-      grid: { left: 52, right: 118, top: 18, bottom: 28 },
+      grid: { left: 52, right: cfg.margemDireita || 118, top: 18, bottom: 28 },
       xAxis: {
         type: 'value', min: 0, max: 100, interval: 20, ...b.eixo, splitLine: { show: false },
         axisLabel: { ...b.eixo.axisLabel, formatter: (v) => `${v}%` },
@@ -442,8 +442,9 @@ const Graficos = (() => {
           if (!reais.length) return '';
           const linhasTt = reais.sort((a, c) => c.value[1] - a.value[1]).map((it) => {
             const s = series.find((ss) => `real-${ss.id}` === it.seriesId);
-            return linhaTooltip(s.cor, cfg.yFmt(it.value[1]),
-              `${s.rotulo} · final projetado ${cfg.yFmt(s.final.y)} [${cfg.yFmt(s.final.lo)} – ${cfg.yFmt(s.final.hi)}]`);
+            const det = it.value[2] ? ` (${it.value[2]})` : '';
+            return linhaTooltip(s.cor, `${cfg.yFmt(it.value[1])}${det}`,
+              `${s.rotulo} · final projetado ${s.final.rotulo || cfg.yFmt(s.final.y)} [${cfg.yFmt(s.final.lo)} – ${cfg.yFmt(s.final.hi)}]`);
           }).join('');
           return tituloTooltip(`${cfg.xFmt(reais[0].value[0])} das seções apuradas`) + linhasTt;
         },
@@ -601,7 +602,7 @@ const Graficos = (() => {
     const cor = cfg.cor || token('--seq');
     grafico.setOption({
       ...semEixo(b),
-      grid: { left: 48, right: 14, top: 22, bottom: 24 },
+      grid: { left: 48, right: 14, top: (cfg.grupos || []).length ? 30 : 22, bottom: 24 },
       xAxis: { type: 'category', data: cats, ...b.eixo, axisLabel: { ...b.eixo.axisLabel, interval: 0, fontSize: 10 } },
       yAxis: {
         type: 'value', min: 0, max: cfg.max, ...b.eixo, axisLine: { show: false },
@@ -618,10 +619,27 @@ const Graficos = (() => {
       series: [{
         type: 'bar', barMaxWidth: 22,
         data: cfg.valores.map((v, i) => ({ value: v, itemStyle: { color: cfg.cores ? cfg.cores[i] : cor, borderRadius: [3, 3, 0, 0] } })),
-        markLine: cfg.ref !== undefined ? {
-          silent: true, symbol: 'none', lineStyle: { color: token('--texto-3'), type: [4, 4], width: 1 },
-          label: { formatter: cfg.refRotulo || '', color: token('--texto-2'), fontSize: 11, position: 'insideEndTop' },
-          data: [{ yAxis: cfg.ref }],
+        markLine: cfg.ref !== undefined || (cfg.grupos || []).length ? {
+          silent: true, symbol: 'none',
+          lineStyle: { color: token('--texto-3'), type: [4, 4], width: 1 },
+          label: { color: token('--texto-2'), fontSize: 10 },
+          data: [
+            ...(cfg.ref !== undefined ? [{ yAxis: cfg.ref, label: { formatter: cfg.refRotulo || '', position: 'insideEndTop' } }] : []),
+            // média de cada grupo: segmento só sobre as colunas da região
+            ...(cfg.grupos || []).filter((g) => g.media !== undefined).map((g) => [
+              { coord: [cats[g.inicio], g.media], lineStyle: { type: 'solid', width: 2, color: token('--texto-2') },
+                label: { show: false } },
+              { coord: [cats[g.fim], g.media] },
+            ]),
+          ],
+        } : undefined,
+        markArea: (cfg.grupos || []).length ? {
+          silent: true,
+          label: { color: token('--texto-2'), fontSize: 11, fontWeight: 600, position: 'insideTop', distance: 2 },
+          data: cfg.grupos.map((g, i) => [
+            { xAxis: cats[g.inicio], name: g.nome, itemStyle: { color: i % 2 ? 'transparent' : token('--superficie-2') } },
+            { xAxis: cats[g.fim] },
+          ]),
         } : undefined,
       }],
     }, { notMerge: true });

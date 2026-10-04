@@ -76,8 +76,14 @@
       <!-- Visão geral -->
       <div class="aba grade-2x2" role="tabpanel" id="aba-geral" aria-labelledby="tab-geral" data-aba="geral">
         <article class="bloco">
-          <header><h3>Corrida até 100%</h3><span class="nota">Votos apurados (área) e projeção até o fim da apuração (pontilhado)</span></header>
-          <div class="grafico preenche" id="g-corrida"></div>
+          <header>
+            <h3>Corrida até 100%</h3>
+            <div class="segmentado pequeno" role="group" aria-label="Medida da corrida" id="controle-corrida">
+              <button type="button" data-corrida="votos" class="ativo">Votos</button>
+              <button type="button" data-corrida="pct">% válidos</button>
+            </div>
+          </header>
+          <div class="grafico preenche" id="g-corrida" title="Área: apurado até agora · pontilhado: projeção até 100% das seções"></div>
         </article>
         <article class="bloco">
           <header><h3>Intervalos de projeção</h3><span class="nota">Faixa provável do resultado final · ● projeção · ○ apurado até agora</span></header>
@@ -148,7 +154,7 @@
           <div class="grafico preenche" id="g-ritmo"></div>
         </article>
         <article class="bloco largo">
-          <header><h3>Seções apuradas por UF</h3><span class="nota">% das seções de cada UF · linha = média nacional</span></header>
+          <header><h3>Seções apuradas por UF e região</h3><span class="nota">% das seções de cada UF · linhas: média de cada região e do Brasil</span></header>
           <div class="grafico preenche" id="g-apuracao-uf"></div>
         </article>
       </div>
