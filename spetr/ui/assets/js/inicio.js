@@ -49,7 +49,7 @@ async function carregar() {
   form.eleicao.value = p.eleicao || '';
   form.tse_url.value = p.tse_url || 'https://resultados.tse.jus.br';
   form.ambiente.value = p.ambiente || 'oficial';
-  for (const chave of o.jws || []) opcao(form.jws, chave, `Chave ${chave} do TSE`);
+  for (const chave of o.jws || []) opcao(form.jws, chave, chave === 'oficial' ? 'Sim (chave oficial)' : `Sim (chave de ${chave})`);
   form.jws.value = p.jws || '';
   for (const [k, v] of Object.entries(o.cenarios || {})) opcao(form.cenario, k, v);
   const nomesVel = { lenta: 'Lenta', normal: 'Normal', rapida: 'Rápida' };

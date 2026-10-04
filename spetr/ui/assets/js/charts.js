@@ -29,7 +29,10 @@ const Graficos = (() => {
   function instancia(container, altura) {
     const msg = container.querySelector(':scope > .vazio');
     if (msg) msg.remove();
-    container.style.height = `${altura}px`;
+    // Blocos "preenche" e o anel têm a altura dada pelo layout (CSS); os demais, pela quantidade de dados
+    if (altura && !container.classList.contains('preenche') && !container.classList.contains('grafico-anel')) {
+      container.style.height = `${altura}px`;
+    }
     let grafico = echarts.getInstanceByDom(container);
     if (!grafico) grafico = echarts.init(container, null, { renderer: 'svg' });
     else grafico.resize();
@@ -184,6 +187,7 @@ const Graficos = (() => {
       yAxis: {
         type: 'value', min: yMin, max: yMax, ...b.eixo,
         axisLine: { show: false },
+        interval: yMin === 0 && yMax === 100 ? 20 : undefined, splitNumber: 4,
         axisLabel: { ...b.eixo.axisLabel, formatter: (v) => cfg.yFmt(v) },
       },
       tooltip: {
@@ -239,14 +243,15 @@ const Graficos = (() => {
 
     grafico.setOption({
       ...semEixo(b),
-      grid: { left: 48, right: 16, top: 18, bottom: 28 },
+      grid: { left: 16, right: 16, top: 18, bottom: 28 },
+      legend: series.length > 1 ? { top: 0, right: 0, itemWidth: 10, itemHeight: 10, textStyle: { color: token('--texto-2'), fontSize: 11 } } : undefined,
       xAxis: {
         type: 'value', min: xMin - pad, max: xMax + pad, ...b.eixo, splitLine: { show: false },
         axisLabel: { ...b.eixo.axisLabel, formatter: (v) => cfg.xFmt(v), hideOverlap: true, showMinLabel: false, showMaxLabel: false },
       },
       yAxis: {
         type: 'value', min: 0, ...b.eixo, axisLine: { show: false },
-        axisLabel: { ...b.eixo.axisLabel, formatter: (v) => `${(v * 100).toFixed(v * 100 < 10 ? 1 : 0).replace('.', ',')}%` },
+        axisLabel: { show: false },
       },
       tooltip: {
         ...b.tooltip,
@@ -258,7 +263,7 @@ const Graficos = (() => {
           const corpo = itens.map((it) => {
             const s = series[it.seriesIndex];
             return linhaTooltip(s.cor, `${((it.value[2] || 0) * 100).toFixed(1).replace('.', ',')}%`,
-              `${s.rotulo} (classe de ${String(s.passo).replace('.', ',')} p.p.)`);
+              `${s.rotulo} · dos cenários nesta faixa`);
           }).join('');
           return tituloTooltip(`a partir de ${cfg.xFmt(x)}`) + corpo;
         },
@@ -367,6 +372,300 @@ const Graficos = (() => {
     }, { notMerge: true });
   }
 
+  // ------------------------------------------------- corrida até 100%
+  /**
+   * Votos acumulados × % das seções apuradas. Área preenchida = caminho real até agora;
+   * pontilhado = do ponto atual até a projeção em 100%, com barra do IC 95% no fim.
+   * series: [{id, rotulo, rotuloCurto, cor, pontos: [{x, y}], final: {y, lo, hi}}]
+   */
+  function corrida(container, cfg) {
+    const series = cfg.series.filter((s) => s.pontos.length);
+    if (!series.length) return vazio(container, cfg.vazio);
+    const grafico = instancia(container, 300);
+    const b = base();
+    const agora = Math.max(...series.map((s) => s.pontos[s.pontos.length - 1].x));
+    const maxY = Math.max(...series.map((s) => Math.max(s.final.hi || 0, s.final.y)));
+    const [, yMax] = limitesBonitos(0, maxY * 1.04);
+
+    const opcoes = [];
+    series.forEach((s, i) => {
+      const ult = s.pontos[s.pontos.length - 1];
+      opcoes.push({
+        id: `real-${s.id}`, name: s.rotulo, type: 'line', data: s.pontos.map((p) => [p.x, p.y]),
+        showSymbol: false, smooth: 0.2, z: 3,
+        lineStyle: { color: s.cor, width: 2 },
+        itemStyle: { color: s.cor },
+        areaStyle: { color: s.cor, opacity: 0.22 },
+        markLine: i === 0 ? {
+          silent: true, symbol: 'none',
+          lineStyle: { color: token('--texto-3'), type: [4, 4], width: 1 },
+          label: { formatter: `agora · ${cfg.xFmt(agora)}`, color: token('--texto-2'), fontSize: 11, position: 'end' },
+          data: [{ xAxis: agora }],
+        } : undefined,
+      });
+      opcoes.push({
+        id: `proj-${s.id}`, name: s.rotulo, type: 'line', data: [[ult.x, ult.y], [100, s.final.y]],
+        showSymbol: false, z: 2, silent: true, tooltip: { show: false },
+        lineStyle: { color: s.cor, width: 2, type: [2, 4] },
+        endLabel: i < (cfg.maxRotulos || 6) ? {
+          show: true, formatter: () => `${s.rotuloCurto || s.rotulo} ${cfg.yFmt(s.final.y)}`,
+          color: token('--texto-2'), fontSize: 11, fontWeight: 600, distance: 8,
+        } : { show: false },
+        labelLayout: { moveOverlap: 'shiftY' },
+      });
+      if (s.final.lo !== undefined) {
+        opcoes.push({
+          id: `ic-${s.id}`, type: 'line', data: [[100, s.final.lo], [100, s.final.hi]],
+          showSymbol: true, symbol: 'rect', symbolSize: [8, 2], silent: true, tooltip: { show: false }, z: 4,
+          lineStyle: { color: s.cor, width: 2 }, itemStyle: { color: s.cor },
+        });
+      }
+    });
+
+    grafico.setOption({
+      ...semEixo(b),
+      grid: { left: 52, right: 118, top: 18, bottom: 28 },
+      xAxis: {
+        type: 'value', min: 0, max: 100, interval: 20, ...b.eixo, splitLine: { show: false },
+        axisLabel: { ...b.eixo.axisLabel, formatter: (v) => `${v}%` },
+      },
+      yAxis: {
+        type: 'value', min: 0, max: yMax, ...b.eixo, axisLine: { show: false },
+        axisLabel: { ...b.eixo.axisLabel, formatter: (v) => (cfg.yFmtEixo || cfg.yFmt)(v) },
+        splitNumber: 4,
+      },
+      tooltip: {
+        ...b.tooltip, trigger: 'axis',
+        axisPointer: { type: 'line', lineStyle: { color: token('--texto-3'), width: 1 } },
+        formatter: (itens) => {
+          const reais = itens.filter((it) => String(it.seriesId).startsWith('real-'));
+          if (!reais.length) return '';
+          const linhasTt = reais.sort((a, c) => c.value[1] - a.value[1]).map((it) => {
+            const s = series.find((ss) => `real-${ss.id}` === it.seriesId);
+            return linhaTooltip(s.cor, cfg.yFmt(it.value[1]),
+              `${s.rotulo} · final projetado ${cfg.yFmt(s.final.y)} [${cfg.yFmt(s.final.lo)} – ${cfg.yFmt(s.final.hi)}]`);
+          }).join('');
+          return tituloTooltip(`${cfg.xFmt(reais[0].value[0])} das seções apuradas`) + linhasTt;
+        },
+      },
+      series: opcoes,
+    }, { notMerge: true });
+  }
+
+  // ------------------------------------------------ intervalos de projeção
+  /** itens: [{rotulo, cor, lo, hi, media, apurado}] — um intervalo horizontal por candidato. */
+  function intervalos(container, cfg) {
+    const itens = cfg.itens || [];
+    if (!itens.length) return vazio(container, cfg.vazio);
+    const grafico = instancia(container, 40 + itens.length * 30);
+    const b = base();
+    const sup = token('--superficie');
+    const [, xMax] = limitesBonitos(0, Math.max(55, ...itens.map((i) => i.hi)) * 1.02);
+    const categorias = itens.map((i) => i.rotulo);
+    grafico.setOption({
+      ...semEixo(b),
+      grid: { left: 118, right: 56, top: 10, bottom: 26 },
+      xAxis: {
+        type: 'value', min: 0, max: xMax, ...b.eixo,
+        axisLabel: { ...b.eixo.axisLabel, formatter: (v) => `${v}%` },
+      },
+      yAxis: {
+        type: 'category', inverse: true, data: categorias, ...b.eixo, axisLine: { show: false }, splitLine: { show: false },
+        axisLabel: { ...b.eixo.axisLabel, color: token('--texto-2'), width: 108, overflow: 'truncate', interval: 0 },
+      },
+      tooltip: {
+        ...b.tooltip, trigger: 'axis', axisPointer: { type: 'shadow', shadowStyle: { color: token('--grade'), opacity: 0.5 } },
+        formatter: (ps) => {
+          const it = itens[ps[0].dataIndex];
+          return tituloTooltip(it.rotulo) +
+            linhaTooltip(it.cor, `${cfg.fmt(it.media)}`, 'projeção') +
+            linhaTooltip(it.cor, `${cfg.fmt(it.lo)} – ${cfg.fmt(it.hi)}`, 'faixa provável') +
+            linhaTooltip(token('--texto-3'), `${cfg.fmt(it.apurado)}`, 'apurado até agora');
+        },
+      },
+      series: [
+        { type: 'bar', stack: 'ic', silent: true, itemStyle: { color: 'transparent' }, data: itens.map((i) => i.lo), barWidth: 12 },
+        {
+          type: 'bar', stack: 'ic', barWidth: 12,
+          data: itens.map((i) => ({ value: Math.max(0.05, i.hi - i.lo), itemStyle: { color: i.cor, opacity: 0.35, borderRadius: 6 } })),
+          markLine: (cfg.refs || []).length ? {
+            silent: true, symbol: 'none', lineStyle: { color: token('--texto-3'), type: [4, 4], width: 1 },
+            label: { show: false },
+            data: cfg.refs.map((r) => ({ xAxis: r.x })),
+          } : undefined,
+        },
+        {
+          type: 'scatter', symbol: 'circle', symbolSize: 11, z: 4,
+          data: itens.map((i, k) => ({ value: [i.media, k], itemStyle: { color: i.cor, borderColor: sup, borderWidth: 2 } })),
+          encode: { x: 0, y: 1 },
+          label: { show: true, position: 'right', distance: 10, formatter: (p) => cfg.fmt(p.value[0]), color: token('--texto'), fontSize: 11, fontWeight: 700 },
+        },
+        {
+          type: 'scatter', symbol: 'circle', symbolSize: 8, z: 5,
+          data: itens.map((i, k) => [i.apurado, k]), encode: { x: 0, y: 1 },
+          itemStyle: { color: sup, borderColor: token('--texto-2'), borderWidth: 2 },
+        },
+      ],
+    }, { notMerge: true });
+  }
+
+  // ------------------------------------------------------- anel (gauge)
+  function anel(container, valor) {
+    const grafico = instancia(container);
+    grafico.setOption({
+      series: [{
+        type: 'gauge', startAngle: 90, endAngle: -270, min: 0, max: 100, radius: '96%',
+        pointer: { show: false },
+        progress: { show: true, roundCap: true, width: 8, itemStyle: { color: token('--seq') } },
+        axisLine: { lineStyle: { width: 8, color: [[1, token('--neutro-claro')]] } },
+        splitLine: { show: false }, axisTick: { show: false }, axisLabel: { show: false },
+        title: { show: false },
+        detail: {
+          valueAnimation: true, offsetCenter: [0, 0], fontSize: 14, fontWeight: 700, color: token('--texto'),
+          fontFamily: token('--fonte') || 'system-ui', formatter: (v) => `${v.toFixed(1).replace('.', ',')}%`,
+        },
+        data: [{ value: +(valor || 0).toFixed(2) }],
+      }],
+    }, { notMerge: true });
+  }
+
+  // ----------------------------------------------------------------- mapa
+  let mapaRegistrado = null;
+
+  async function garantirMapa() {
+    if (!mapaRegistrado) {
+      mapaRegistrado = fetch('/static/geo/brasil-ufs.json').then((r) => r.json()).then((geo) => {
+        echarts.registerMap('brasil', geo);
+        return Object.fromEntries(geo.features.map((f) => [f.properties.name, f.properties.nome]));
+      });
+    }
+    return mapaRegistrado;
+  }
+
+  /**
+   * cfg.dados: [{uf, cor (modo categórico) | valor (modo contínuo), tooltip: {titulo, linhas}}]
+   * cfg.escala: undefined (cores por item) ou {min, max, cores: [...], rotulos: [baixo, alto]}
+   */
+  async function mapa(container, cfg) {
+    const nomes = await garantirMapa();
+    const grafico = instancia(container);
+    const b = base();
+    const porUf = Object.fromEntries((cfg.dados || []).map((d) => [d.uf, d]));
+    const vazioCor = token('--neutro-claro');
+    const serieDados = Object.keys(nomes).map((uf) => {
+      const d = porUf[uf];
+      const item = { name: uf, selected: uf === cfg.selecionada };
+      if (!d) return { ...item, value: null, itemStyle: { areaColor: vazioCor } };
+      if (cfg.escala) return { ...item, value: d.valor };
+      return { ...item, value: 1, itemStyle: { areaColor: d.cor } };
+    });
+    grafico.setOption({
+      ...semEixo(b),
+      tooltip: {
+        ...b.tooltip, trigger: 'item',
+        formatter: (p) => {
+          const d = porUf[p.name];
+          if (!d) return tituloTooltip(`${nomes[p.name] || p.name} · sem dados`);
+          return tituloTooltip(`${nomes[p.name]} (${p.name}) · ${d.tooltip.titulo}`) +
+            d.tooltip.linhas.map((l) => linhaTooltip(l.cor, l.valor, l.rotulo)).join('');
+        },
+      },
+      visualMap: cfg.escala ? {
+        type: 'continuous', min: cfg.escala.min, max: cfg.escala.max, calculable: false, orient: 'horizontal',
+        left: 'center', bottom: 0, itemWidth: 10, itemHeight: 160, text: cfg.escala.rotulos,
+        textStyle: { color: token('--texto-2'), fontSize: 11 }, inRange: { color: cfg.escala.cores },
+        seriesIndex: 0,
+      } : undefined,
+      series: [{
+        type: 'map', map: 'brasil', roam: false, selectedMode: 'single',
+        layoutCenter: ['50%', cfg.escala ? '47%' : '50%'], layoutSize: cfg.escala ? '92%' : '98%',
+        label: { show: true, fontSize: 9, fontWeight: 600, color: token('--texto') },
+        labelLayout: { hideOverlap: true },
+        itemStyle: { borderColor: token('--superficie'), borderWidth: 1, areaColor: vazioCor },
+        emphasis: { label: { show: true, color: token('--texto') }, itemStyle: { areaColor: undefined, borderColor: token('--texto'), borderWidth: 1.5 } },
+        select: { label: { show: true, color: token('--texto') }, itemStyle: { borderColor: token('--texto'), borderWidth: 2.5 } },
+        data: serieDados,
+      }],
+    }, { notMerge: true });
+    grafico.off('click');
+    if (cfg.aoClicar) grafico.on('click', (p) => cfg.aoClicar(p.name));
+  }
+
+  // --------------------------------------------------------------- colunas
+  /** Barras verticais: categorias × valores (uma cor, ou cor por item). */
+  function colunas(container, cfg) {
+    const cats = cfg.categorias || [];
+    if (!cats.length) return vazio(container, cfg.vazio);
+    const grafico = instancia(container, 240);
+    const b = base();
+    const cor = cfg.cor || token('--seq');
+    grafico.setOption({
+      ...semEixo(b),
+      grid: { left: 48, right: 14, top: 22, bottom: 24 },
+      xAxis: { type: 'category', data: cats, ...b.eixo, axisLabel: { ...b.eixo.axisLabel, interval: 0, fontSize: 10 } },
+      yAxis: {
+        type: 'value', min: 0, max: cfg.max, ...b.eixo, axisLine: { show: false },
+        axisLabel: { ...b.eixo.axisLabel, formatter: (v) => cfg.fmtEixo ? cfg.fmtEixo(v) : cfg.fmt(v) },
+      },
+      tooltip: {
+        ...b.tooltip, trigger: 'axis', axisPointer: { type: 'shadow', shadowStyle: { color: token('--grade'), opacity: 0.5 } },
+        formatter: (ps) => {
+          const i = ps[0].dataIndex;
+          return tituloTooltip(cfg.titulos ? cfg.titulos[i] : cats[i]) +
+            linhaTooltip(cfg.cores ? cfg.cores[i] : cor, cfg.fmt(cfg.valores[i]), cfg.detalhes ? cfg.detalhes[i] : '');
+        },
+      },
+      series: [{
+        type: 'bar', barMaxWidth: 22,
+        data: cfg.valores.map((v, i) => ({ value: v, itemStyle: { color: cfg.cores ? cfg.cores[i] : cor, borderRadius: [3, 3, 0, 0] } })),
+        markLine: cfg.ref !== undefined ? {
+          silent: true, symbol: 'none', lineStyle: { color: token('--texto-3'), type: [4, 4], width: 1 },
+          label: { formatter: cfg.refRotulo || '', color: token('--texto-2'), fontSize: 11, position: 'insideEndTop' },
+          data: [{ yAxis: cfg.ref }],
+        } : undefined,
+      }],
+    }, { notMerge: true });
+  }
+
+  // ----------------------------------------- barras agrupadas (apurado × projetado)
+  /** itens: [{rotulo, cor, apurado, projetado}] */
+  function apuradoProjetado(container, cfg) {
+    const itens = cfg.itens || [];
+    if (!itens.length) return vazio(container, cfg.vazio);
+    const grafico = instancia(container, 40 + itens.length * 34);
+    const b = base();
+    const [, xMax] = limitesBonitos(0, Math.max(...itens.flatMap((i) => [i.apurado, i.projetado])) * 1.1);
+    grafico.setOption({
+      ...semEixo(b),
+      legend: { top: 0, right: 0, itemWidth: 10, itemHeight: 10, textStyle: { color: token('--texto-2'), fontSize: 11 },
+        data: [{ name: 'Apurado', itemStyle: { color: token('--neutro'), opacity: 0.45 } }, { name: 'Projetado', itemStyle: { color: token('--neutro') } }] },
+      grid: { left: 108, right: 48, top: 22, bottom: 4 },
+      xAxis: { type: 'value', show: false, max: xMax },
+      yAxis: {
+        type: 'category', inverse: true, data: itens.map((i) => i.rotulo), ...b.eixo, axisLine: { show: false },
+        splitLine: { show: false }, axisLabel: { ...b.eixo.axisLabel, color: token('--texto-2'), width: 100, overflow: 'truncate' },
+      },
+      tooltip: {
+        ...b.tooltip, trigger: 'axis', axisPointer: { type: 'shadow', shadowStyle: { color: token('--grade'), opacity: 0.5 } },
+        formatter: (ps) => {
+          const it = itens[ps[0].dataIndex];
+          return tituloTooltip(it.rotulo) + linhaTooltip(it.cor, cfg.fmt(it.apurado), 'apurado') + linhaTooltip(it.cor, cfg.fmt(it.projetado), 'projetado');
+        },
+      },
+      series: [
+        {
+          name: 'Apurado', type: 'bar', barGap: '15%', barWidth: 9,
+          data: itens.map((i) => ({ value: i.apurado, itemStyle: { color: i.cor, opacity: 0.45, borderRadius: [0, 3, 3, 0] } })),
+        },
+        {
+          name: 'Projetado', type: 'bar', barWidth: 9,
+          data: itens.map((i) => ({ value: i.projetado, itemStyle: { color: i.cor, borderRadius: [0, 3, 3, 0] } })),
+          label: { show: true, position: 'right', formatter: (p) => cfg.fmt(p.value), color: token('--texto-2'), fontSize: 10, fontWeight: 600 },
+        },
+      ],
+    }, { notMerge: true });
+  }
+
   // --------------------------------------------- tooltip HTML (mapa de UFs)
   function mostrarTooltip(evt, titulo, linhasTt) {
     tooltip.textContent = '';
@@ -406,5 +705,8 @@ const Graficos = (() => {
 
   function esconderTooltip() { tooltip.hidden = true; }
 
-  return { linhas, histograma, barrasH, barrasEmpilhadas, vazio, mostrarTooltip, esconderTooltip, token };
+  return {
+    linhas, histograma, barrasH, barrasEmpilhadas, corrida, intervalos, anel, mapa, colunas, apuradoProjetado,
+    vazio, mostrarTooltip, esconderTooltip, token,
+  };
 })();

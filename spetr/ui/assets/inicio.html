@@ -45,14 +45,14 @@
             </label>
             <label class="campo">
               <span class="campo-rotulo">Código da eleição</span>
-              <input type="text" name="eleicao" inputmode="numeric" placeholder="automático (ele-c.json)">
+              <input type="text" name="eleicao" inputmode="numeric" placeholder="automático">
             </label>
           </span>
           <details class="avancado">
             <summary>Opções avançadas</summary>
             <span class="campos">
               <label class="campo largo">
-                <span class="campo-rotulo">URL da CDN</span>
+                <span class="campo-rotulo">Endereço do servidor do TSE</span>
                 <input type="url" name="tse_url">
             </label>
               <label class="campo">
@@ -60,7 +60,7 @@
                 <input type="text" name="ambiente">
             </label>
               <label class="campo">
-                <span class="campo-rotulo">Verificar assinatura JWS</span>
+                <span class="campo-rotulo">Verificar assinatura digital do TSE</span>
                 <select name="jws">
                   <option value="">Não verificar</option>
                 </select>
@@ -75,7 +75,7 @@
             <strong>Simular resultados</strong>
             <span class="selo">local</span>
           </label>
-          <span class="opcao-desc">Abre um servidor local que imita a CDN do TSE, com candidatos fictícios sobre o eleitorado real de 2026, para testar o painel e a heurística.</span>
+          <span class="opcao-desc">Gera uma apuração de mentira, com candidatos fictícios sobre o eleitorado real de 2026, para conhecer e testar o painel antes da eleição.</span>
 
           <span class="campos">
             <label class="campo largo">

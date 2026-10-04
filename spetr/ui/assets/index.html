@@ -6,7 +6,7 @@
   <title>SPETR · Painel de Apuração</title>
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body>
+<body class="app">
   <header class="topo">
     <div class="topo-titulo">
       <h1>SPETR</h1>
@@ -14,150 +14,166 @@
       <span class="topo-sub" id="info-eleicao">Painel de apuração e projeção</span>
     </div>
     <div class="topo-acoes">
+      <span class="topo-info" id="ultima-atualizacao">Aguardando o primeiro ciclo…</span>
+      <span class="conexao" id="conexao" title="Conexão com o servidor local"><span class="ponto" aria-hidden="true"></span><span id="conexao-texto">Conectando…</span></span>
       <a class="botao" id="link-simulador" href="#" target="_blank" rel="noopener" hidden>Controlar simulação</a>
       <a class="botao" id="link-trocar" href="/inicio">Trocar modo</a>
-      <span class="conexao" id="conexao"><span class="ponto" aria-hidden="true"></span><span id="conexao-texto">Conectando…</span></span>
       <button class="botao" id="botao-tema" type="button" aria-label="Alternar tema claro/escuro">Tema</button>
     </div>
   </header>
 
-  <nav class="filtros" aria-label="Controles do painel">
-    <div class="segmentado" role="group" aria-label="Eixo horizontal das curvas">
-      <span class="filtro-rotulo">Eixo das curvas</span>
-      <button type="button" data-eixo="tempo" class="ativo">Horário</button>
-      <button type="button" data-eixo="secoes">% seções apuradas</button>
+  <section class="faixa-status" aria-label="Situação da apuração">
+    <div class="chamada" id="chamada" aria-live="polite">
+      <div class="chamada-titulo" id="chamada-titulo">Aguardando dados do TSE</div>
+      <div class="chamada-sub" id="chamada-sub">O painel é preenchido assim que o primeiro lote de arquivos for processado.</div>
     </div>
-    <div class="filtro-info" id="ultima-atualizacao">Aguardando o primeiro ciclo…</div>
-  </nav>
-
-  <main class="painel">
-    <section class="chamada" id="chamada" aria-live="polite">
-      <div>
-        <div class="chamada-titulo" id="chamada-titulo">Aguardando dados do TSE</div>
-        <div class="chamada-sub" id="chamada-sub">O painel é preenchido assim que o primeiro lote de arquivos for processado.</div>
+    <div class="anel-secoes">
+      <div class="grafico-anel" id="g-anel" role="img" aria-label="Seções apuradas"></div>
+      <div class="anel-legenda">
+        <span class="kpi-rotulo">Seções apuradas</span>
+        <span class="kpi-detalhe" id="anel-detalhe">—</span>
       </div>
-      <div class="chamada-ic" id="chamada-ic"></div>
-    </section>
+    </div>
+    <div class="kpis" id="kpis"></div>
+  </section>
 
-    <section class="kpis" id="kpis" aria-label="Números da apuração"></section>
-
-    <section class="cartao largo">
+  <main class="corpo">
+    <aside class="cartao painel-candidatos" aria-label="Candidatos">
       <div class="cartao-topo">
         <h2>Candidatos</h2>
-        <p class="nota" id="nota-candidatos">Valores já apurados e projeção final (média de <span id="n-sim">10.000</span> simulações). Ordenado pela projeção.</p>
-      </div>
-      <div class="tabela-rolagem">
-        <table class="tabela" id="tabela-candidatos">
-          <thead>
-            <tr>
-              <th scope="col">Candidato</th>
-              <th scope="col" class="num">Votos apurados</th>
-              <th scope="col" class="num">% apurado</th>
-              <th scope="col" class="num">% projetado</th>
-              <th scope="col" class="faixa-col">IC 95% da projeção</th>
-              <th scope="col" class="num">Δ proj.−apur.</th>
-              <th scope="col" class="num">P(eleito no turno)</th>
-              <th scope="col" class="num">P(1º lugar)</th>
-              <th scope="col" class="num">P(vaga no 2º turno)</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-
-    <div class="grade-2">
-      <section class="cartao">
-        <div class="cartao-topo"><h2>Apuração real</h2><p class="nota">% dos votos válidos já apurados, a cada atualização</p></div>
-        <div class="grafico" id="g-apurado"></div>
-        <div class="legenda" id="l-apurado"></div>
-      </section>
-      <section class="cartao">
-        <div class="cartao-topo"><h2>Curva de projeção</h2><p class="nota">% final projetado com faixa de IC 95% (4 primeiros)</p></div>
-        <div class="grafico" id="g-projecao"></div>
-        <div class="legenda" id="l-projecao"></div>
-      </section>
-      <section class="cartao">
-        <div class="cartao-topo"><h2>Probabilidades</h2><p class="nota">Chance de 2º turno e de eleição no turno, a cada atualização</p></div>
-        <div class="grafico" id="g-prob"></div>
-        <div class="legenda" id="l-prob"></div>
-      </section>
-      <section class="cartao">
-        <div class="cartao-topo"><h2>Ritmo da apuração</h2><p class="nota">% das seções apuradas ao longo do tempo</p></div>
-        <div class="grafico" id="g-ritmo"></div>
-        <div class="mini-kpis" id="ritmo-kpis"></div>
-      </section>
-      <section class="cartao">
-        <div class="cartao-topo"><h2>Distribuição simulada do resultado</h2><p class="nota">% final nas simulações de Monte Carlo (densidade: % das simulações por p.p.) — candidatos na disputa</p></div>
-        <div class="grafico" id="g-dist"></div>
-        <div class="legenda" id="l-dist"></div>
-      </section>
-      <section class="cartao">
-        <div class="cartao-topo"><h2>Margem entre 1º e 2º</h2><p class="nota" id="nota-margem">Diferença simulada em pontos percentuais</p></div>
-        <div class="grafico" id="g-margem"></div>
-      </section>
-    </div>
-
-    <section class="cartao largo">
-      <div class="cartao-topo"><h2>O que falta apurar</h2><p class="nota">Votos válidos esperados nas seções ainda não apuradas</p></div>
-      <div class="falta">
-        <div class="mini-kpis vertical" id="falta-kpis"></div>
-        <div class="grafico auto" id="g-restantes"></div>
-      </div>
-    </section>
-
-    <div class="grade-2">
-      <section class="cartao">
-        <div class="cartao-topo"><h2>Mapa das UFs</h2><p class="nota">Cor = líder projetado na UF; número = % das seções apuradas. Clique para ver os estratos.</p></div>
-        <div class="mapa" id="mapa"></div>
-        <div class="legenda" id="l-mapa"></div>
-      </section>
-      <section class="cartao">
-        <div class="cartao-topo"><h2>Regiões</h2><p class="nota">Divisão dos válidos: apurado (A) e projetado (P)</p></div>
-        <div class="grafico auto" id="g-regioes"></div>
-        <div class="legenda" id="l-regioes"></div>
-      </section>
-    </div>
-
-    <section class="cartao largo">
-      <div class="cartao-topo">
-        <h2>Heurística de estratos</h2>
-        <p class="nota">Capitais, cidades com ≥ 100 mil eleitores e interior remanescente (= UF − cidades)</p>
-      </div>
-      <div class="grade-2 interna">
-        <div>
-          <h3>Brasil por tipo de estrato</h3>
-          <div class="grafico auto" id="g-tipos"></div>
-          <div class="legenda" id="l-tipos"></div>
+        <div class="atalhos" role="group" aria-label="Seleção de candidatos nos gráficos">
+          <button type="button" class="botao-mini" data-selecao="principais" title="Os mais bem projetados">Principais</button>
+          <button type="button" class="botao-mini" data-selecao="todos">Todos</button>
+          <button type="button" class="botao-mini" data-selecao="nenhum">Limpar</button>
         </div>
-        <div>
-          <h3>Estratos da UF <select id="sel-uf" aria-label="UF dos estratos"></select></h3>
-          <div class="tabela-rolagem curta">
-            <table class="tabela compacta" id="tabela-estratos">
-              <thead></thead>
-              <tbody></tbody>
-            </table>
+      </div>
+      <p class="nota" id="nota-candidatos">Marque para exibir nos gráficos.</p>
+      <ul class="lista-candidatos" id="lista-candidatos"></ul>
+      <section class="confronto" id="confronto" hidden aria-label="Confronto do 2º turno">
+        <h3>Confronto</h3>
+        <div class="grafico" id="g-confronto"></div>
+        <div class="mini-kpis vertical" id="confronto-kpis"></div>
+      </section>
+    </aside>
+
+    <section class="cartao area-abas">
+      <div class="barra-abas">
+        <div class="abas" role="tablist" aria-label="Seções do painel">
+          <button type="button" role="tab" data-aba="geral" id="tab-geral" aria-controls="aba-geral">Visão geral</button>
+          <button type="button" role="tab" data-aba="mapa" id="tab-mapa" aria-controls="aba-mapa">Mapa</button>
+          <button type="button" role="tab" data-aba="simulacao" id="tab-simulacao" aria-controls="aba-simulacao">Cenários</button>
+          <button type="button" role="tab" data-aba="apuracao" id="tab-apuracao" aria-controls="aba-apuracao">Apuração</button>
+          <button type="button" role="tab" data-aba="estratos" id="tab-estratos" aria-controls="aba-estratos">Regiões e cidades</button>
+          <button type="button" role="tab" data-aba="ufs" id="tab-ufs" aria-controls="aba-ufs">UFs</button>
+        </div>
+        <div class="segmentado" role="group" aria-label="Eixo horizontal das curvas" id="controle-eixo">
+          <span class="filtro-rotulo">Eixo</span>
+          <button type="button" data-eixo="tempo" class="ativo">Horário</button>
+          <button type="button" data-eixo="secoes">% seções</button>
+        </div>
+      </div>
+
+      <!-- Visão geral -->
+      <div class="aba grade-2x2" role="tabpanel" id="aba-geral" aria-labelledby="tab-geral" data-aba="geral">
+        <article class="bloco">
+          <header><h3>Corrida até 100%</h3><span class="nota">Votos apurados (área) e projeção até o fim da apuração (pontilhado)</span></header>
+          <div class="grafico preenche" id="g-corrida"></div>
+        </article>
+        <article class="bloco">
+          <header><h3>Intervalos de projeção</h3><span class="nota">Faixa provável do resultado final · ● projeção · ○ apurado até agora</span></header>
+          <div class="grafico preenche" id="g-intervalos"></div>
+        </article>
+        <article class="bloco">
+          <header><h3>Curva de projeção</h3><span class="nota">Resultado final projetado a cada atualização, com faixa provável</span></header>
+          <div class="grafico preenche" id="g-projecao"></div>
+        </article>
+        <article class="bloco">
+          <header><h3>Probabilidades</h3><span class="nota" id="nota-prob">Chance de 2º turno e de eleição no turno</span></header>
+          <div class="grafico preenche" id="g-prob"></div>
+        </article>
+      </div>
+
+      <!-- Mapa -->
+      <div class="aba grade-mapa" role="tabpanel" id="aba-mapa" aria-labelledby="tab-mapa" data-aba="mapa" hidden>
+        <article class="bloco">
+          <header>
+            <h3>Brasil por UF</h3>
+            <div class="segmentado pequeno" role="group" aria-label="O que o mapa mostra" id="controle-mapa">
+              <button type="button" data-mapa="lider" class="ativo">Líder projetado</button>
+              <button type="button" data-mapa="apurado">% apurado</button>
+              <button type="button" data-mapa="vantagem">Vantagem 1º × 2º</button>
+            </div>
+          </header>
+          <div class="grafico preenche" id="g-mapa"></div>
+          <div class="rodape-bloco" id="mapa-rodape"></div>
+        </article>
+        <article class="bloco detalhe-uf">
+          <header><h3 id="uf-titulo">UF</h3><span class="nota">Clique no mapa para trocar</span></header>
+          <div class="mini-kpis" id="uf-kpis"></div>
+          <div class="grafico preenche curto" id="g-uf-barras"></div>
+          <div class="tabela-rolagem">
+            <table class="tabela compacta" id="tabela-estratos"><thead></thead><tbody></tbody></table>
           </div>
-        </div>
+        </article>
       </div>
-    </section>
 
-    <section class="cartao largo">
-      <div class="cartao-topo"><h2>Unidades da federação</h2><p class="nota">Clique no cabeçalho para ordenar</p></div>
-      <div class="tabela-rolagem">
-        <table class="tabela" id="tabela-ufs">
-          <thead></thead>
-          <tbody></tbody>
-        </table>
+      <!-- Simulação -->
+      <div class="aba grade-sim" role="tabpanel" id="aba-simulacao" aria-labelledby="tab-simulacao" data-aba="simulacao" hidden>
+        <article class="bloco">
+          <header><h3>Resultados possíveis</h3><span class="nota">Quanto mais alto, mais provável o resultado final</span></header>
+          <div class="grafico preenche" id="g-dist"></div>
+        </article>
+        <article class="bloco">
+          <header><h3>Margem entre 1º e 2º</h3><span class="nota" id="nota-margem">Diferença final provável, em pontos percentuais</span></header>
+          <div class="grafico preenche" id="g-margem"></div>
+        </article>
+        <article class="bloco largo">
+          <header><h3>O que falta apurar</h3><span class="nota">Votos válidos esperados nas seções restantes, por UF</span></header>
+          <div class="falta">
+            <div class="mini-kpis vertical" id="falta-kpis"></div>
+            <div class="grafico preenche" id="g-restantes"></div>
+          </div>
+        </article>
+      </div>
+
+      <!-- Apuração -->
+      <div class="aba grade-ap" role="tabpanel" id="aba-apuracao" aria-labelledby="tab-apuracao" data-aba="apuracao" hidden>
+        <article class="bloco">
+          <header><h3>Apuração real</h3><span class="nota">% dos válidos já apurados, a cada atualização</span></header>
+          <div class="grafico preenche" id="g-apurado"></div>
+        </article>
+        <article class="bloco">
+          <header><h3>Ritmo da apuração</h3><span class="nota">% das seções apuradas ao longo do tempo</span></header>
+          <div class="mini-kpis" id="ritmo-kpis"></div>
+          <div class="grafico preenche" id="g-ritmo"></div>
+        </article>
+        <article class="bloco largo">
+          <header><h3>Seções apuradas por UF</h3><span class="nota">% das seções de cada UF · linha = média nacional</span></header>
+          <div class="grafico preenche" id="g-apuracao-uf"></div>
+        </article>
+      </div>
+
+      <!-- Regiões e estratos -->
+      <div class="aba grade-2x1" role="tabpanel" id="aba-estratos" aria-labelledby="tab-estratos" data-aba="estratos" hidden>
+        <article class="bloco">
+          <header><h3>Regiões</h3><span class="nota">Divisão dos válidos: apurado (A) e projetado (P)</span></header>
+          <div class="grafico preenche" id="g-regioes"></div>
+        </article>
+        <article class="bloco">
+          <header><h3>Capitais, cidades grandes e interior</h3><span class="nota">Votos apurados em cada tipo de lugar</span></header>
+          <div class="grafico preenche" id="g-tipos"></div>
+          <p class="nota explicacao">Cada UF é dividida em capital, cidades com mais de 100 mil eleitores e o restante do interior. Cada parte é projetada com a própria tendência, porque as urnas não chegam todas ao mesmo tempo: capitais costumam ser apuradas antes do interior, e isso distorce o resultado parcial.</p>
+        </article>
+      </div>
+
+      <!-- UFs -->
+      <div class="aba" role="tabpanel" id="aba-ufs" aria-labelledby="tab-ufs" data-aba="ufs" hidden>
+        <div class="tabela-rolagem cheia">
+          <table class="tabela" id="tabela-ufs"><thead></thead><tbody></tbody></table>
+        </div>
       </div>
     </section>
   </main>
-
-  <footer class="rodape">
-    <span id="rodape-ciclo">Ciclo —</span>
-    <span id="rodape-mc">Motor Monte Carlo —</span>
-    <span id="rodape-fonte">Fonte: arquivos públicos do TSE. Projeções são estimativas estatísticas, não resultado oficial.</span>
-  </footer>
 
   <div class="tooltip" id="tooltip" role="tooltip" hidden></div>
 

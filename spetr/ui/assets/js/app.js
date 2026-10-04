@@ -1,59 +1,65 @@
 /**
- * SPETR — Painel de apuração e projeção.
+ * SPETR — Painel de apuração e projeção (tela única com abas).
  * Carrega o histórico da execução atual, recebe atualizações via SSE e redesenha o painel.
+ * Só a aba visível é desenhada a cada atualização; ao trocar de aba, ela é desenhada na hora.
  */
 const G = Graficos;
 
 const state = {
   historico: [],          // resultados resumidos por ciclo (curvas)
-  atual: null,            // último resultado completo (com análise detalhada)
+  atual: null,            // último resultado completo
+  info: {},               // dados da sessão/eleição
   eixo: 'tempo',
+  aba: 'geral',
+  modoMapa: 'lider',
   ufSelecionada: null,
   ordemUf: { chave: 'restantes', desc: true },
   slots: {},              // número do candidato -> slot de cor (fixo para a entidade)
+  marcados: null,         // Set de números exibidos nos gráficos (null = ainda não definido)
   candidatos: {},         // número -> {nome, partido}
+  chave: 'spetr',         // prefixo de armazenamento por eleição
 };
 
-const SLOTS = 7;
+const SLOTS = 8;
+const PRINCIPAIS = 4;
 const fmtInt = new Intl.NumberFormat('pt-BR');
-const fmtPct1 = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-const fmtPct2 = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const pct = (v, casas = 2) => (v === null || v === undefined || Number.isNaN(v)) ? '—' : `${(casas === 1 ? fmtPct1 : fmtPct2).format(v)}%`;
+const fmt1 = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const fmt2 = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const pct = (v, casas = 2) => (v === null || v === undefined || Number.isNaN(v)) ? '—' : `${(casas === 1 ? fmt1 : fmt2).format(v)}%`;
 const prob = (p) => {
   if (p === null || p === undefined) return '—';
   const v = p * 100;
   if (v > 0 && v < 0.1) return '<0,1%';
   if (v < 100 && v > 99.9) return '>99,9%';
-  return `${fmtPct1.format(v)}%`;
+  return `${fmt1.format(v)}%`;
 };
 function compacto(n) {
-  if (n === null || n === undefined) return '—';
+  if (n === null || n === undefined || Number.isNaN(n)) return '—';
   const a = Math.abs(n);
-  if (a >= 1e6) return `${fmtPct2.format(n / 1e6)} mi`;
-  if (a >= 1e3) return `${fmtPct1.format(n / 1e3)} mil`;
+  if (a >= 1e6) return `${fmt2.format(n / 1e6)} mi`;
+  if (a >= 1e3) return `${fmt1.format(n / 1e3)} mil`;
   return fmtInt.format(Math.round(n));
 }
 
+const NOMES_UF = {
+  AC: 'Acre', AL: 'Alagoas', AM: 'Amazonas', AP: 'Amapá', BA: 'Bahia', CE: 'Ceará', DF: 'Distrito Federal',
+  ES: 'Espírito Santo', GO: 'Goiás', MA: 'Maranhão', MG: 'Minas Gerais', MS: 'Mato Grosso do Sul',
+  MT: 'Mato Grosso', PA: 'Pará', PB: 'Paraíba', PE: 'Pernambuco', PI: 'Piauí', PR: 'Paraná',
+  RJ: 'Rio de Janeiro', RN: 'Rio Grande do Norte', RO: 'Rondônia', RR: 'Roraima', RS: 'Rio Grande do Sul',
+  SC: 'Santa Catarina', SE: 'Sergipe', SP: 'São Paulo', TO: 'Tocantins', ZZ: 'Exterior',
+};
 const ROTULO_TIPO = {
   CAPITAL: 'Capitais',
-  GRANDE_CIDADE: 'Cidades ≥ 100 mil eleitores',
-  INTERIOR: 'Interior remanescente',
-  UF_INTEIRA: 'UF sem decomposição',
+  GRANDE_CIDADE: 'Cidades com 100 mil+ eleitores',
+  INTERIOR: 'Interior',
+  UF_INTEIRA: 'Exterior / UF inteira',
   SEM_DADOS: 'Sem dados',
 };
+const ORDEM_TIPO = { CAPITAL: 0, GRANDE_CIDADE: 1, INTERIOR: 2, UF_INTEIRA: 3, SEM_DADOS: 4 };
+const GRAFICOS = ['g-corrida', 'g-intervalos', 'g-projecao', 'g-prob', 'g-mapa', 'g-uf-barras', 'g-dist', 'g-margem',
+  'g-restantes', 'g-apurado', 'g-ritmo', 'g-apuracao-uf', 'g-regioes', 'g-tipos'];
 
-// Grade aproximada do mapa do Brasil (linha, coluna)
-const MAPA = {
-  RR: [0, 1], AP: [0, 3],
-  AM: [1, 1], PA: [1, 2], MA: [1, 4], CE: [1, 5], RN: [1, 6],
-  AC: [2, 0], RO: [2, 1], MT: [2, 2], TO: [2, 3], PI: [2, 4], PE: [2, 5], PB: [2, 6],
-  MS: [3, 2], GO: [3, 3], DF: [3, 4], BA: [3, 5], AL: [3, 6],
-  PR: [4, 2], SP: [4, 3], MG: [4, 4], ES: [4, 5], SE: [4, 6],
-  SC: [5, 2], RJ: [5, 4],
-  RS: [6, 2], ZZ: [6, 7],
-};
-
-// ----------------------------------------------------------------- utilidades
+// ------------------------------------------------------------------ utilidades
 
 function armazenar(chave, valor) {
   try { localStorage.setItem(chave, JSON.stringify(valor)); } catch (e) { /* armazenamento indisponível */ }
@@ -62,24 +68,71 @@ function recuperar(chave, padrao) {
   try { const v = localStorage.getItem(chave); return v ? JSON.parse(v) : padrao; } catch (e) { return padrao; }
 }
 
-function cor(numero) {
-  const s = state.slots[numero];
+function el(tag, attrs = {}, filhos = []) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v === undefined || v === null) continue;
+    if (k === 'texto') n.textContent = v;
+    else if (k === 'classe') n.className = v;
+    else if (k === 'estilo') Object.assign(n.style, v);
+    else n.setAttribute(k, v);
+  }
+  for (const f of [].concat(filhos)) if (f) n.appendChild(typeof f === 'string' ? document.createTextNode(f) : f);
+  return n;
+}
+
+function tituloProprio(t) {
+  const minusculas = new Set(['de', 'da', 'do', 'das', 'dos', 'e']);
+  return String(t || '').toLowerCase().split(/\s+/)
+    .map((p, i) => (i > 0 && minusculas.has(p)) ? p : p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+}
+
+const tsParaMs = (ts) => {
+  const d = new Date((ts || '').replace(' ', 'T'));
+  return Number.isNaN(d.getTime()) ? 0 : d.getTime();
+};
+const fmtHora = (ms) => new Date(ms).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+const fmtHoraSeg = (ms) => new Date(ms).toLocaleTimeString('pt-BR');
+
+function fmtHoraAdaptativo() {
+  const xs = state.historico.map((r) => tsParaMs(r.timestamp));
+  return xs.length && Math.max(...xs) - Math.min(...xs) < 15 * 60 * 1000 ? fmtHoraSeg : fmtHora;
+}
+function valorX(r) { return state.eixo === 'tempo' ? tsParaMs(r.timestamp) : r.perc_secoes_apuradas; }
+function cfgEixoX() {
+  return state.eixo === 'tempo'
+    ? { xFmt: fmtHoraAdaptativo(), xTitulo: fmtHoraSeg }
+    : { xFmt: (v) => `${fmt1.format(v)}%`, xTitulo: (v) => `${fmt2.format(v)}% das seções apuradas` };
+}
+
+// ------------------------------------------------------- candidatos, cores e seleção
+
+function nome(n) { return state.candidatos[n] ? state.candidatos[n].nome : `Nº ${n}`; }
+function nomeCurto(n) {
+  const partes = nome(n).split(/\s+/);
+  return partes[partes.length - 1];
+}
+function cor(n) {
+  const s = state.slots[n];
   return s === undefined ? G.token('--neutro') : G.token(`--s${s + 1}`);
 }
 
-function nome(numero) {
-  const c = state.candidatos[numero];
-  return c ? c.nome : `Nº ${numero}`;
+function segundoTurno() {
+  const d = state.atual;
+  return Number(state.info.turno) === 2 || Boolean(d && d.candidatos && d.candidatos.length === 2);
 }
 
-function nomeCurto(numero) {
-  const partes = nome(numero).split(/\s+/);
-  return partes.length > 1 ? partes[partes.length - 1] : partes[0];
+/** Ordem atual por projeção (ou por nome, antes dos votos). */
+function ordemCandidatos() {
+  return state.atual ? state.atual.candidatos.map((c) => c.numero) : [];
 }
 
-/** Cores seguem a entidade: atribuídas uma vez, por ordem de projeção no primeiro aparecimento. */
+function marcadosEmOrdem() {
+  return ordemCandidatos().filter((n) => state.marcados && state.marcados.has(n));
+}
+
+/** Cores seguem a entidade: dadas na primeira aparição (ordem de projeção) e nunca repintadas à vista. */
 function atribuirCores(candidatos) {
-  for (const c of candidatos) state.candidatos[c.numero] = { nome: c.nome, partido: c.partido };
   const usados = new Set(Object.values(state.slots));
   for (const c of [...candidatos].sort((a, b) => b.perc_projetado - a.perc_projetado)) {
     if (state.slots[c.numero] !== undefined) continue;
@@ -91,53 +144,43 @@ function atribuirCores(candidatos) {
   }
 }
 
-function el(tag, attrs = {}, filhos = []) {
-  const n = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) {
-    if (k === 'texto') n.textContent = v;
-    else if (k === 'classe') n.className = v;
-    else if (k === 'estilo') Object.assign(n.style, v);
-    else n.setAttribute(k, v);
+/** Ao marcar um candidato sem cor, usa um slot livre ou o de um candidato desmarcado (que não aparece). */
+function garantirCor(n) {
+  if (state.slots[n] !== undefined) return;
+  const usados = new Set(Object.values(state.slots));
+  for (let i = 0; i < SLOTS; i++) {
+    if (!usados.has(i)) { state.slots[n] = i; return; }
   }
-  for (const f of [].concat(filhos)) if (f) n.appendChild(f);
-  return n;
+  const doador = [...ordemCandidatos()].reverse().find((m) => state.slots[m] !== undefined && !state.marcados.has(m));
+  if (doador) {
+    state.slots[n] = state.slots[doador];
+    delete state.slots[doador];
+  }
 }
 
-function luminancia(hex) {
-  const m = hex.replace('#', '');
-  const [r, g, b] = [0, 2, 4].map((i) => parseInt(m.slice(i, i + 2), 16) / 255)
-    .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+function salvarSelecao() {
+  armazenar(`${state.chave}:slots`, state.slots);
+  armazenar(`${state.chave}:marcados`, [...(state.marcados || [])]);
 }
 
-const tsParaMs = (ts) => {
-  const d = new Date((ts || '').replace(' ', 'T'));
-  return Number.isNaN(d.getTime()) ? 0 : d.getTime();
-};
-const fmtHora = (ms) => new Date(ms).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-const fmtHoraSeg = (ms) => new Date(ms).toLocaleTimeString('pt-BR');
-
-function valorX(r) {
-  return state.eixo === 'tempo' ? tsParaMs(r.timestamp) : r.perc_secoes_apuradas;
-}
-function fmtHoraAdaptativo() {
-  const xs = state.historico.map((r) => tsParaMs(r.timestamp));
-  const curto = xs.length && Math.max(...xs) - Math.min(...xs) < 15 * 60 * 1000;
-  return curto ? fmtHoraSeg : fmtHora;
+function definirSelecao(tipo) {
+  const ordem = ordemCandidatos();
+  if (tipo === 'todos') state.marcados = new Set(ordem);
+  else if (tipo === 'nenhum') state.marcados = new Set();
+  else state.marcados = new Set(ordem.slice(0, segundoTurno() ? 2 : PRINCIPAIS));
+  for (const n of state.marcados) garantirCor(n);
+  salvarSelecao();
+  renderTudo();
 }
 
-function cfgEixoX() {
-  return state.eixo === 'tempo'
-    ? { xFmt: fmtHoraAdaptativo(), xTitulo: fmtHoraSeg }
-    : { xFmt: (v) => `${fmtPct1.format(v)}%`, xTitulo: (v) => `${fmtPct2.format(v)}% das seções apuradas` };
+function alternarCandidato(n) {
+  if (state.marcados.has(n)) state.marcados.delete(n);
+  else { state.marcados.add(n); garantirCor(n); }
+  salvarSelecao();
+  renderTudo();
 }
 
-function topoCandidatos(n) {
-  const cands = state.atual ? state.atual.candidatos : [];
-  return cands.slice(0, n).map((c) => c.numero);
-}
-
-// ------------------------------------------------------------- renderizações
+// ------------------------------------------------------------------ cabeçalho
 
 function renderCabecalho(info) {
   const e = info.eleicao || {};
@@ -149,113 +192,117 @@ function renderCabecalho(info) {
     selo.classList.toggle('simulado', info.modo === 'simulado');
   }
   const linkSim = document.getElementById('link-simulador');
-  if (info.simulador_url) {
-    linkSim.hidden = false;
-    linkSim.href = info.simulador_url;
-  }
+  if (info.simulador_url) { linkSim.hidden = false; linkSim.href = info.simulador_url; }
   if (info.ultimo_aviso) mostrarAviso(info.ultimo_aviso);
-  const partes = [];
+
+  let texto;
   if (e.simulado) {
     const ritmos = { lenta: 'lento', normal: 'normal', rapida: 'rápido' };
-    document.getElementById('info-eleicao').textContent = `Dados fictícios · ${e.descricao || ''} · ritmo ${ritmos[e.velocidade] || e.velocidade || ''}`;
-    document.getElementById('rodape-fonte').textContent = 'Fonte: simulador local com candidatos fictícios. Não representa nenhuma eleição real.';
-    state.chaveSlots = `spetr-slots:simulado:${e.cenario || ''}`;
-    state.slots = recuperar(state.chaveSlots, {});
-    if (e.simulacoes) document.getElementById('n-sim').textContent = fmtInt.format(e.simulacoes);
-    return;
+    texto = `Dados fictícios · ${e.descricao || ''} · ritmo ${ritmos[e.velocidade] || e.velocidade || ''}`;
+    state.chave = `spetr:sim:${e.cenario || ''}`;
+  } else {
+    const partes = [];
+    if (e.mock) partes.push('Teste');
+    if (e.ano) partes.push(`Eleições ${e.ano}`);
+    partes.push(e.cargo === '1' || !e.cargo ? 'Presidente' : `Cargo ${e.cargo}`);
+    if (e.turno) partes.push(`${e.turno}º turno`);
+    texto = partes.join(' · ');
+    state.chave = `spetr:${e.ambiente || ''}:${e.ano || ''}:${e.codigo || 'auto'}:${e.cargo || ''}:${e.turno || ''}`;
   }
-  if (e.mock) partes.push('MOCK');
-  if (e.ano) partes.push(`Eleições ${e.ano}`);
-  partes.push(e.cargo === '1' || !e.cargo ? 'Presidente' : `Cargo ${e.cargo}`);
-  if (e.turno) partes.push(`${e.turno}º turno`);
-  if (e.codigo) partes.push(`eleição ${e.codigo}`);
-  if (e.jws) partes.push(`JWS ${e.jws}`);
-  document.getElementById('info-eleicao').textContent = partes.join(' · ');
-  // Cores por candidato ficam guardadas por pleito (mock e eleição real não se misturam)
-  state.chaveSlots = `spetr-slots:${e.ambiente || ''}:${e.ano || ''}:${e.codigo || 'auto'}:${e.cargo || ''}:${e.turno || ''}:${e.mock ? 'mock' : ''}`;
-  state.slots = recuperar(state.chaveSlots, {});
-  if (e.simulacoes) document.getElementById('n-sim').textContent = fmtInt.format(e.simulacoes);
+  document.getElementById('info-eleicao').textContent = texto;
+  state.slots = recuperar(`${state.chave}:slots`, {});
+  const salvos = recuperar(`${state.chave}:marcados`, null);
+  state.marcados = salvos ? new Set(salvos) : null;
 }
+
+function mostrarAviso(aviso) {
+  const info = document.getElementById('ultima-atualizacao');
+  info.textContent = `${aviso.mensagem} (${aviso.timestamp})`;
+  info.classList.add('aviso-coleta');
+  if (!state.atual) {
+    document.getElementById('chamada-sub').textContent =
+      `Ainda sem resultados. Último aviso da coleta: ${aviso.mensagem}. Nova tentativa a cada ciclo.`;
+  }
+}
+
+// ------------------------------------------------------------ faixa de status
 
 function renderChamada(d) {
   const caixa = document.getElementById('chamada');
   const titulo = document.getElementById('chamada-titulo');
   const sub = document.getElementById('chamada-sub');
-  const ic = document.getElementById('chamada-ic');
   caixa.className = 'chamada';
-  const lider = d.candidatos[0];
-  const vencedor = d.vencedor_projetado ? `${nome(d.vencedor_projetado)} (${d.vencedor_projetado})` : '';
+  const [a, b] = d.candidatos;
+  const vencedor = d.vencedor_projetado ? nome(d.vencedor_projetado) : '';
   const semDados = d.ufs_sem_dados || [];
 
   if (d.status_call === 'MATEMATICAMENTE_ELEITO') {
     caixa.classList.add('eleito');
-    titulo.textContent = `✓ Matematicamente eleito: ${vencedor}`;
-    sub.textContent = 'Mesmo que todos os votos restantes fossem para os adversários, manteria mais de 50% dos válidos.';
+    titulo.textContent = `✓ ${vencedor} eleito`;
+    sub.textContent = 'Os votos que faltam não são suficientes para mudar o resultado.';
   } else if (d.status_call === 'VITORIA_PROJETADA') {
     caixa.classList.add('projetada');
     titulo.textContent = `Vitória projetada: ${vencedor}`;
-    sub.textContent = `Probabilidade ≥ 99,5% de terminar com mais de 50% dos válidos (${prob(lider.prob_vitoria)}).`;
+    sub.textContent = `Chance de vitória de ${prob(a.prob_vitoria)}, considerando os votos que faltam.`;
   } else if (d.status_call === 'SEGUNDO_TURNO_PROJETADO') {
     caixa.classList.add('segundo-turno');
-    const [a, b] = d.candidatos;
     titulo.textContent = '↻ Segundo turno projetado';
-    sub.textContent = `Chance de ninguém atingir 50% dos válidos: ${prob(d.prob_segundo_turno)}. ` +
-      (a && b ? `Mais prováveis no 2º turno: ${a.nome} e ${b.nome}.` : '');
+    sub.textContent = `Chance de ninguém passar de 50% dos válidos: ${prob(d.prob_segundo_turno)}` +
+      (a && b ? ` · mais prováveis no 2º turno: ${a.nome} e ${b.nome}.` : '.');
   } else {
     titulo.textContent = 'Apuração em andamento · disputa em aberto';
-    sub.textContent = `Líder projetado: ${lider ? `${lider.nome} (${pct(lider.perc_projetado)})` : '—'} · ` +
-      `chance de 2º turno ${prob(d.prob_segundo_turno)}` +
-      (semDados.length ? ` · ${semDados.length} UF(s) ainda sem dados (${semDados.join(', ')}), projetadas pelo prior` : '');
+    const pedacos = [];
+    if (a) pedacos.push(`${a.nome} à frente na projeção (${pct(a.perc_projetado, 1)})`);
+    pedacos.push(segundoTurno() ? `chance de vitória ${prob(a && a.prob_vitoria)}` : `chance de 2º turno ${prob(d.prob_segundo_turno)}`);
+    if (semDados.length) pedacos.push(`${semDados.length} UF(s) ainda sem dados, estimadas pela média nacional`);
+    sub.textContent = `${pedacos.join(' · ')}.`;
   }
-  ic.textContent = lider ? `Margem projetada 1º–2º: ${fmtPct2.format(d.lider_margem)} p.p.` : '';
 }
 
-function kpi(rotulo, valor, detalhe, medidor) {
-  const filhos = [el('div', { classe: 'kpi-rotulo', texto: rotulo }), el('div', { classe: 'kpi-valor', texto: valor })];
-  if (medidor !== undefined) {
-    filhos.push(el('div', { classe: 'medidor' }, [el('span', { estilo: { width: `${Math.min(100, Math.max(0, medidor))}%` } })]));
-  }
-  if (detalhe) filhos.push(el('div', { classe: 'kpi-detalhe', texto: detalhe }));
-  return el('div', { classe: 'kpi' }, filhos);
+function kpi(rotulo, valor, detalhe, titulo) {
+  return el('div', { classe: 'kpi', title: titulo }, [
+    el('div', { classe: 'kpi-rotulo', texto: rotulo }),
+    el('div', { classe: 'kpi-valor', texto: valor }),
+    detalhe ? el('div', { classe: 'kpi-detalhe', texto: detalhe }) : null,
+  ]);
 }
 
-function renderKpis(d) {
+function renderStatus(d) {
   const n = (d.analise && d.analise.nacional) || {};
   const f = (d.analise && d.analise.faltam) || {};
+  G.anel(document.getElementById('g-anel'), d.perc_secoes_apuradas || 0);
+  document.getElementById('anel-detalhe').textContent = `${fmtInt.format(d.secoes_apuradas)} de ${fmtInt.format(d.total_secoes)}`;
+
+  // Chance de virada: o líder da apuração não terminar em 1º
+  const liderApur = [...d.candidatos].sort((x, y) => y.votos_apurados - x.votos_apurados)[0];
+  const virada = liderApur ? 1 - (liderApur.prob_lideranca || 0) : null;
+
   const caixa = document.getElementById('kpis');
   caixa.textContent = '';
+  const anulados = (n.votos_anulados || 0) > 0 ? ` · anulados ${pct(n.pct_anulados, 1)}` : '';
   caixa.append(
-    kpi('Seções apuradas', pct(d.perc_secoes_apuradas), `${fmtInt.format(d.secoes_apuradas)} de ${fmtInt.format(d.total_secoes)}`, d.perc_secoes_apuradas),
-    kpi('Votos válidos apurados', compacto(d.total_validos_apurados), `Projeção final: ${compacto(d.total_validos_projetados)}`),
-    kpi('Comparecimento', pct(n.pct_comparecimento), `Abstenção ${pct(n.pct_abstencao)} · ${compacto(n.comparecimento)} votantes`),
-    kpi('Brancos e nulos', pct((n.pct_brancos || 0) + (n.pct_nulos || 0)), `Brancos ${pct(n.pct_brancos)} · nulos ${pct(n.pct_nulos)}`),
-    kpi('Votos anulados (sub judice)', pct(n.pct_anulados), `${compacto(n.votos_anulados)} votos fora dos válidos`),
-    kpi('Chance de 2º turno', prob(d.prob_segundo_turno), 'ninguém com > 50% dos válidos'),
-    kpi('Válidos que faltam', compacto(f.validos_restantes_esperados), `Máximo possível: ${compacto(f.votos_restantes_maximos)}`),
+    kpi('Votos válidos', compacto(d.total_validos_apurados), `final ≈ ${compacto(d.total_validos_projetados)}${anulados}`,
+      anulados ? 'Anulados: votos de candidatos com registro anulado ou em julgamento, que não entram nos válidos' : undefined),
+    kpi('Comparecimento', pct(n.pct_comparecimento, 1), `abstenção ${pct(n.pct_abstencao, 1)}`),
+    kpi('Brancos e nulos', pct((n.pct_brancos || 0) + (n.pct_nulos || 0), 1), `brancos ${pct(n.pct_brancos, 1)} · nulos ${pct(n.pct_nulos, 1)}`),
   );
+  if (segundoTurno()) {
+    const lider = d.candidatos[0];
+    caixa.append(kpi('Chance de vitória', prob(lider && lider.prob_vitoria), lider ? lider.nome : ''));
+  } else {
+    caixa.append(kpi('Chance de 2º turno', prob(d.prob_segundo_turno), 'ninguém com mais de 50%'));
+  }
+  caixa.append(
+    kpi('Chance de virada', prob(virada), liderApur ? `${nomeCurto(liderApur.numero)} lidera agora` : '',
+      'Chance de quem lidera a apuração agora não terminar em 1º lugar'),
+    kpi('Válidos que faltam', compacto(f.validos_restantes_esperados), `máximo ${compacto(f.votos_restantes_maximos)}`),
+  );
+  const info = document.getElementById('ultima-atualizacao');
+  info.classList.remove('aviso-coleta');
+  info.textContent = `Atualizado às ${d.timestamp.slice(11)} · ciclo ${d.ciclo_id}`;
 }
 
-function faixaIc(c, escMin, escMax) {
-  const pos = (v) => `${((v - escMin) / (escMax - escMin)) * 100}%`;
-  const corC = cor(c.numero);
-  const filhos = [el('span', { classe: 'trilho' })];
-  if (escMin < 50 && escMax > 50) filhos.push(el('span', { classe: 'cinquenta', estilo: { left: pos(50) }, title: '50%' }));
-  filhos.push(
-    el('span', { classe: 'ic', estilo: { left: pos(c.ic_inferior_95), width: `calc(${pos(c.ic_superior_95)} - ${pos(c.ic_inferior_95)})`, background: corC } }),
-    el('span', { classe: 'media', estilo: { left: pos(c.perc_projetado), background: corC } }),
-    el('span', { classe: 'apur', estilo: { left: pos(c.perc_apurado) } }),
-  );
-  return el('div', {
-    classe: 'faixa',
-    title: `Apurado ${pct(c.perc_apurado)} (círculo) · projetado ${pct(c.perc_projetado)} · IC 95% ${pct(c.ic_inferior_95)} – ${pct(c.ic_superior_95)}`,
-  }, filhos);
-}
-
-function tituloProprio(t) {
-  const minusculas = new Set(['de', 'da', 'do', 'das', 'dos', 'e']);
-  return String(t || '').toLowerCase().split(/\s+/)
-    .map((p, i) => (i > 0 && minusculas.has(p)) ? p : p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
-}
+// -------------------------------------------------------------- lista lateral
 
 function descricaoChapa(c) {
   const partes = [c.nome_completo || c.nome];
@@ -264,196 +311,160 @@ function descricaoChapa(c) {
   return partes.join(' · ');
 }
 
-function renderCandidatosAguardando(d) {
-  document.getElementById('nota-candidatos').textContent =
-    'Candidatos cadastrados nos arquivos do TSE, em ordem alfabética. Votos e projeção aparecem com o início da apuração.';
-  const corpo = document.querySelector('#tabela-candidatos tbody');
-  corpo.textContent = '';
-  for (const c of d.candidatos) {
-    corpo.appendChild(el('tr', {}, [
-      el('td', {}, [el('div', { classe: 'cand-nome' }, [
-        el('span', { classe: 'chave-bloco', estilo: { background: G.token('--neutro-claro') } }),
-        el('div', { title: descricaoChapa(c) }, [
-          el('strong', { texto: c.nome }),
-          el('small', { texto: `${c.partido || '—'} · Nº ${c.numero}${c.vice ? ` · vice ${tituloProprio(c.vice)}` : ''}` }),
-          c.coligacao ? el('small', { texto: `${tituloProprio(c.coligacao)} (${c.composicao})` }) : null,
-        ]),
-      ])]),
-      el('td', { classe: 'num', texto: '0' }),
-      ...Array.from({ length: 7 }, () => el('td', { classe: 'num', texto: '—' })),
-    ]));
-  }
-}
-
-function renderCandidatos(d) {
-  const nota = document.getElementById('nota-candidatos');
-  if (!nota.querySelector('#n-sim')) {
-    nota.textContent = '';
-    nota.append('Valores já apurados e projeção final (média de ', el('span', { id: 'n-sim', texto: fmtInt.format((state.info && state.info.simulacoes) || 10000) }), ' simulações). Ordenado pela projeção.');
-  }
-  const corpo = document.querySelector('#tabela-candidatos tbody');
-  corpo.textContent = '';
+function renderListaCandidatos(d, aguardando) {
+  const dois = segundoTurno();
+  document.querySelector('.atalhos').hidden = dois || aguardando;
+  document.getElementById('nota-candidatos').textContent = aguardando
+    ? 'Cadastrados nos arquivos do TSE, em ordem alfabética.'
+    : (dois ? 'Disputa do 2º turno.' : 'Marque para exibir nos gráficos.');
   const top2 = (d.analise && d.analise.prob_top2) || {};
-  const escMax = Math.min(100, Math.max(55, ...d.candidatos.map((c) => c.ic_superior_95)) + 2);
+  const lista = document.getElementById('lista-candidatos');
+  lista.textContent = '';
   for (const c of d.candidatos) {
-    const delta = c.perc_projetado - c.perc_apurado;
-    const tr = el('tr', {}, [
-      el('td', {}, [el('div', { classe: 'cand-nome' }, [
-        el('span', { classe: 'chave-bloco', estilo: { background: cor(c.numero) } }),
-        el('div', { title: descricaoChapa(c) }, [
-          el('strong', { texto: c.nome }),
-          el('small', { texto: `${c.partido || '—'} · Nº ${c.numero}${c.vice ? ` · vice ${tituloProprio(c.vice)}` : ''}` }),
-          c.coligacao ? el('small', { texto: `${tituloProprio(c.coligacao)} (${c.composicao})` }) : null,
-        ]),
-      ])]),
-      el('td', { classe: 'num', texto: fmtInt.format(c.votos_apurados) }),
-      el('td', { classe: 'num', texto: pct(c.perc_apurado) }),
-      el('td', { classe: 'num' }, [el('strong', { texto: pct(c.perc_projetado) })]),
-      el('td', {}, [faixaIc(c, 0, escMax)]),
-      el('td', { classe: `num ${delta >= 0 ? 'delta-pos' : 'delta-neg'}`, texto: `${delta >= 0 ? '+' : '−'}${fmtPct2.format(Math.abs(delta))} p.p.` }),
-      el('td', { classe: 'num', texto: prob(c.prob_vitoria) }),
-      el('td', { classe: 'num', texto: prob(c.prob_lideranca) }),
-      el('td', { classe: 'num', texto: prob(top2[c.numero]) }),
+    const marcado = !aguardando && (dois || state.marcados.has(c.numero));
+    const corC = aguardando ? G.token('--neutro-claro') : cor(c.numero);
+    const chave = el('span', { classe: 'cand-chave', estilo: { borderColor: corC, background: marcado ? corC : 'transparent' } });
+    let probs = '';
+    if (!aguardando) {
+      probs = dois
+        ? `Chance de vitória ${prob(c.prob_vitoria)}`
+        : `1º lugar ${prob(c.prob_lideranca)} · 2º turno ${prob(top2[c.numero])}`;
+    }
+    const info = el('div', { classe: 'cand-info', title: descricaoChapa(c) }, [
+      el('strong', { texto: c.nome }),
+      el('small', { texto: `${c.partido || '—'} · ${c.numero}${c.vice ? ` · vice ${tituloProprio(c.vice)}` : ''}` }),
+      probs ? el('small', { classe: 'cand-probs', texto: probs }) : null,
     ]);
-    corpo.appendChild(tr);
-  }
-}
-
-function legenda(id, itens, tipo = 'linha') {
-  const caixa = document.getElementById(id);
-  if (!caixa) return;
-  caixa.textContent = '';
-  for (const it of itens) {
-    caixa.appendChild(el('span', {}, [
-      el('span', { classe: tipo === 'linha' ? 'chave-linha' : 'chave-bloco', estilo: { background: it.cor } }),
-      document.createTextNode(it.rotulo),
+    const nums = el('div', { classe: 'cand-num' }, [
+      el('span', { classe: 'proj', texto: aguardando ? '—' : pct(c.perc_projetado, 1), title: 'Projeção do resultado final' }),
+      el('span', { classe: 'apur', texto: aguardando ? 'sem votos' : `apurado ${pct(c.perc_apurado, 1)}` }),
+    ]);
+    const entrada = el('input', { type: 'checkbox', 'aria-label': `Exibir ${c.nome} nos gráficos` });
+    entrada.checked = marcado;
+    entrada.disabled = dois || aguardando;
+    entrada.addEventListener('change', () => alternarCandidato(c.numero));
+    lista.appendChild(el('li', {}, [
+      el('label', { classe: `cand${marcado ? ' marcado' : ''}` }, [entrada, chave, info, nums]),
     ]));
   }
 }
 
-function serie(numero, fn) {
-  const pontos = state.historico
-    .filter((r) => r.candidatos.some((c) => c.numero === numero))
-    .map((r) => fn(r, r.candidatos.find((c) => c.numero === numero)))
-    .sort((a, b) => a.x - b.x);
-  return { id: numero, rotulo: `${nome(numero)} (${numero})`, rotuloCurto: nomeCurto(numero), cor: cor(numero), pontos };
-}
-
-function renderCurvas() {
-  const eixoX = cfgEixoX();
-  const coloridos = Object.keys(state.slots).filter((n) => topoCandidatos(99).includes(n))
-    .sort((a, b) => topoCandidatos(99).indexOf(a) - topoCandidatos(99).indexOf(b));
-
-  // Apuração real
-  const sApur = coloridos.map((n) => serie(n, (r, c) => ({ x: valorX(r), y: c.perc_apurado })));
-  G.linhas(document.getElementById('g-apurado'), {
-    series: sApur, ...eixoX, yFmt: (v) => `${fmtPct1.format(v)}%`, yPiso: 0, vazio: 'Aguardando a primeira atualização',
+/** 2º turno: barra apurado × projetado entre os dois e números do confronto. */
+function renderConfronto(d) {
+  const caixa = document.getElementById('confronto');
+  caixa.hidden = !segundoTurno() || !d.candidatos || d.candidatos.length !== 2;
+  if (caixa.hidden) return;
+  const [a, b] = d.candidatos;
+  G.barrasEmpilhadas(document.getElementById('g-confronto'), {
+    margemRotulo: 70, alturaBarra: 22, gap: 12,
+    linhas: [
+      { rotulo: 'Apurado', segmentos: [{ rotulo: a.nome, cor: cor(a.numero), valor: a.perc_apurado }, { rotulo: b.nome, cor: cor(b.numero), valor: b.perc_apurado }] },
+      { rotulo: 'Projetado', segmentos: [{ rotulo: a.nome, cor: cor(a.numero), valor: a.perc_projetado }, { rotulo: b.nome, cor: cor(b.numero), valor: b.perc_projetado }] },
+    ],
   });
-  legenda('l-apurado', sApur.map((s) => ({ cor: s.cor, rotulo: s.rotulo }))
-    .concat(topoCandidatos(99).length > coloridos.length ? [{ cor: G.token('--neutro'), rotulo: 'demais: ver tabela' }] : []));
-
-  // Curva de projeção com IC
-  const top4 = topoCandidatos(4);
-  const sProj = top4.map((n) => ({ ...serie(n, (r, c) => ({ x: valorX(r), y: c.perc_projetado, lo: c.ic_inferior_95, hi: c.ic_superior_95 })), banda: true }));
-  G.linhas(document.getElementById('g-projecao'), {
-    series: sProj, ...eixoX, yFmt: (v) => `${fmtPct1.format(v)}%`, yPiso: 0, yTeto: 100,
-    refs: [{ y: 50, rotulo: '50% dos válidos' }],
-  });
-  legenda('l-projecao', sProj.map((s) => ({ cor: s.cor, rotulo: s.rotulo })));
-
-  // Probabilidades
-  const sProb = [{
-    id: '2t', rotulo: 'Chance de 2º turno', rotuloCurto: '2º turno', cor: G.token('--texto-2'), espessura: 2,
-    pontos: state.historico.map((r) => ({ x: valorX(r), y: (r.prob_segundo_turno || 0) * 100 })).sort((a, b) => a.x - b.x),
-  }].concat(topoCandidatos(2).map((n) => {
-    const s = serie(n, (r, c) => ({ x: valorX(r), y: c.prob_vitoria * 100 }));
-    return { ...s, rotulo: `P(eleito) ${s.rotulo}`, rotuloCurto: `${s.rotuloCurto} eleito` };
-  }));
-  G.linhas(document.getElementById('g-prob'), { series: sProb, ...eixoX, yMin: 0, yMax: 100, yFmt: (v) => `${fmtPct1.format(v)}%` });
-  legenda('l-prob', sProb.map((s) => ({ cor: s.cor, rotulo: s.rotulo })));
-
-  // Ritmo (sempre no tempo)
-  const pts = state.historico.map((r) => ({ x: tsParaMs(r.timestamp), y: r.perc_secoes_apuradas })).sort((a, b) => a.x - b.x);
-  G.linhas(document.getElementById('g-ritmo'), {
-    series: [{ id: 'ritmo', rotulo: 'Seções apuradas', rotuloCurto: 'Seções', cor: G.token('--seq'), pontos: pts }],
-    xFmt: fmtHoraAdaptativo(), xTitulo: fmtHoraSeg, yMin: 0, yMax: 100, yFmt: (v) => `${fmtPct1.format(v)}%`,
-  });
-  renderRitmoKpis(pts);
-}
-
-function renderRitmoKpis(pts) {
-  const caixa = document.getElementById('ritmo-kpis');
-  caixa.textContent = '';
-  if (pts.length < 2) return;
-  const ult = pts[pts.length - 1];
-  const janelaIni = pts.find((p) => p.x >= ult.x - 10 * 60 * 1000) || pts[0];
-  const minutos = (ult.x - janelaIni.x) / 60000;
-  const ritmo = minutos > 0 ? (ult.y - janelaIni.y) / minutos : 0;
-  const restante = ritmo > 0 ? (100 - ult.y) / ritmo : null;
-  const mini = (r, v) => el('div', { classe: 'mini-kpi' }, [el('div', { classe: 'kpi-rotulo', texto: r }), el('div', { classe: 'kpi-valor', texto: v })]);
-  caixa.append(
-    mini('Ritmo (últimos 10 min)', `${fmtPct2.format(ritmo)} p.p./min`),
-    mini('Previsão de 100% no ritmo atual', restante === null ? '—' : (ult.y >= 100 ? 'concluída' : fmtHora(ult.x + restante * 60000))),
-    mini('Atualizações', fmtInt.format(pts.length)),
-  );
-}
-
-function renderDistribuicoes(d) {
-  const a = d.analise || {};
-  const dist = a.distribuicao_final || {};
-  const series = Object.entries(dist).map(([n, h]) => ({ rotulo: `${nome(n)} (${n})`, cor: cor(n), ...h }));
-  const ext = series.flatMap((s) => [s.inicio, s.inicio + s.passo * s.freq.length]);
-  const refs = ext.length && Math.min(...ext) - 6 < 50 && Math.max(...ext) + 6 > 50 ? [{ x: 50, rotulo: '50%' }] : [];
-  G.histograma(document.getElementById('g-dist'), { series, refs, xFmt: (v) => `${fmtPct1.format(v)}%` });
-  legenda('l-dist', series.map((s) => ({ cor: s.cor, rotulo: s.rotulo })), 'bloco');
-
-  const m = a.distribuicao_margem;
-  const nota = document.getElementById('nota-margem');
-  if (m) {
-    nota.textContent = `${nome(m.lider)} − ${nome(m.segundo)}, em p.p. · P(${nomeCurto(m.lider)} à frente) = ${prob(m.prob_positiva)}`;
-    G.histograma(document.getElementById('g-margem'), {
-      series: [{ rotulo: `Margem ${nomeCurto(m.lider)} − ${nomeCurto(m.segundo)}`, cor: G.token('--seq'), ...m }],
-      refs: [{ x: 0, rotulo: 'empate' }],
-      xFmt: (v) => `${v >= 0 ? '+' : '−'}${fmtPct1.format(Math.abs(v))}`,
-    });
-  } else {
-    G.histograma(document.getElementById('g-margem'), { series: [] });
-  }
-}
-
-function renderFalta(d) {
-  const a = d.analise || {};
-  const f = a.faltam || {};
-  const caixa = document.getElementById('falta-kpis');
-  caixa.textContent = '';
+  const f = (d.analise && d.analise.faltam) || {};
   const mini = (r, v, det) => el('div', { classe: 'mini-kpi' }, [
     el('div', { classe: 'kpi-rotulo', texto: r }), el('div', { classe: 'kpi-valor', texto: v }),
     det ? el('div', { classe: 'kpi-detalhe', texto: det }) : null,
   ]);
-  caixa.append(mini('Válidos esperados nas seções restantes', compacto(f.validos_restantes_esperados), `Total final esperado: ${compacto(f.validos_finais_esperados)}`));
-  if (f.lider) {
-    const precisa = f.lider_precisa_pct_restantes;
-    caixa.append(mini(
-      `${nome(f.lider)} precisa, dos votos restantes, de`,
-      precisa === null || precisa === undefined ? '—' : (precisa <= 0 ? 'já tem > 50%' : pct(precisa)),
-      'para terminar com 50% dos válidos',
-    ));
+  const k = document.getElementById('confronto-kpis');
+  k.textContent = '';
+  k.append(
+    mini('Vantagem projetada', `${nomeCurto(a.numero)} +${fmt1.format(a.perc_projetado - b.perc_projetado)} pontos`,
+      `faixa provável de ${nomeCurto(a.numero)}: ${pct(a.ic_inferior_95, 1)} a ${pct(a.ic_superior_95, 1)}`),
+  );
+  if (f.diferenca_votos_apurados !== undefined) {
+    const lider = a.votos_apurados >= b.votos_apurados ? a : b;
+    k.append(mini('Diferença na apuração', `${nomeCurto(lider.numero)} +${compacto(Math.abs(a.votos_apurados - b.votos_apurados))} votos`,
+      `${compacto(f.validos_restantes_esperados)} válidos ainda a apurar`));
   }
-  if (f.segundo) {
-    caixa.append(mini(
-      `Diferença apurada ${nomeCurto(f.lider)} − ${nomeCurto(f.segundo)}`,
-      `${f.diferenca_votos_apurados >= 0 ? '+' : '−'}${compacto(Math.abs(f.diferenca_votos_apurados))} votos`,
-      f.segundo_precisa_vantagem_pp_restantes === null ? '' :
-        `${nomeCurto(f.segundo)} precisa superar ${nomeCurto(f.lider)} por ${fmtPct2.format(Math.max(0, f.segundo_precisa_vantagem_pp_restantes))} p.p. nos restantes`,
-    ));
-  }
-  const linhas = (a.ufs || []).map((u) => ({
-    rotulo: u.uf, valor: u.restantes_esperados,
-    detalhe: `${pct(u.secoes_apuradas / Math.max(1, u.secoes_total) * 100, 1)} apurado · ${compacto(u.restantes_esperados)} válidos esperados`,
-  })).filter((l) => l.valor > 0).sort((x, y) => y.valor - x.valor);
-  G.barrasH(document.getElementById('g-restantes'), {
-    linhas, fmt: compacto, margemRotulo: 40, vazio: 'Apuração concluída: não há votos restantes',
+}
+
+// ------------------------------------------------------------------- séries
+
+function serieHistorico(n, fn) {
+  const pontos = state.historico
+    .filter((r) => r.candidatos.some((c) => c.numero === n))
+    .map((r) => fn(r, r.candidatos.find((c) => c.numero === n)))
+    .filter(Boolean)
+    .sort((a, b) => a.x - b.x);
+  return { id: n, rotulo: nome(n), rotuloCurto: nomeCurto(n), cor: cor(n), pontos };
+}
+
+function candidatosDosGraficos() {
+  return segundoTurno() ? ordemCandidatos().slice(0, 2) : marcadosEmOrdem();
+}
+
+const fmtPctEixo = (v) => `${fmt1.format(v)}%`;
+const SEM_SELECAO = 'Marque candidatos na lista à esquerda para exibir aqui';
+
+// ----------------------------------------------------------------- abas
+
+function renderGeral(d) {
+  const nums = candidatosDosGraficos();
+  const atualPor = Object.fromEntries(d.candidatos.map((c) => [c.numero, c]));
+
+  // Corrida até 100%
+  const total = d.total_validos_projetados || 0;
+  G.corrida(document.getElementById('g-corrida'), {
+    vazio: SEM_SELECAO,
+    xFmt: (v) => `${fmt1.format(v)}%`,
+    yFmt: compacto,
+    yFmtEixo: (v) => (v >= 1e6 ? `${fmtInt.format(v / 1e6)} mi` : compacto(v)),
+    series: nums.map((n) => {
+      const s = serieHistorico(n, (r, c) => ({ x: r.perc_secoes_apuradas, y: c.votos_apurados }));
+      s.pontos.unshift({ x: 0, y: 0 });
+      const c = atualPor[n];
+      s.final = { y: c.media_projetada, lo: c.ic_inferior_95 / 100 * total, hi: c.ic_superior_95 / 100 * total };
+      return s;
+    }),
   });
+
+  // Intervalos
+  G.intervalos(document.getElementById('g-intervalos'), {
+    vazio: SEM_SELECAO,
+    fmt: (v) => pct(v, 1),
+    refs: [{ x: 50, rotulo: '50%' }],
+    itens: nums.map((n) => {
+      const c = atualPor[n];
+      return { rotulo: c.nome, cor: cor(n), lo: c.ic_inferior_95, hi: c.ic_superior_95, media: c.perc_projetado, apurado: c.perc_apurado };
+    }),
+  });
+
+  // Curva de projeção (faixa só para os 4 primeiros, para não embaralhar)
+  G.linhas(document.getElementById('g-projecao'), {
+    vazio: SEM_SELECAO, ...cfgEixoX(), yFmt: fmtPctEixo, yPiso: 0, yTeto: 100,
+    refs: [{ y: 50, rotulo: '50% dos válidos' }],
+    series: nums.map((n, i) => ({
+      ...serieHistorico(n, (r, c) => ({ x: valorX(r), y: c.perc_projetado, lo: c.ic_inferior_95, hi: c.ic_superior_95 })),
+      banda: i < 4,
+    })),
+  });
+
+  renderProbabilidades();
+}
+
+function renderProbabilidades() {
+  const nums = candidatosDosGraficos();
+  const nota = document.getElementById('nota-prob');
+  let series;
+  if (segundoTurno()) {
+    nota.textContent = 'Chance de vitória de cada candidato, a cada atualização';
+    series = nums.map((n) => serieHistorico(n, (r, c) => ({ x: valorX(r), y: c.prob_vitoria * 100 })));
+  } else {
+    nota.textContent = 'Chance de haver 2º turno e de cada candidato marcado ir ao 2º turno';
+    series = [{
+      id: '2t', rotulo: 'Haver 2º turno', rotuloCurto: '2º turno', cor: G.token('--texto-2'),
+      pontos: state.historico.map((r) => ({ x: valorX(r), y: (r.prob_segundo_turno || 0) * 100 })).sort((a, b) => a.x - b.x),
+    }].concat(nums.map((n) => {
+      const s = serieHistorico(n, (r) => {
+        const v = r.analise && r.analise.prob_top2 ? r.analise.prob_top2[n] : null;
+        return v === null || v === undefined ? null : { x: valorX(r), y: v * 100 };
+      });
+      return { ...s, rotulo: `${s.rotulo} no 2º turno` };
+    }));
+  }
+  G.linhas(document.getElementById('g-prob'), { series, ...cfgEixoX(), yMin: 0, yMax: 100, yFmt: fmtPctEixo });
 }
 
 function liderProjetadoUf(u) {
@@ -462,155 +473,259 @@ function liderProjetadoUf(u) {
   return melhor;
 }
 
-function renderMapa(d) {
-  const a = d.analise || {};
-  const caixa = document.getElementById('mapa');
-  caixa.textContent = '';
-  const porUf = Object.fromEntries((a.ufs || []).map((u) => [u.uf, u]));
-  const grade = Array.from({ length: 7 }, () => Array(8).fill(null));
-  for (const [uf, [l, c]] of Object.entries(MAPA)) grade[l][c] = uf;
-  const lideres = new Set();
-  for (const linha of grade) {
-    for (const uf of linha) {
-      if (!uf) { caixa.appendChild(el('div', { classe: 'uf-vazio' })); continue; }
-      const u = porUf[uf];
-      const lider = u ? liderProjetadoUf(u) : null;
-      const pctApur = u ? u.secoes_apuradas / Math.max(1, u.secoes_total) * 100 : 0;
-      const tile = el('button', {
-        type: 'button',
-        classe: `uf-tile${!u || u.sem_dados ? ' sem-dados' : ''}${state.ufSelecionada === uf ? ' selecionada' : ''}`,
-        'aria-label': `${uf}: ${pct(pctApur, 1)} apurado${lider ? `, líder projetado ${nome(lider[0])} ${pct(lider[1])}` : ''}`,
-      }, [document.createTextNode(uf), el('small', { texto: u ? `${fmtPct1.format(pctApur)}%` : '—' })]);
-      if (lider && u && !u.sem_dados) {
-        const c = cor(lider[0]);
-        tile.style.background = c;
-        tile.style.color = luminancia(c) > 0.3 ? '#0b0b0b' : '#ffffff';
-        lideres.add(lider[0]);
-      }
-      const dica = (evt) => {
-        if (!u) return;
-        const tops = Object.entries(u.proj_pct).sort((x, y) => y[1] - x[1]).slice(0, 3);
-        const totalApur = Object.values(u.votos).reduce((s, v) => s + v, 0) || 1;
-        G.mostrarTooltip(evt, `${uf} · ${pct(pctApur, 1)} das seções · ${compacto(u.restantes_esperados)} válidos restantes`, tops.map(([n, v]) => ({
-          cor: cor(n), valor: pct(v), rotulo: `${nome(n)} · apurado ${pct(u.votos[n] / totalApur * 100)} · P(lidera) ${prob(u.prob_lider[n])}`,
-        })));
-      };
-      tile.addEventListener('pointermove', dica);
-      tile.addEventListener('pointerleave', G.esconderTooltip);
-      tile.addEventListener('click', () => { state.ufSelecionada = uf; renderMapa(state.atual); renderEstratos(state.atual); sincronizarSelect(); });
-      caixa.appendChild(tile);
-    }
-  }
-  legenda('l-mapa', [...lideres].map((n) => ({ cor: cor(n), rotulo: `${nome(n)} (${n})` }))
-    .concat([{ cor: G.token('--neutro-claro'), rotulo: 'sem dados' }]), 'bloco');
-}
-
-function segmentos(fracoes, ordem) {
-  const coloridos = ordem.filter((n) => state.slots[n] !== undefined);
-  const segs = coloridos.map((n) => ({ rotulo: `${nome(n)} (${n})`, cor: cor(n), valor: fracoes[n] || 0 }));
-  const demais = Object.entries(fracoes).filter(([n]) => !coloridos.includes(n)).reduce((s, [, v]) => s + v, 0);
-  if (demais > 0.005) segs.push({ rotulo: 'Demais candidatos', cor: G.token('--neutro'), valor: demais });
-  return segs;
-}
-
 function partes(votos) {
   const total = Object.values(votos || {}).reduce((s, v) => s + v, 0);
   return Object.fromEntries(Object.entries(votos || {}).map(([n, v]) => [n, total ? v / total * 100 : 0]));
 }
 
-function legendaCandidatos(id, ordem) {
-  const coloridos = ordem.filter((n) => state.slots[n] !== undefined);
-  const itens = coloridos.map((n) => ({ cor: cor(n), rotulo: nome(n) }));
-  if (ordem.length > coloridos.length) itens.push({ cor: G.token('--neutro'), rotulo: 'Demais' });
-  legenda(id, itens, 'bloco');
-}
+function pctApurado(u) { return u.secoes_apuradas / Math.max(1, u.secoes_total) * 100; }
 
-function renderRegioes(d) {
+function renderMapa(d) {
   const a = d.analise || {};
-  const ordem = topoCandidatos(99);
-  const linhas = [];
-  for (const r of (a.regioes || [])) {
-    const apur = r.secoes_apuradas / Math.max(1, r.secoes_total) * 100;
-    linhas.push({ rotulo: `${r.regiao} · A (${fmtPct1.format(apur)}%)`, segmentos: segmentos(partes(r.votos), ordem), grupoInicio: linhas.length > 0 });
-    linhas.push({ rotulo: `${r.regiao} · P`, segmentos: segmentos(r.proj_pct || {}, ordem) });
+  const ufs = (a.ufs || []).filter((u) => u.uf !== 'ZZ');
+  const ordem = ordemCandidatos();
+  const nums = candidatosDosGraficos();
+  const [A, B] = nums.length >= 2 ? nums : ordem.slice(0, 2);
+
+  const tooltipUf = (u) => {
+    const fr = partes(u.votos);
+    const tops = Object.entries(u.proj_pct).sort((x, y) => y[1] - x[1]).slice(0, 3);
+    return {
+      titulo: `${pct(pctApurado(u), 1)} apurado · ${compacto(u.restantes_esperados)} válidos a apurar`,
+      linhas: tops.map(([n, v]) => ({
+        cor: cor(n), valor: pct(v, 1),
+        rotulo: `${nome(n)} · apurado ${pct(fr[n], 1)} · chance de vencer na UF ${prob(u.prob_lider[n])}`,
+      })),
+    };
+  };
+
+  let dados, escala;
+  if (state.modoMapa === 'apurado') {
+    dados = ufs.map((u) => ({ uf: u.uf, valor: +pctApurado(u).toFixed(1), tooltip: tooltipUf(u) }));
+    escala = { min: 0, max: 100, cores: ['--seq-1', '--seq-2', '--seq-3', '--seq-4', '--seq-5'].map(G.token), rotulos: ['100%', '0%'] };
+  } else if (state.modoMapa === 'vantagem' && A && B) {
+    const difs = ufs.map((u) => (u.proj_pct[A] || 0) - (u.proj_pct[B] || 0));
+    const lim = Math.max(5, Math.ceil(Math.max(...difs.map(Math.abs)) / 5) * 5);
+    dados = ufs.map((u, i) => ({ uf: u.uf, valor: +difs[i].toFixed(1), tooltip: tooltipUf(u) }));
+    escala = { min: -lim, max: lim, cores: [cor(B), G.token('--div-meio'), cor(A)], rotulos: [`${nomeCurto(A)} +${lim}`, `${nomeCurto(B)} +${lim}`] };
+  } else {
+    dados = ufs.filter((u) => !u.sem_dados).map((u) => {
+      const l = liderProjetadoUf(u);
+      return { uf: u.uf, cor: l ? cor(l[0]) : G.token('--neutro'), tooltip: tooltipUf(u) };
+    });
   }
-  G.barrasEmpilhadas(document.getElementById('g-regioes'), { linhas, margemRotulo: 150, alturaBarra: 16, gap: 6 });
-  legendaCandidatos('l-regioes', ordem);
+  G.mapa(document.getElementById('g-mapa'), {
+    dados, escala, selecionada: state.ufSelecionada,
+    aoClicar: (uf) => { if (NOMES_UF[uf]) { state.ufSelecionada = uf; renderDetalheUf(state.atual); } },
+  });
+
+  // Rodapé: legenda dos líderes (modo líder) e o exterior, que não aparece no mapa
+  const rodape = document.getElementById('mapa-rodape');
+  rodape.textContent = '';
+  if (state.modoMapa === 'lider') {
+    const lideres = [...new Set(ufs.filter((u) => !u.sem_dados).map((u) => (liderProjetadoUf(u) || [])[0]).filter(Boolean))];
+    for (const n of lideres) {
+      const qtd = ufs.filter((u) => (liderProjetadoUf(u) || [])[0] === n).length;
+      rodape.appendChild(el('span', {}, [el('span', { classe: 'chave-tab', estilo: { background: cor(n) } }), `${nome(n)}: ${qtd} UF${qtd > 1 ? 's' : ''}`]));
+    }
+  }
+  const zz = (a.ufs || []).find((u) => u.uf === 'ZZ');
+  if (zz) {
+    const l = liderProjetadoUf(zz);
+    rodape.appendChild(el('span', { texto: `Exterior: ${pct(pctApurado(zz), 1)} apurado${l ? ` · ${nomeCurto(l[0])} ${pct(l[1], 1)}` : ''}` }));
+  }
+  renderDetalheUf(d);
 }
 
-function renderTipos(d) {
+function renderDetalheUf(d) {
   const a = d.analise || {};
-  const ordem = topoCandidatos(99);
-  const linhas = (a.tipos_estrato || []).filter((t) => t.tipo !== 'SEM_DADOS').map((t) => ({
-    rotulo: `${ROTULO_TIPO[t.tipo] || t.tipo} (${fmtPct1.format(t.secoes_apuradas / Math.max(1, t.secoes_total) * 100)}% apur.)`,
-    segmentos: segmentos(partes(t.votos), ordem),
-  }));
-  G.barrasEmpilhadas(document.getElementById('g-tipos'), { linhas, margemRotulo: 230, alturaBarra: 20, gap: 10 });
-  legendaCandidatos('l-tipos', ordem);
-}
-
-function sincronizarSelect() {
-  const sel = document.getElementById('sel-uf');
-  if (state.ufSelecionada) sel.value = state.ufSelecionada;
-}
-
-function renderEstratos(d) {
-  const a = d.analise || {};
-  const sel = document.getElementById('sel-uf');
   const ufs = (a.ufs || []).map((u) => u.uf);
   if (!state.ufSelecionada || !ufs.includes(state.ufSelecionada)) {
-    state.ufSelecionada = ufs.includes('SP') ? 'SP' : ufs[0];
+    const maior = [...(a.ufs || [])].sort((x, y) => y.restantes_esperados - x.restantes_esperados)[0];
+    state.ufSelecionada = maior ? maior.uf : ufs[0];
   }
-  if (sel.options.length !== ufs.length) {
-    sel.textContent = '';
-    for (const uf of ufs) sel.appendChild(el('option', { value: uf, texto: uf }));
-  }
-  sincronizarSelect();
+  const u = (a.ufs || []).find((x) => x.uf === state.ufSelecionada);
+  if (!u) return;
+  document.getElementById('uf-titulo').textContent = `${NOMES_UF[u.uf] || u.uf} (${u.uf})`;
+  const l = liderProjetadoUf(u);
+  const mini = (r, v) => el('div', { classe: 'mini-kpi' }, [el('div', { classe: 'kpi-rotulo', texto: r }), el('div', { classe: 'kpi-valor', texto: v })]);
+  const caixa = document.getElementById('uf-kpis');
+  caixa.textContent = '';
+  caixa.append(
+    mini('Seções apuradas', pct(pctApurado(u), 1)),
+    mini('Válidos apurados', compacto(u.votos_validos)),
+    mini('Válidos a apurar', compacto(u.restantes_esperados)),
+    mini('Líder projetado', l ? `${nomeCurto(l[0])} · ${prob(u.prob_lider[l[0]])}` : '—'),
+  );
 
-  const top3 = topoCandidatos(3);
+  const nums = candidatosDosGraficos();
+  const mostrar = (nums.length ? nums : ordemCandidatos().slice(0, PRINCIPAIS)).slice(0, 6);
+  const fr = partes(u.votos);
+  G.apuradoProjetado(document.getElementById('g-uf-barras'), {
+    fmt: (v) => pct(v, 1),
+    itens: mostrar.map((n) => ({ rotulo: nome(n), cor: cor(n), apurado: fr[n] || 0, projetado: u.proj_pct[n] || 0 })),
+  });
+
+  const top = mostrar.slice(0, 3);
   const thead = document.querySelector('#tabela-estratos thead');
   thead.textContent = '';
   thead.appendChild(el('tr', {}, [
-    el('th', { texto: 'Estrato' }), el('th', { texto: 'Tipo' }), el('th', { texto: '% apurado' }),
-    el('th', { classe: 'num', texto: 'Válidos apur.' }),
-    ...top3.map((n) => el('th', { classe: 'num', texto: nomeCurto(n) })),
-    el('th', { classe: 'num', texto: 'Válidos restantes' }),
+    el('th', { texto: 'Cidade / interior' }), el('th', { texto: '% apurado' }),
+    ...top.map((n) => el('th', { classe: 'num' }, [el('span', { classe: 'chave-tab', estilo: { background: cor(n) } }), nomeCurto(n)])),
+    el('th', { classe: 'num', texto: 'A apurar' }),
   ]));
   const corpo = document.querySelector('#tabela-estratos tbody');
   corpo.textContent = '';
-  const ordemTipo = { CAPITAL: 0, GRANDE_CIDADE: 1, INTERIOR: 2, UF_INTEIRA: 3, SEM_DADOS: 4 };
-  const estratos = (a.estratos || []).filter((e) => e.uf === state.ufSelecionada)
-    .sort((x, y) => (ordemTipo[x.tipo] - ordemTipo[y.tipo]) || (y.eleitores_aptos - x.eleitores_aptos));
+  const estratos = (a.estratos || []).filter((e) => e.uf === u.uf)
+    .sort((x, y) => (ORDEM_TIPO[x.tipo] - ORDEM_TIPO[y.tipo]) || (y.eleitores_aptos - x.eleitores_aptos));
   for (const e of estratos) {
     const apur = e.secoes_apuradas / Math.max(1, e.secoes_total) * 100;
-    const fr = partes(e.votos);
+    const fe = partes(e.votos);
+    const rotulo = e.tipo === 'CAPITAL' ? `${e.nome} (capital)` : e.nome;
     corpo.appendChild(el('tr', { classe: e.tipo === 'INTERIOR' ? 'destaque' : '' }, [
-      el('td', { texto: e.nome }),
-      el('td', { texto: ROTULO_TIPO[e.tipo] || e.tipo }),
-      el('td', {}, [el('span', { classe: 'mini-medidor' }, [el('span', { estilo: { width: `${apur}%` } })]), document.createTextNode(pct(apur, 1))]),
-      el('td', { classe: 'num', texto: fmtInt.format(e.votos_validos) }),
-      ...top3.map((n) => el('td', { classe: 'num', texto: e.votos_validos ? pct(fr[n]) : '—' })),
+      el('td', { texto: rotulo, title: ROTULO_TIPO[e.tipo] || '' }),
+      el('td', {}, [el('span', { classe: 'mini-medidor' }, [el('span', { estilo: { width: `${apur}%` } })]), pct(apur, 1)]),
+      ...top.map((n) => el('td', { classe: 'num', texto: e.votos_validos ? pct(fe[n], 1) : '—' })),
       el('td', { classe: 'num', texto: compacto(e.restantes_esperados) }),
     ]));
   }
 }
 
+function renderCenarios(d) {
+  const a = d.analise || {};
+  const dist = a.distribuicao_final || {};
+  const nums = candidatosDosGraficos();
+  let chaves = Object.keys(dist).filter((n) => nums.includes(n));
+  if (!chaves.length) chaves = Object.keys(dist);
+  const series = chaves.map((n) => ({ rotulo: nome(n), cor: cor(n), ...dist[n] }));
+  const ext = series.flatMap((s) => [s.inicio, s.inicio + s.passo * s.freq.length]);
+  const refs = ext.length && Math.min(...ext) - 6 < 50 && Math.max(...ext) + 6 > 50 ? [{ x: 50, rotulo: '50%' }] : [];
+  G.histograma(document.getElementById('g-dist'), { series, refs, xFmt: (v) => `${fmt1.format(v)}%` });
+
+  const m = a.distribuicao_margem;
+  const nota = document.getElementById('nota-margem');
+  if (m) {
+    nota.textContent = `${nome(m.lider)} − ${nome(m.segundo)}, em pontos percentuais · ${nomeCurto(m.lider)} à frente em ${prob(m.prob_positiva)} dos cenários`;
+    G.histograma(document.getElementById('g-margem'), {
+      series: [{ rotulo: `Margem ${nomeCurto(m.lider)} − ${nomeCurto(m.segundo)}`, cor: G.token('--seq'), ...m }],
+      refs: [{ x: 0, rotulo: 'empate' }],
+      xFmt: (v) => `${v >= 0 ? '+' : '−'}${fmt1.format(Math.abs(v))}`,
+    });
+  } else {
+    G.vazio(document.getElementById('g-margem'));
+  }
+
+  const f = a.faltam || {};
+  const caixa = document.getElementById('falta-kpis');
+  caixa.textContent = '';
+  const mini = (r, v, det) => el('div', { classe: 'mini-kpi' }, [
+    el('div', { classe: 'kpi-rotulo', texto: r }), el('div', { classe: 'kpi-valor', texto: v }),
+    det ? el('div', { classe: 'kpi-detalhe', texto: det }) : null,
+  ]);
+  caixa.append(mini('Válidos ainda a apurar', compacto(f.validos_restantes_esperados), `total final esperado: ${compacto(f.validos_finais_esperados)}`));
+  if (f.lider) {
+    const precisa = f.lider_precisa_pct_restantes;
+    caixa.append(mini(`${nome(f.lider)} precisa de`,
+      precisa === null || precisa === undefined ? '—' : (precisa <= 0 ? 'já tem mais de 50%' : pct(precisa, 1)),
+      'dos votos restantes para passar de 50%'));
+  }
+  if (f.segundo) {
+    caixa.append(mini(`Diferença ${nomeCurto(f.lider)} − ${nomeCurto(f.segundo)}`,
+      `${f.diferenca_votos_apurados >= 0 ? '+' : '−'}${compacto(Math.abs(f.diferenca_votos_apurados))} votos`,
+      f.segundo_precisa_vantagem_pp_restantes === null ? '' :
+        `para virar, ${nomeCurto(f.segundo)} precisa de ${fmt1.format(Math.max(0, f.segundo_precisa_vantagem_pp_restantes))} pontos a mais nos votos restantes`));
+  }
+  const lista = (a.ufs || []).filter((u) => u.restantes_esperados > 0).sort((x, y) => y.restantes_esperados - x.restantes_esperados);
+  G.colunas(document.getElementById('g-restantes'), {
+    vazio: 'Apuração concluída: não há votos a apurar',
+    categorias: lista.map((u) => u.uf),
+    titulos: lista.map((u) => NOMES_UF[u.uf] || u.uf),
+    valores: lista.map((u) => u.restantes_esperados),
+    detalhes: lista.map((u) => `válidos a apurar · ${pct(pctApurado(u), 1)} apurado`),
+    fmt: compacto,
+  });
+}
+
+function renderApuracao(d) {
+  const nums = candidatosDosGraficos();
+  G.linhas(document.getElementById('g-apurado'), {
+    vazio: SEM_SELECAO, ...cfgEixoX(), yFmt: fmtPctEixo, yPiso: 0,
+    series: nums.map((n) => serieHistorico(n, (r, c) => ({ x: valorX(r), y: c.perc_apurado }))),
+  });
+
+  const pts = state.historico.map((r) => ({ x: tsParaMs(r.timestamp), y: r.perc_secoes_apuradas })).sort((a, b) => a.x - b.x);
+  G.linhas(document.getElementById('g-ritmo'), {
+    series: [{ id: 'ritmo', rotulo: 'Seções apuradas', rotuloCurto: 'Seções', cor: G.token('--seq'), pontos: pts }],
+    xFmt: fmtHoraAdaptativo(), xTitulo: fmtHoraSeg, yMin: 0, yMax: 100, yFmt: fmtPctEixo,
+  });
+  const caixa = document.getElementById('ritmo-kpis');
+  caixa.textContent = '';
+  if (pts.length >= 2) {
+    const ult = pts[pts.length - 1];
+    const ini = pts.find((p) => p.x >= ult.x - 10 * 60 * 1000) || pts[0];
+    const minutos = (ult.x - ini.x) / 60000;
+    const ritmo = minutos > 0 ? (ult.y - ini.y) / minutos : 0;
+    const resta = ritmo > 0 ? (100 - ult.y) / ritmo : null;
+    const mini = (r, v) => el('div', { classe: 'mini-kpi' }, [el('div', { classe: 'kpi-rotulo', texto: r }), el('div', { classe: 'kpi-valor', texto: v })]);
+    caixa.append(
+      mini('Ritmo (últimos 10 min)', `${fmt1.format(ritmo)} pontos/min`),
+      mini('Término previsto', resta === null ? '—' : (ult.y >= 100 ? 'concluída' : fmtHora(ult.x + resta * 60000))),
+      mini('Atualizações', fmtInt.format(pts.length)),
+    );
+  }
+
+  const a = d.analise || {};
+  const ufs = [...(a.ufs || [])].sort((x, y) => pctApurado(y) - pctApurado(x));
+  G.colunas(document.getElementById('g-apuracao-uf'), {
+    categorias: ufs.map((u) => u.uf),
+    titulos: ufs.map((u) => NOMES_UF[u.uf] || u.uf),
+    valores: ufs.map((u) => +pctApurado(u).toFixed(1)),
+    detalhes: ufs.map((u) => `das seções · ${compacto(u.restantes_esperados)} válidos a apurar`),
+    fmt: (v) => pct(v, 1), fmtEixo: (v) => `${v}%`, max: 100,
+    ref: d.perc_secoes_apuradas, refRotulo: `Brasil ${pct(d.perc_secoes_apuradas, 1)}`,
+  });
+}
+
+function segmentos(fracoes) {
+  const nums = candidatosDosGraficos();
+  const mostrar = nums.length ? nums : ordemCandidatos().slice(0, PRINCIPAIS);
+  const segs = mostrar.map((n) => ({ rotulo: nome(n), cor: cor(n), valor: fracoes[n] || 0 }));
+  const demais = Object.entries(fracoes).filter(([n]) => !mostrar.includes(n)).reduce((s, [, v]) => s + v, 0);
+  if (demais > 0.005) segs.push({ rotulo: 'Demais candidatos', cor: G.token('--neutro'), valor: demais });
+  return segs;
+}
+
+function renderEstratos(d) {
+  const a = d.analise || {};
+  const linhas = [];
+  for (const r of (a.regioes || [])) {
+    linhas.push({ rotulo: `${r.regiao} · A (${fmt1.format(pctApurado(r))}%)`, segmentos: segmentos(partes(r.votos)), grupoInicio: linhas.length > 0 });
+    linhas.push({ rotulo: `${r.regiao} · P`, segmentos: segmentos(r.proj_pct || {}) });
+  }
+  G.barrasEmpilhadas(document.getElementById('g-regioes'), { linhas, margemRotulo: 150, alturaBarra: 16, gap: 6 });
+
+  const tipos = (a.tipos_estrato || []).filter((t) => t.tipo !== 'SEM_DADOS')
+    .sort((x, y) => ORDEM_TIPO[x.tipo] - ORDEM_TIPO[y.tipo])
+    .map((t) => ({ rotulo: `${ROTULO_TIPO[t.tipo] || t.tipo} (${fmt1.format(pctApurado(t))}% apur.)`, segmentos: segmentos(partes(t.votos)) }));
+  G.barrasEmpilhadas(document.getElementById('g-tipos'), { linhas: tipos, margemRotulo: 230, alturaBarra: 22, gap: 14 });
+}
+
 const COLUNAS_UF = [
   { chave: 'uf', rotulo: 'UF', valor: (u) => u.uf },
   { chave: 'regiao', rotulo: 'Região', valor: (u) => u.regiao },
-  { chave: 'apurado', rotulo: '% apurado', num: true, valor: (u) => u.secoes_apuradas / Math.max(1, u.secoes_total) * 100, fmt: (v) => pct(v, 1) },
+  { chave: 'apurado', rotulo: '% apurado', num: true, valor: pctApurado, fmt: (v) => pct(v, 1) },
   { chave: 'validos', rotulo: 'Válidos apurados', num: true, valor: (u) => u.votos_validos, fmt: (v) => fmtInt.format(v) },
-  { chave: 'lider_apur', rotulo: 'Líder apurado', valor: (u) => liderApurado(u), fmt: (v) => v || '—' },
-  { chave: 'lider_proj', rotulo: 'Líder projetado', valor: (u) => { const l = liderProjetadoUf(u); return l ? `${nomeCurto(l[0])} ${pct(l[1])}` : '—'; } },
-  { chave: 'prob', rotulo: 'P(líder proj. vence UF)', num: true, valor: (u) => { const l = liderProjetadoUf(u); return l ? u.prob_lider[l[0]] : 0; }, fmt: prob },
-  { chave: 'restantes', rotulo: 'Válidos restantes', num: true, valor: (u) => u.restantes_esperados, fmt: compacto },
+  { chave: 'lider_apur', rotulo: 'Líder na apuração', valor: (u) => liderApurado(u), fmt: (v) => v || '—' },
+  { chave: 'lider_proj', rotulo: 'Líder projetado', valor: (u) => { const l = liderProjetadoUf(u); return l ? `${nomeCurto(l[0])} ${pct(l[1], 1)}` : '—'; } },
+  { chave: 'prob', rotulo: 'Chance do líder na UF', num: true, valor: (u) => { const l = liderProjetadoUf(u); return l ? u.prob_lider[l[0]] : 0; }, fmt: prob },
+  { chave: 'restantes', rotulo: 'Válidos a apurar', num: true, valor: (u) => u.restantes_esperados, fmt: compacto },
 ];
 
 function liderApurado(u) {
   const total = Object.values(u.votos).reduce((s, v) => s + v, 0);
   if (!total) return '';
   const [n, v] = Object.entries(u.votos).sort((x, y) => y[1] - x[1])[0];
-  return `${nomeCurto(n)} ${pct(v / total * 100)}`;
+  return `${nomeCurto(n)} ${pct(v / total * 100, 1)}`;
 }
 
 function renderUfs(d) {
@@ -630,7 +745,6 @@ function renderUfs(d) {
     tr.appendChild(th);
   }
   thead.appendChild(tr);
-
   const col = COLUNAS_UF.find((c) => c.chave === state.ordemUf.chave) || COLUNAS_UF[0];
   const ufs = [...(a.ufs || [])].sort((x, y) => {
     const vx = col.valor(x), vy = col.valor(y);
@@ -647,86 +761,73 @@ function renderUfs(d) {
   }
 }
 
-function renderRodape(d) {
-  document.getElementById('rodape-ciclo').textContent = `Ciclo ${d.ciclo_id} · calculado às ${d.timestamp}`;
-  document.getElementById('rodape-mc').textContent = `Motor Monte Carlo: ${fmtInt.format(Math.round(d.tempo_computacao_ms))} ms`;
-  const info = document.getElementById('ultima-atualizacao');
-  info.classList.remove('aviso-coleta');
-  info.textContent = `Última atualização: ${d.timestamp}`;
-}
+const RENDER_ABA = {
+  geral: renderGeral, mapa: renderMapa, simulacao: renderCenarios,
+  apuracao: renderApuracao, estratos: renderEstratos, ufs: renderUfs,
+};
 
-function emEspera(d) {
-  return Boolean(d && d.analise && d.analise.aguardando);
-}
+// --------------------------------------------------------------- orquestração
 
-function renderTudo() {
-  const d = state.atual;
-  if (!d || !d.candidatos || !d.candidatos.length) return;
-  if (emEspera(d)) {
-    // Sem votos ainda: as cores são atribuídas só quando a ordem dos candidatos tiver sentido
-    for (const c of d.candidatos) state.candidatos[c.numero] = { nome: c.nome, partido: c.partido };
-    renderEsperaCompleta(d);
-    return;
-  }
-  atribuirCores(d.candidatos);
-  renderChamada(d);
-  renderKpis(d);
-  renderCandidatos(d);
-  renderCurvas();
-  renderDistribuicoes(d);
-  renderFalta(d);
-  renderMapa(d);
-  renderRegioes(d);
-  renderTipos(d);
-  renderEstratos(d);
-  renderUfs(d);
-  renderRodape(d);
-  if (state.chaveSlots) armazenar(state.chaveSlots, state.slots);
-}
+function emEspera(d) { return Boolean(d && d.analise && d.analise.aguardando); }
 
-// ------------------------------------------------------------------- dados
-
-function chave(r) { return `${r.ciclo_id}|${r.timestamp}`; }
-
-const GRAFICOS = ['g-apurado', 'g-projecao', 'g-prob', 'g-ritmo', 'g-dist', 'g-margem', 'g-restantes', 'g-regioes', 'g-tipos'];
-
-function renderEsperaCompleta(d) {
-  renderAguardando(d);
-  renderCandidatosAguardando(d);
-  const n = (d.analise && d.analise.nacional) || {};
-  const caixa = document.getElementById('kpis');
-  caixa.textContent = '';
-  caixa.append(
-    kpi('Seções apuradas', pct(0), `0 de ${fmtInt.format(d.total_secoes)}`, 0),
-    kpi('Eleitorado', compacto(d.total_eleitores), `${fmtInt.format(d.total_eleitores)} eleitores aptos`),
-    kpi('Candidatos', fmtInt.format(d.candidatos.length), 'cadastrados nos arquivos do TSE'),
-  );
-  for (const id of GRAFICOS) G.vazio(document.getElementById(id), 'Aguardando os primeiros votos apurados');
-  for (const id of ['mapa', 'falta-kpis', 'ritmo-kpis']) document.getElementById(id).textContent = '';
-  document.getElementById('rodape-ciclo').textContent = `Ciclo ${d.ciclo_id} · verificado às ${d.timestamp}`;
-}
-
-/** Arquivos já publicados, mas nenhuma seção apurada (antes das 17h do dia da eleição). */
 function renderAguardando(d) {
+  document.getElementById('chamada').className = 'chamada';
   document.getElementById('chamada-titulo').textContent = 'Aguardando o início da apuração';
   document.getElementById('chamada-sub').textContent =
     `Arquivos do TSE disponíveis: 0 de ${fmtInt.format(d.total_secoes)} seções apuradas · ` +
     `${fmtInt.format(d.total_eleitores)} eleitores. A projeção começa com os primeiros votos.`;
   const info = document.getElementById('ultima-atualizacao');
   info.classList.remove('aviso-coleta');
-  info.textContent = `Última verificação: ${d.timestamp}`;
+  info.textContent = `Última verificação às ${(d.timestamp || '').slice(11)}`;
 }
 
-function mostrarAviso(aviso) {
-  state.ultimoAviso = aviso;
-  const info = document.getElementById('ultima-atualizacao');
-  info.textContent = `${aviso.mensagem} (${aviso.timestamp})`;
-  info.classList.add('aviso-coleta');
-  if (!state.atual) {
-    document.getElementById('chamada-sub').textContent =
-      `Ainda sem resultados. Último aviso da coleta: ${aviso.mensagem}. Nova tentativa a cada ciclo.`;
-  }
+function renderEsperaCompleta(d) {
+  renderAguardando(d);
+  G.anel(document.getElementById('g-anel'), 0);
+  document.getElementById('anel-detalhe').textContent = `0 de ${fmtInt.format(d.total_secoes)}`;
+  const caixa = document.getElementById('kpis');
+  caixa.textContent = '';
+  caixa.append(
+    kpi('Eleitorado', compacto(d.total_eleitores), `${fmtInt.format(d.total_eleitores)} eleitores aptos`),
+    kpi('Seções', fmtInt.format(d.total_secoes), 'a apurar'),
+    kpi('Candidatos', fmtInt.format(d.candidatos.length), 'nos arquivos do TSE'),
+  );
+  renderListaCandidatos(d, true);
+  for (const id of GRAFICOS) G.vazio(document.getElementById(id), 'Aguardando os primeiros votos apurados');
 }
+
+function renderAbaAtual() {
+  const d = state.atual;
+  if (!d || !d.candidatos || !d.candidatos.length || emEspera(d)) return;
+  RENDER_ABA[state.aba](d);
+}
+
+function renderTudo() {
+  const d = state.atual;
+  if (!d || !d.candidatos || !d.candidatos.length) return;
+  for (const c of d.candidatos) state.candidatos[c.numero] = { nome: c.nome, partido: c.partido };
+  if (emEspera(d)) {
+    renderEsperaCompleta(d);
+    return;
+  }
+  atribuirCores(d.candidatos);
+  if (!state.marcados) {
+    state.marcados = new Set(ordemCandidatos().slice(0, segundoTurno() ? 2 : PRINCIPAIS));
+    salvarSelecao();
+  }
+  for (const n of state.marcados) garantirCor(n);
+  renderChamada(d);
+  renderStatus(d);
+  renderListaCandidatos(d, false);
+  renderConfronto(d);
+  document.getElementById('controle-eixo').hidden = !['geral', 'apuracao'].includes(state.aba);
+  renderAbaAtual();
+  salvarSelecao();
+  // Notas truncadas no cabeçalho dos blocos: texto completo ao passar o mouse
+  for (const n of document.querySelectorAll('.bloco > header .nota')) n.title = n.textContent;
+}
+
+function chave(r) { return `${r.ciclo_id}|${r.timestamp}`; }
 
 function adicionarAoHistorico(r) {
   if (!r.total_validos_apurados || emEspera(r)) return;
@@ -737,10 +838,7 @@ function adicionarAoHistorico(r) {
 
 async function carregarInicial() {
   const sessao = await fetch('/api/v1/sessao').then((r) => r.json()).catch(() => ({ ativa: true }));
-  if (!sessao.ativa) {
-    location.replace('/inicio');
-    return;
-  }
+  if (!sessao.ativa) { location.replace('/inicio'); return; }
   try {
     const [status, hist, atual] = await Promise.all([
       fetch('/api/v1/status').then((r) => r.json()),
@@ -767,7 +865,6 @@ function conectarSSE() {
   const fonte = new EventSource('/api/v1/projecao/stream');
   fonte.onopen = () => { caixa.className = 'conexao on'; txt.textContent = 'Ao vivo'; };
   fonte.onerror = () => { caixa.className = 'conexao off'; txt.textContent = 'Reconectando…'; };
-  // Sessão iniciada, parada ou trocada de modo: recarrega (sem sessão, a raiz leva à tela inicial)
   fonte.addEventListener('sessao', () => location.reload());
   fonte.addEventListener('aviso', (evt) => {
     try { mostrarAviso(JSON.parse(evt.data)); } catch (e) { /* ignora aviso malformado */ }
@@ -788,22 +885,50 @@ function conectarSSE() {
   });
 }
 
-// ---------------------------------------------------------------- controles
+// ------------------------------------------------------------------ controles
 
 function aplicarTema(tema) {
   if (tema) document.documentElement.setAttribute('data-theme', tema);
   else document.documentElement.removeAttribute('data-theme');
 }
 
+function selecionarAba(aba, foco) {
+  state.aba = aba;
+  armazenar('spetr-aba', aba);
+  for (const t of document.querySelectorAll('[role="tab"]')) {
+    const ativa = t.dataset.aba === aba;
+    t.setAttribute('aria-selected', String(ativa));
+    t.tabIndex = ativa ? 0 : -1;
+    if (ativa && foco) t.focus();
+  }
+  for (const p of document.querySelectorAll('.aba')) p.hidden = p.dataset.aba !== aba;
+  document.getElementById('controle-eixo').hidden = !['geral', 'apuracao'].includes(aba);
+  // Desenha depois que a aba fica visível (o ECharts precisa do tamanho real do bloco)
+  requestAnimationFrame(renderAbaAtual);
+}
+
 function iniciarControles() {
   aplicarTema(recuperar('spetr-tema', null));
   document.getElementById('botao-tema').addEventListener('click', () => {
-    const escuroAtual = getComputedStyle(document.documentElement).colorScheme.includes('dark');
-    const novo = escuroAtual ? 'light' : 'dark';
+    const escuro = getComputedStyle(document.documentElement).colorScheme.includes('dark');
+    const novo = escuro ? 'light' : 'dark';
     aplicarTema(novo);
     armazenar('spetr-tema', novo);
     renderTudo();
   });
+
+  const abas = [...document.querySelectorAll('[role="tab"]')];
+  for (const t of abas) {
+    t.addEventListener('click', () => selecionarAba(t.dataset.aba));
+    t.addEventListener('keydown', (e) => {
+      const i = abas.indexOf(t);
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const prox = abas[(i + (e.key === 'ArrowRight' ? 1 : abas.length - 1)) % abas.length];
+        selecionarAba(prox.dataset.aba, true);
+      }
+    });
+  }
 
   state.eixo = recuperar('spetr-eixo', 'tempo');
   for (const b of document.querySelectorAll('[data-eixo]')) {
@@ -816,28 +941,48 @@ function iniciarControles() {
         o.classList.toggle('ativo', o === b);
         o.setAttribute('aria-pressed', String(o === b));
       }
-      renderCurvas();
+      renderAbaAtual();
     });
   }
 
-  document.getElementById('sel-uf').addEventListener('change', (e) => {
-    state.ufSelecionada = e.target.value;
-    renderMapa(state.atual);
-    renderEstratos(state.atual);
-  });
+  state.modoMapa = recuperar('spetr-mapa', 'lider');
+  for (const b of document.querySelectorAll('[data-mapa]')) {
+    b.classList.toggle('ativo', b.dataset.mapa === state.modoMapa);
+    b.setAttribute('aria-pressed', String(b.dataset.mapa === state.modoMapa));
+    b.addEventListener('click', () => {
+      state.modoMapa = b.dataset.mapa;
+      armazenar('spetr-mapa', state.modoMapa);
+      for (const o of document.querySelectorAll('[data-mapa]')) {
+        o.classList.toggle('ativo', o === b);
+        o.setAttribute('aria-pressed', String(o === b));
+      }
+      if (state.atual) renderMapa(state.atual);
+    });
+  }
+
+  for (const b of document.querySelectorAll('[data-selecao]')) {
+    b.addEventListener('click', () => definirSelecao(b.dataset.selecao));
+  }
 
   let temporizador = null;
   window.addEventListener('resize', () => {
     clearTimeout(temporizador);
-    temporizador = setTimeout(renderTudo, 150);
+    temporizador = setTimeout(() => { renderAbaAtual(); if (state.atual) G.anel(document.getElementById('g-anel'), state.atual.perc_secoes_apuradas || 0); }, 150);
   });
+
+  const abaSalva = recuperar('spetr-aba', 'geral');
+  selecionarAba(RENDER_ABA[abaSalva] ? abaSalva : 'geral');
 }
 
 iniciarControles();
+
 // ?estatico=1 desenha o estado atual sem abrir o stream (impressão, captura de tela)
-const estatico = new URLSearchParams(location.search).has('estatico');
-const temaUrl = new URLSearchParams(location.search).get('tema');
+const params = new URLSearchParams(location.search);
+const estatico = params.has('estatico');
+const temaUrl = params.get('tema');
 if (temaUrl === 'escuro' || temaUrl === 'claro') aplicarTema(temaUrl === 'escuro' ? 'dark' : 'light');
+const abaUrl = params.get('aba');
+if (abaUrl && RENDER_ABA[abaUrl]) selecionarAba(abaUrl);
 carregarInicial().then(() => {
   if (estatico) document.getElementById('conexao-texto').textContent = 'Modo estático';
   else conectarSSE();
