@@ -10,6 +10,27 @@ import threading
 import uvicorn
 import logging
 
+
+def pasta_dados_usuario() -> str:
+    """Pasta de dados do SPETR no executável: ~/.local/share/spetr, %APPDATA%\\SPETR ou Application Support."""
+    if sys.platform.startswith("win"):
+        pasta = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SPETR")
+    elif sys.platform == "darwin":
+        pasta = os.path.expanduser("~/Library/Application Support/SPETR")
+    else:
+        base = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
+        pasta = os.path.join(base, "spetr")
+    os.makedirs(pasta, exist_ok=True)
+    return pasta
+
+
+# Executável sem console (SPETR.app no macOS, ou Windows com SPETR_SEM_CONSOLE=1): stdout/stderr
+# chegam como None e o uvicorn falharia ao configurar os logs. Redireciona para um arquivo.
+if sys.stdout is None or sys.stderr is None:
+    _log = open(os.path.join(pasta_dados_usuario(), "spetr.log"), "a", encoding="utf-8", buffering=1)
+    sys.stdout = sys.stdout or _log
+    sys.stderr = sys.stderr or _log
+
 from spetr.services.event_bus import EventBus
 from spetr.services.sessao import SessaoSPETR
 from spetr.simulador import CENARIOS, VELOCIDADES
@@ -56,16 +77,7 @@ def caminho_banco_padrao() -> str:
     """
     if not getattr(sys, "frozen", False):
         return "spetr_eleicoes.sqlite"
-    if sys.platform.startswith("win"):
-        base = os.environ.get("APPDATA") or os.path.expanduser("~")
-        pasta = os.path.join(base, "SPETR")
-    elif sys.platform == "darwin":
-        pasta = os.path.expanduser("~/Library/Application Support/SPETR")
-    else:
-        base = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
-        pasta = os.path.join(base, "spetr")
-    os.makedirs(pasta, exist_ok=True)
-    return os.path.join(pasta, "spetr_eleicoes.sqlite")
+    return os.path.join(pasta_dados_usuario(), "spetr_eleicoes.sqlite")
 
 
 def encerrar(loop, sessao) -> None:

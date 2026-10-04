@@ -4,6 +4,7 @@ spetr.spec
 Arquivo de especificação do PyInstaller para compilar o SPETR em executável único auto-contido.
 """
 
+import os
 import sys
 from pathlib import Path
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
@@ -99,11 +100,16 @@ a = Analysis(
     excludes=[
         'tkinter', 'matplotlib', 'notebook', 'IPython', 'scipy', 'pandas',
         'pytest', '_pytest', 'pluggy', 'sentry_sdk', 'sqlalchemy', 'boto3', 'botocore',
-        'mcp', 'PIL', 'lxml', 'html5lib', 'Cython', 'setuptools', 'pkg_resources',
+        'mcp', 'PIL', 'lxml', 'html5lib', 'Cython',
         'google', 'pydantic_settings', 'jsonschema', 'rich', 'markdown_it',
-        # No Linux o pywebview usa GTK; o backend Qt seria uma segunda biblioteca de janelas
+        # O pywebview usa GTK (Linux), Cocoa (macOS) ou WebView2 (Windows); Qt seria uma
+        # segunda biblioteca de janelas
         'PyQt5', 'PyQt6', 'PySide2', 'PySide6', 'qtpy',
-    ],
+    ] + (
+        # Só no Linux: entram pelos site-packages do sistema. No Windows o pythonnet (janela
+        # WebView2) pode precisar deles, então não arriscamos excluir lá.
+        ['setuptools', 'pkg_resources'] if sys.platform.startswith('linux') else []
+    ),
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
@@ -112,23 +118,63 @@ a = Analysis(
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
-exe = EXE(
-    pyz,
-    a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    [],
-    name='spetr',
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
-    console=True,  # Mantém console para logs e diagnóstico
-    disable_windowed_traceback=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
-)
+# Console: mantido por padrão (logs da coleta). SPETR_SEM_CONSOLE=1 gera executável sem
+# terminal (útil no Windows para usuários finais).
+CONSOLE = os.environ.get('SPETR_SEM_CONSOLE', '') != '1'
+
+if sys.platform == 'darwin':
+    # macOS: aplicativo SPETR.app (pasta), que abre com duplo-clique e sem Terminal.
+    # Para depurar, rode SPETR.app/Contents/MacOS/spetr pelo Terminal e veja os logs.
+    exe = EXE(
+        pyz,
+        a.scripts,
+        [],
+        exclude_binaries=True,
+        name='spetr',
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=False,
+        upx=False,
+        console=False,
+        disable_windowed_traceback=False,
+        argv_emulation=False,
+        target_arch=os.environ.get('SPETR_TARGET_ARCH') or None,
+        codesign_identity=None,
+        entitlements_file=None,
+    )
+    coll = COLLECT(exe, a.binaries, a.zipfiles, a.datas, strip=False, upx=False, name='spetr')
+    app = BUNDLE(
+        coll,
+        name='SPETR.app',
+        icon=None,
+        bundle_identifier='br.spetr.projecao',
+        info_plist={
+            'CFBundleDisplayName': 'SPETR',
+            'CFBundleShortVersionString': '1.2.0',
+            'NSHighResolutionCapable': True,
+            # O app conversa com o próprio servidor local (127.0.0.1) por HTTP
+            'NSAppTransportSecurity': {'NSAllowsLocalNetworking': True},
+        },
+    )
+else:
+    # Windows e Linux: executável único
+    exe = EXE(
+        pyz,
+        a.scripts,
+        a.binaries,
+        a.zipfiles,
+        a.datas,
+        [],
+        name='spetr',
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=False,
+        upx=True,
+        upx_exclude=[],
+        runtime_tmpdir=None,
+        console=CONSOLE,
+        disable_windowed_traceback=False,
+        target_arch=None,
+        codesign_identity=None,
+        entitlements_file=None,
+    )

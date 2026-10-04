@@ -133,7 +133,12 @@ uv pip install pyinstaller                                   # dentro do .venv d
 
 > **Use sempre o Python do `.venv`** (`.venv/bin/python -m PyInstaller`), não o comando `pyinstaller` solto: ele pode ser o do Python do sistema. No Fedora, o NumPy do sistema usa FlexiBLAS e o executável aborta ao abrir com `flexiblas Failed to load the BLAS fallback library`. O `spetr.spec` detecta esse caso e interrompe o build com a instrução correta.
 
-- **Um build por sistema:** o PyInstaller não faz compilação cruzada. Gere o `.exe` no Windows, o binário de macOS no macOS e o de Linux no Linux, a partir do mesmo `spetr.spec`.
+- **Um build por sistema:** o PyInstaller não faz compilação cruzada. O workflow `.github/workflows/executaveis.yml` gera tudo no GitHub Actions:
+  - **Manual:** aba *Actions* → *Executáveis* → *Run workflow*; os arquivos ficam em *Artifacts* da execução (30 dias).
+  - **Versão:** `git tag v1.2.0 && git push origin v1.2.0` também cria uma *Release* com os arquivos anexados.
+  - Gera `spetr-windows-x64.zip` (`spetr.exe`), `spetr-macos-arm64.zip` e `spetr-macos-x64.zip` (`SPETR.app`) e `spetr-linux-x64.tar.gz` (Ubuntu 22.04, glibc 2.35: roda em distros dessa geração em diante). Cada executável passa pelo teste de fumaça `scripts/teste_fumaca_executavel.py` antes de ser publicado.
+- **macOS:** o spec gera `SPETR.app` (duplo-clique, sem Terminal; logs em `~/Library/Application Support/SPETR/spetr.log`). Sem assinatura/notarização da Apple, o macOS bloqueia na primeira abertura: clique com o botão direito → *Abrir*, ou libere em *Ajustes → Privacidade e Segurança*.
+- **Windows sem console:** `SPETR_SEM_CONSOLE=1` antes do PyInstaller gera um `.exe` sem terminal (logs em `%APPDATA%\SPETR\spetr.log`).
 - **Janela:** Linux usa GTK/WebKitGTK do sistema (o spec embute só o tema Adwaita e o idioma pt_BR); Windows usa o WebView2 (Edge), já presente no Windows 10/11; macOS usa o WebKit nativo. Sem janela disponível, o app abre o navegador padrão.
 - **Banco de histórico:** no executável fica na pasta de dados do usuário (`~/.local/share/spetr`, `%APPDATA%\SPETR` ou `~/Library/Application Support/SPETR`); use `--db` para outro local.
 - **Console:** `console=True` no spec mantém o terminal com os logs da coleta. Para esconder no Windows, troque para `console=False`.

@@ -1,0 +1,124 @@
+# Gera os executáveis do SPETR para Windows, macOS e Linux.
+#
+# - Manual: aba Actions → "Executáveis" → Run workflow (os arquivos ficam em "Artifacts" da execução)
+# - Versão: git tag v1.2.0 && git push origin v1.2.0 (os arquivos também vão para uma Release)
+#
+# O PyInstaller não faz compilação cruzada: cada sistema é gerado na sua própria máquina.
+name: Executáveis
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: executaveis-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  testes:
+    name: Testes
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python -m pytest -q
+
+  build:
+    name: Build ${{ matrix.nome }}
+    needs: testes
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - nome: windows-x64
+            os: windows-latest
+          - nome: macos-arm64        # Apple Silicon (M1 em diante)
+            os: macos-15
+          - nome: macos-x64          # Macs Intel
+            os: macos-15-intel
+          - nome: linux-x64          # glibc 2.35: roda no Ubuntu 22.04+ e distros equivalentes
+            os: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Bibliotecas da janela GTK/WebKit (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgirepository1.0-dev libcairo2-dev pkg-config gir1.2-gtk-3.0 gir1.2-webkit2-4.1
+
+      - name: Dependências Python
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt "pyinstaller>=6.10"
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            # PyGObject >= 3.51 exige girepository-2.0, ausente no Ubuntu 22.04
+            pip install "PyGObject<3.51" pycairo
+          fi
+
+      - name: PyInstaller
+        run: python -m PyInstaller spetr.spec --clean --noconfirm
+
+      - name: Teste de fumaça do executável
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            Windows) bin=dist/spetr.exe ;;
+            macOS)   bin=dist/SPETR.app/Contents/MacOS/spetr ;;
+            *)       bin=dist/spetr ;;
+          esac
+          python scripts/teste_fumaca_executavel.py "$bin"
+
+      - name: Empacotar
+        shell: bash
+        run: |
+          mkdir -p pacote
+          case "$RUNNER_OS" in
+            Windows) 7z a "pacote/spetr-${{ matrix.nome }}.zip" ./dist/spetr.exe ;;
+            macOS)   ditto -c -k --keepParent dist/SPETR.app "pacote/spetr-${{ matrix.nome }}.zip" ;;
+            *)       tar -czf "pacote/spetr-${{ matrix.nome }}.tar.gz" -C dist spetr ;;
+          esac
+          ls -la pacote
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spetr-${{ matrix.nome }}
+          path: pacote/*
+          retention-days: 30
+          if-no-files-found: error
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: pacotes
+          merge-multiple: true
+      - name: Publicar release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" pacotes/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "SPETR $GITHUB_REF_NAME" \
+            --generate-notes
