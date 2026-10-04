@@ -701,11 +701,7 @@ function renderEsperaCompleta(d) {
     kpi('Eleitorado', compacto(d.total_eleitores), `${fmtInt.format(d.total_eleitores)} eleitores aptos`),
     kpi('Candidatos', fmtInt.format(d.candidatos.length), 'cadastrados nos arquivos do TSE'),
   );
-  for (const id of GRAFICOS) {
-    const g = document.getElementById(id);
-    g.textContent = '';
-    g.appendChild(el('div', { classe: 'vazio', texto: 'Aguardando os primeiros votos apurados' }));
-  }
+  for (const id of GRAFICOS) G.vazio(document.getElementById(id), 'Aguardando os primeiros votos apurados');
   for (const id of ['mapa', 'falta-kpis', 'ritmo-kpis']) document.getElementById(id).textContent = '';
   document.getElementById('rodape-ciclo').textContent = `Ciclo ${d.ciclo_id} · verificado às ${d.timestamp}`;
 }

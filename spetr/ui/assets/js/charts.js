@@ -1,25 +1,18 @@
 /**
- * Graficos — mini biblioteca SVG do painel SPETR (sem dependências externas).
+ * Graficos — camada de gráficos do painel SPETR sobre o Apache ECharts (vendor/echarts.min.js).
  * Linhas com faixa de incerteza e crosshair, histogramas, barras horizontais e empilhadas.
- * Todo texto vindo de dados é inserido com textContent.
+ * Cores e textos vêm dos tokens CSS (tema claro/escuro). Todo texto vindo de dados (nomes do
+ * TSE) é escapado antes de entrar nos tooltips do ECharts, que aceitam HTML.
  */
 const Graficos = (() => {
-  const NS = 'http://www.w3.org/2000/svg';
   const tooltip = document.getElementById('tooltip');
 
-  function el(tag, attrs, pai) {
-    const n = document.createElementNS(NS, tag);
-    for (const [k, v] of Object.entries(attrs || {})) {
-      if (v !== undefined && v !== null) n.setAttribute(k, v);
-    }
-    if (pai) pai.appendChild(n);
-    return n;
-  }
+  const token = (nome) => getComputedStyle(document.documentElement).getPropertyValue(nome).trim();
 
-  function texto(pai, x, y, conteudo, attrs) {
-    const t = el('text', { x, y, ...attrs }, pai);
-    t.textContent = conteudo;
-    return t;
+  function escapar(valor) {
+    return String(valor ?? '').replace(/[&<>"'`]/g, (ch) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;',
+    }[ch]));
   }
 
   function textoSobre(hex) {
@@ -30,40 +23,352 @@ const Graficos = (() => {
     return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.3 ? '#0b0b0b' : '#ffffff';
   }
 
-  const token = (nome) => getComputedStyle(document.documentElement).getPropertyValue(nome).trim();
+  // ------------------------------------------------------------ infraestrutura
 
-  function passoBonito(intervalo, alvo) {
-    const bruto = intervalo / Math.max(1, alvo);
-    const mag = Math.pow(10, Math.floor(Math.log10(bruto)));
-    const r = bruto / mag;
-    return (r < 1.5 ? 1 : r < 3 ? 2 : r < 7 ? 5 : 10) * mag;
+  /** Instância ECharts do container (criada uma vez; redimensionada a cada desenho). */
+  function instancia(container, altura) {
+    const msg = container.querySelector(':scope > .vazio');
+    if (msg) msg.remove();
+    container.style.height = `${altura}px`;
+    let grafico = echarts.getInstanceByDom(container);
+    if (!grafico) grafico = echarts.init(container, null, { renderer: 'svg' });
+    else grafico.resize();
+    return grafico;
   }
 
-  function marcas(min, max, alvo) {
-    if (!(max > min)) return [min];
-    const passo = passoBonito(max - min, alvo);
-    const out = [];
-    for (let v = Math.ceil(min / passo) * passo; v <= max + passo * 1e-6; v += passo) out.push(+v.toFixed(10));
-    return out;
-  }
-
-  function preparar(container, altura) {
-    container.textContent = '';
-    const largura = Math.max(280, container.clientWidth || 600);
-    const svg = el('svg', { viewBox: `0 0 ${largura} ${altura}`, height: altura, role: 'img' }, container);
-    return { svg, largura };
-  }
-
-  function vazio(container, msg) {
+  function vazio(container, mensagem) {
+    const g = echarts.getInstanceByDom(container);
+    if (g) g.dispose();
+    container.style.height = '';
     container.textContent = '';
     const d = document.createElement('div');
     d.className = 'vazio';
-    d.textContent = msg || 'Aguardando dados';
+    d.textContent = mensagem || 'Aguardando dados';
     container.appendChild(d);
   }
 
-  // ------------------------------------------------------------- tooltip
-  function mostrarTooltip(evt, titulo, linhas) {
+  /** Opções comuns: fonte, tooltip e eixos recessivos nos tokens do tema atual. */
+  function base() {
+    const texto3 = token('--texto-3');
+    return {
+      animationDurationUpdate: 300,
+      aria: { enabled: true },
+      textStyle: { fontFamily: token('--fonte') || 'system-ui, sans-serif', color: token('--texto-2') },
+      tooltip: {
+        backgroundColor: token('--superficie'),
+        borderColor: token('--borda'),
+        borderWidth: 1,
+        padding: [8, 10],
+        textStyle: { color: token('--texto'), fontSize: 12 },
+        extraCssText: 'box-shadow: 0 6px 24px rgba(0,0,0,.18); border-radius: 8px;',
+        confine: true,
+      },
+      eixo: {
+        axisLine: { lineStyle: { color: token('--eixo') } },
+        axisTick: { show: false },
+        axisLabel: { color: texto3, fontSize: 11 },
+        splitLine: { lineStyle: { color: token('--grade'), type: 'solid' } },
+      },
+    };
+  }
+
+  /** Arredonda [min, max] para múltiplos de um passo "bonito" (1, 2, 5 × 10^n). */
+  function limitesBonitos(min, max, alvo = 5) {
+    if (!(max > min)) return [min, max];
+    const bruto = (max - min) / alvo;
+    const mag = Math.pow(10, Math.floor(Math.log10(bruto)));
+    const r = bruto / mag;
+    const passo = (r < 1.5 ? 1 : r < 3 ? 2 : r < 7 ? 5 : 10) * mag;
+    return [Math.floor(min / passo + 1e-9) * passo, Math.ceil(max / passo - 1e-9) * passo];
+  }
+
+  function semEixo(b) {
+    const { eixo, ...resto } = b;
+    return resto;
+  }
+
+  function linhaTooltip(cor, valor, rotulo) {
+    return '<div style="display:flex;align-items:center;gap:6px;white-space:nowrap">' +
+      `<span style="display:inline-block;width:14px;height:2px;background:${escapar(cor)}"></span>` +
+      `<strong style="min-width:52px;font-variant-numeric:tabular-nums">${escapar(valor)}</strong>` +
+      `<span style="color:${token('--texto-2')}">${escapar(rotulo)}</span></div>`;
+  }
+
+  function tituloTooltip(t) {
+    return `<div style="color:${token('--texto-2')};font-size:11px;margin-bottom:4px">${escapar(t)}</div>`;
+  }
+
+  /** Linha de referência tracejada (50% dos válidos, empate…) via markLine. */
+  function referencias(refs, eixo) {
+    if (!refs || !refs.length) return undefined;
+    return {
+      silent: true,
+      symbol: 'none',
+      lineStyle: { color: token('--texto-3'), type: [4, 4], width: 1 },
+      label: { color: token('--texto-2'), fontSize: 11, position: eixo === 'x' ? 'end' : 'insideStartTop', rotate: 0 },
+      data: refs.map((r) => (eixo === 'x'
+        ? { xAxis: r.x, label: { formatter: r.rotulo || '' } }
+        : { yAxis: r.y, label: { formatter: r.rotulo || '' } })),
+    };
+  }
+
+  // -------------------------------------------------------------- linhas
+  /**
+   * series: [{id, rotulo, rotuloCurto, cor, pontos: [{x, y, lo, hi}], banda, espessura}]
+   * cfg: xFmt, xTitulo, yFmt, yMin, yMax, yPiso, yTeto, refs [{y, rotulo}], rotulosFim
+   */
+  function linhas(container, cfg) {
+    const series = cfg.series.filter((s) => s.pontos.length);
+    if (!series.length) return vazio(container, cfg.vazio);
+    const grafico = instancia(container, cfg.altura || 260);
+    const b = base();
+
+    const todosY = series.flatMap((s) => s.pontos.flatMap((p) => [p.y, p.lo ?? p.y, p.hi ?? p.y]))
+      .concat((cfg.refs || []).map((r) => r.y));
+    let yMin = cfg.yMin, yMax = cfg.yMax;
+    if (yMin === undefined || yMax === undefined) {
+      const lo = Math.min(...todosY), hi = Math.max(...todosY);
+      const folga = (hi - lo) * 0.08 || 1;
+      const [bMin, bMax] = limitesBonitos(lo - folga, hi + folga);
+      if (yMin === undefined) yMin = Math.max(cfg.yPiso ?? -Infinity, bMin);
+      if (yMax === undefined) yMax = Math.min(cfg.yTeto ?? Infinity, bMax);
+    }
+
+    const rotulosFim = cfg.rotulosFim !== false;
+    const maxRotulos = cfg.maxRotulos || 6;
+    const opcoesSeries = [];
+    series.forEach((s, i) => {
+      // Faixa de incerteza: base invisível (lo) + espessura (hi − lo) empilhada com preenchimento
+      if (s.banda && s.pontos.some((p) => p.lo !== undefined)) {
+        const pilha = `banda-${s.id}`;
+        const comum = { type: 'line', stack: pilha, symbol: 'none', silent: true, lineStyle: { opacity: 0 }, tooltip: { show: false }, z: 1 };
+        opcoesSeries.push({ ...comum, id: `lo-${s.id}`, data: s.pontos.map((p) => [p.x, p.lo]) });
+        opcoesSeries.push({
+          ...comum, id: `faixa-${s.id}`, areaStyle: { color: s.cor, opacity: 0.14 },
+          data: s.pontos.map((p) => [p.x, p.hi - p.lo]),
+        });
+      }
+      opcoesSeries.push({
+        id: `s-${s.id}`,
+        name: s.rotulo,
+        type: 'line',
+        data: s.pontos.map((p) => [p.x, p.y, p.lo, p.hi]),
+        showSymbol: false,
+        symbolSize: 8,
+        lineStyle: { width: s.espessura || 2, color: s.cor },
+        itemStyle: { color: s.cor, borderColor: token('--superficie'), borderWidth: 2 },
+        emphasis: { focus: 'series' },
+        endLabel: rotulosFim && i < maxRotulos ? {
+          show: true,
+          formatter: (p) => `${s.rotuloCurto || s.rotulo} ${cfg.yFmt(p.value[1])}`,
+          color: token('--texto-2'), fontSize: 11, fontWeight: 600, distance: 6,
+        } : { show: false },
+        labelLayout: { moveOverlap: 'shiftY' },
+        markLine: i === 0 ? referencias(cfg.refs, 'y') : undefined,
+        z: 3,
+      });
+    });
+
+    const xs = series.flatMap((s) => s.pontos.map((p) => p.x));
+    let xMin = cfg.xMin ?? Math.min(...xs), xMax = cfg.xMax ?? Math.max(...xs);
+    if (xMax === xMin) xMax = xMin + 1;
+
+    grafico.setOption({
+      ...semEixo(b),
+      grid: { left: 48, right: rotulosFim ? 124 : 16, top: 14, bottom: 28 },
+      xAxis: {
+        type: 'value', min: xMin, max: xMax, ...b.eixo,
+        splitLine: { show: false },
+        axisLabel: { ...b.eixo.axisLabel, formatter: (v) => cfg.xFmt(v), hideOverlap: true, showMinLabel: false, showMaxLabel: false },
+      },
+      yAxis: {
+        type: 'value', min: yMin, max: yMax, ...b.eixo,
+        axisLine: { show: false },
+        axisLabel: { ...b.eixo.axisLabel, formatter: (v) => cfg.yFmt(v) },
+      },
+      tooltip: {
+        ...b.tooltip,
+        trigger: 'axis',
+        axisPointer: { type: 'line', lineStyle: { color: token('--texto-3'), width: 1 } },
+        formatter: (itens) => {
+          const visiveis = itens.filter((it) => String(it.seriesId).startsWith('s-'))
+            .sort((a, c) => c.value[1] - a.value[1]);
+          if (!visiveis.length) return '';
+          const x = visiveis[0].value[0];
+          const corpo = visiveis.map((it) => {
+            const s = series.find((ss) => `s-${ss.id}` === it.seriesId);
+            const [, y, lo, hi] = it.value;
+            const faixa = s && s.banda && lo !== undefined && lo !== null ? `  [${cfg.yFmt(lo)} – ${cfg.yFmt(hi)}]` : '';
+            return linhaTooltip(s ? s.cor : it.color, cfg.yFmt(y), `${it.seriesName}${faixa}`);
+          }).join('');
+          return tituloTooltip(cfg.xTitulo ? cfg.xTitulo(x) : cfg.xFmt(x)) + corpo;
+        },
+      },
+      series: opcoesSeries,
+    }, { notMerge: true });
+  }
+
+  // ---------------------------------------------------------- histograma
+  /** series: [{rotulo, cor, inicio, passo, freq: []}] — áreas em degrau, em densidade (% por unidade de X). */
+  function histograma(container, cfg) {
+    const series = (cfg.series || []).filter((s) => s && s.freq && s.freq.length);
+    if (!series.length) return vazio(container, cfg.vazio);
+    const grafico = instancia(container, cfg.altura || 260);
+    const b = base();
+
+    let xMin = Math.min(...series.map((s) => s.inicio));
+    let xMax = Math.max(...series.map((s) => s.inicio + s.passo * s.freq.length));
+    for (const r of cfg.refs || []) { xMin = Math.min(xMin, r.x); xMax = Math.max(xMax, r.x); }
+    const pad = (xMax - xMin) * 0.03 || 0.5;
+
+    const opcoesSeries = series.map((s, i) => {
+      const dados = s.freq.map((f, k) => [s.inicio + k * s.passo, f / s.passo, f]);
+      dados.push([s.inicio + s.freq.length * s.passo, 0, 0]);
+      return {
+        name: s.rotulo,
+        type: 'line',
+        step: 'end',
+        data: dados,
+        showSymbol: false,
+        lineStyle: { color: s.cor, width: 1.5 },
+        itemStyle: { color: s.cor },
+        areaStyle: { color: s.cor, opacity: 0.22 },
+        markLine: i === 0 ? referencias(cfg.refs, 'x') : undefined,
+      };
+    });
+
+    grafico.setOption({
+      ...semEixo(b),
+      grid: { left: 48, right: 16, top: 18, bottom: 28 },
+      xAxis: {
+        type: 'value', min: xMin - pad, max: xMax + pad, ...b.eixo, splitLine: { show: false },
+        axisLabel: { ...b.eixo.axisLabel, formatter: (v) => cfg.xFmt(v), hideOverlap: true, showMinLabel: false, showMaxLabel: false },
+      },
+      yAxis: {
+        type: 'value', min: 0, ...b.eixo, axisLine: { show: false },
+        axisLabel: { ...b.eixo.axisLabel, formatter: (v) => `${(v * 100).toFixed(v * 100 < 10 ? 1 : 0).replace('.', ',')}%` },
+      },
+      tooltip: {
+        ...b.tooltip,
+        trigger: 'axis',
+        axisPointer: { type: 'line', lineStyle: { color: token('--texto-3'), width: 1 } },
+        formatter: (itens) => {
+          if (!itens.length) return '';
+          const x = itens[0].value[0];
+          const corpo = itens.map((it) => {
+            const s = series[it.seriesIndex];
+            return linhaTooltip(s.cor, `${((it.value[2] || 0) * 100).toFixed(1).replace('.', ',')}%`,
+              `${s.rotulo} (classe de ${String(s.passo).replace('.', ',')} p.p.)`);
+          }).join('');
+          return tituloTooltip(`a partir de ${cfg.xFmt(x)}`) + corpo;
+        },
+      },
+      series: opcoesSeries,
+    }, { notMerge: true });
+  }
+
+  // ------------------------------------------------------ barras horiz.
+  /** linhas: [{rotulo, valor, detalhe}] — uma série, uma cor. */
+  function barrasH(container, cfg) {
+    const linhasDados = cfg.linhas || [];
+    if (!linhasDados.length) return vazio(container, cfg.vazio);
+    const grafico = instancia(container, 16 + linhasDados.length * 22);
+    const b = base();
+    const cor = cfg.cor || token('--seq');
+    grafico.setOption({
+      ...semEixo(b),
+      grid: { left: cfg.margemRotulo || 60, right: 86, top: 4, bottom: 4 },
+      xAxis: { type: 'value', show: false },
+      yAxis: {
+        type: 'category', inverse: true, data: linhasDados.map((l) => l.rotulo),
+        ...b.eixo, axisLine: { show: false }, splitLine: { show: false },
+      },
+      tooltip: {
+        ...b.tooltip, trigger: 'item',
+        formatter: (it) => {
+          const l = linhasDados[it.dataIndex];
+          return tituloTooltip(l.rotulo) + linhaTooltip(cor, cfg.fmt(l.valor), l.detalhe || '');
+        },
+      },
+      series: [{
+        type: 'bar',
+        data: linhasDados.map((l) => l.valor),
+        barWidth: 14,
+        itemStyle: { color: cor, borderRadius: [0, 3, 3, 0] },
+        emphasis: { itemStyle: { opacity: 0.85 } },
+        label: { show: true, position: 'right', formatter: (p) => cfg.fmt(p.value), color: token('--texto-2'), fontSize: 11, fontWeight: 600 },
+      }],
+    }, { notMerge: true });
+  }
+
+  // ------------------------------------------------- barras empilhadas
+  /** linhas: [{rotulo, segmentos: [{rotulo, cor, valor (0-100)}], grupoInicio}] — partes de 100%. */
+  function barrasEmpilhadas(container, cfg) {
+    const linhasDados = cfg.linhas || [];
+    if (!linhasDados.length) return vazio(container, cfg.vazio);
+
+    // Linha em branco entre grupos (ex.: regiões, cada uma com apurado e projetado)
+    const categorias = [];
+    const linhasComEspaco = [];
+    for (const l of linhasDados) {
+      if (l.grupoInicio) {
+        categorias.push(' '.repeat(categorias.length + 1));
+        linhasComEspaco.push(null);
+      }
+      categorias.push(l.rotulo);
+      linhasComEspaco.push(l);
+    }
+    const alturaBarra = cfg.alturaBarra || 18;
+    const grafico = instancia(container, 8 + categorias.length * (alturaBarra + (cfg.gap || 8)));
+    const b = base();
+
+    const nomes = [];
+    const corPorNome = {};
+    for (const l of linhasDados) {
+      for (const s of l.segmentos) {
+        if (!(s.rotulo in corPorNome)) { nomes.push(s.rotulo); corPorNome[s.rotulo] = s.cor; }
+      }
+    }
+    const series = nomes.map((nome) => ({
+      name: nome,
+      type: 'bar',
+      stack: 'total',
+      barWidth: alturaBarra,
+      data: linhasComEspaco.map((l) => {
+        if (!l) return null;
+        const seg = l.segmentos.find((s) => s.rotulo === nome);
+        return seg ? +seg.valor.toFixed(4) : 0;
+      }),
+      itemStyle: { color: corPorNome[nome], borderColor: token('--superficie'), borderWidth: 1 },
+      emphasis: { focus: 'self' },
+      label: {
+        show: true,
+        color: textoSobre(corPorNome[nome]),
+        fontSize: 11,
+        fontWeight: 600,
+        formatter: (p) => (p.value >= 7 ? `${p.value.toFixed(1).replace('.', ',')}%` : ''),
+      },
+    }));
+
+    grafico.setOption({
+      ...semEixo(b),
+      grid: { left: cfg.margemRotulo || 120, right: 10, top: 4, bottom: 4 },
+      xAxis: { type: 'value', show: false, max: 100 },
+      yAxis: {
+        type: 'category', inverse: true, data: categorias,
+        ...b.eixo, axisLine: { show: false }, splitLine: { show: false },
+      },
+      tooltip: {
+        ...b.tooltip, trigger: 'item',
+        formatter: (it) => tituloTooltip(categorias[it.dataIndex]) +
+          linhaTooltip(corPorNome[it.seriesName], `${(+it.value).toFixed(2).replace('.', ',')}%`, it.seriesName),
+      },
+      series,
+    }, { notMerge: true });
+  }
+
+  // --------------------------------------------- tooltip HTML (mapa de UFs)
+  function mostrarTooltip(evt, titulo, linhasTt) {
     tooltip.textContent = '';
     if (titulo) {
       const t = document.createElement('div');
@@ -71,7 +376,7 @@ const Graficos = (() => {
       t.textContent = titulo;
       tooltip.appendChild(t);
     }
-    for (const l of linhas) {
+    for (const l of linhasTt) {
       const row = document.createElement('div');
       row.className = 'tt-linha';
       if (l.cor) {
@@ -101,252 +406,5 @@ const Graficos = (() => {
 
   function esconderTooltip() { tooltip.hidden = true; }
 
-  function eixos(g, { x0, x1, y0, y1, xs, ys, xEsc, yEsc, xFmt, yFmt }) {
-    const grade = token('--grade'), eixo = token('--eixo');
-    for (const v of ys) {
-      const y = yEsc(v);
-      el('line', { x1: x0, x2: x1, y1: y, y2: y, stroke: grade, 'stroke-width': 1 }, g);
-      texto(g, x0 - 6, y + 4, yFmt(v), { class: 'eixo-texto', 'text-anchor': 'end' });
-    }
-    el('line', { x1: x0, x2: x1, y1: y0, y2: y0, stroke: eixo, 'stroke-width': 1 }, g);
-    for (const v of xs) {
-      texto(g, xEsc(v), y0 + 16, xFmt(v), { class: 'eixo-texto', 'text-anchor': 'middle' });
-    }
-  }
-
-  function linhaRef(g, { horizontal, valor, esc, de, ate, rotulo }) {
-    const cor = token('--texto-3');
-    if (horizontal) {
-      const y = esc(valor);
-      el('line', { x1: de, x2: ate, y1: y, y2: y, stroke: cor, 'stroke-width': 1, 'stroke-dasharray': '4 4' }, g);
-      if (rotulo) texto(g, de + 4, y - 4, rotulo, { class: 'ref-texto' });
-    } else {
-      const x = esc(valor);
-      el('line', { x1: x, x2: x, y1: de, y2: ate, stroke: cor, 'stroke-width': 1, 'stroke-dasharray': '4 4' }, g);
-      if (rotulo) texto(g, x + 4, de + 10, rotulo, { class: 'ref-texto' });
-    }
-  }
-
-  function separarRotulos(itens, minDist, topo, base) {
-    itens.sort((a, b) => a.y - b.y);
-    for (let i = 1; i < itens.length; i++) {
-      if (itens[i].y - itens[i - 1].y < minDist) itens[i].y = itens[i - 1].y + minDist;
-    }
-    const excesso = itens.length ? itens[itens.length - 1].y - base : 0;
-    if (excesso > 0) for (const it of itens) it.y = Math.max(topo, it.y - excesso);
-    return itens;
-  }
-
-  // -------------------------------------------------------------- linhas
-  /**
-   * series: [{id, rotulo, rotuloCurto, cor, pontos: [{x, y, lo, hi}], banda, espessura}]
-   */
-  function linhas(container, cfg) {
-    const altura = cfg.altura || 250;
-    const series = cfg.series.filter((s) => s.pontos.length);
-    if (!series.length) return vazio(container, cfg.vazio);
-    const { svg, largura } = preparar(container, altura);
-    const m = { esq: 46, dir: cfg.rotulosFim === false ? 14 : 118, topo: 12, base: 28 };
-    const x0 = m.esq, x1 = largura - m.dir, yTopo = m.topo, y0 = altura - m.base;
-
-    const todosX = series.flatMap((s) => s.pontos.map((p) => p.x));
-    let xMin = cfg.xMin ?? Math.min(...todosX), xMax = cfg.xMax ?? Math.max(...todosX);
-    if (xMax === xMin) xMax = xMin + 1;
-    const todosY = series.flatMap((s) => s.pontos.flatMap((p) => [p.y, p.lo ?? p.y, p.hi ?? p.y]));
-    let yMin = cfg.yMin ?? Math.min(...todosY), yMax = cfg.yMax ?? Math.max(...todosY);
-    for (const r of cfg.refs || []) { yMin = Math.min(yMin, r.y); yMax = Math.max(yMax, r.y); }
-    if (cfg.yMin === undefined || cfg.yMax === undefined) {
-      const folga = (yMax - yMin) * 0.08 || 1;
-      if (cfg.yMin === undefined) yMin = Math.max(cfg.yPiso ?? -Infinity, yMin - folga);
-      if (cfg.yMax === undefined) yMax = Math.min(cfg.yTeto ?? Infinity, yMax + folga);
-    }
-    const xEsc = (v) => x0 + ((v - xMin) / (xMax - xMin)) * (x1 - x0);
-    const yEsc = (v) => y0 - ((v - yMin) / (yMax - yMin || 1)) * (y0 - yTopo);
-
-    const g = el('g', {}, svg);
-    eixos(g, {
-      x0, x1, y0, y1: yTopo, xEsc, yEsc,
-      xs: marcas(xMin, xMax, Math.max(2, Math.floor((x1 - x0) / 90))),
-      ys: marcas(yMin, yMax, 5),
-      xFmt: cfg.xFmt, yFmt: cfg.yFmt,
-    });
-    for (const r of cfg.refs || []) linhaRef(g, { horizontal: true, valor: r.y, esc: yEsc, de: x0, ate: x1, rotulo: r.rotulo });
-
-    const sup = token('--superficie');
-    for (const s of series) {
-      if (s.banda) {
-        const pts = s.pontos.filter((p) => p.lo !== undefined && p.hi !== undefined);
-        if (pts.length > 1) {
-          const d = pts.map((p, i) => `${i ? 'L' : 'M'}${xEsc(p.x)},${yEsc(p.hi)}`).join('') +
-            pts.slice().reverse().map((p) => `L${xEsc(p.x)},${yEsc(p.lo)}`).join('') + 'Z';
-          el('path', { d, fill: s.cor, 'fill-opacity': 0.14, stroke: 'none' }, g);
-        }
-      }
-    }
-    for (const s of series) {
-      const d = s.pontos.map((p, i) => `${i ? 'L' : 'M'}${xEsc(p.x)},${yEsc(p.y)}`).join('');
-      el('path', { d, fill: 'none', stroke: s.cor, 'stroke-width': s.espessura || 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, g);
-      const ult = s.pontos[s.pontos.length - 1];
-      el('circle', { cx: xEsc(ult.x), cy: yEsc(ult.y), r: 4, fill: s.cor, stroke: sup, 'stroke-width': 2 }, g);
-    }
-
-    if (cfg.rotulosFim !== false) {
-      const itens = series.slice(0, cfg.maxRotulos || 6).map((s) => {
-        const ult = s.pontos[s.pontos.length - 1];
-        return { s, y: yEsc(ult.y) + 4, valor: ult.y };
-      });
-      for (const it of separarRotulos(itens, 13, yTopo + 4, y0)) {
-        texto(g, x1 + 8, it.y, `${it.s.rotuloCurto || it.s.rotulo} ${cfg.yFmt(it.valor)}`, { class: 'rotulo-direto' });
-      }
-    }
-
-    // Crosshair + tooltip com todas as séries no X mais próximo
-    const xsUnicos = [...new Set(todosX)].sort((a, b) => a - b);
-    const cruz = el('line', { y1: yTopo, y2: y0, stroke: token('--texto-3'), 'stroke-width': 1, visibility: 'hidden' }, g);
-    const alvo = el('rect', { x: x0, y: yTopo, width: Math.max(1, x1 - x0), height: y0 - yTopo, fill: 'transparent' }, svg);
-    alvo.addEventListener('pointermove', (evt) => {
-      const r = svg.getBoundingClientRect();
-      const px = ((evt.clientX - r.left) / r.width) * largura;
-      const vx = xMin + ((px - x0) / (x1 - x0)) * (xMax - xMin);
-      let melhor = xsUnicos[0];
-      for (const v of xsUnicos) if (Math.abs(v - vx) < Math.abs(melhor - vx)) melhor = v;
-      cruz.setAttribute('x1', xEsc(melhor));
-      cruz.setAttribute('x2', xEsc(melhor));
-      cruz.setAttribute('visibility', 'visible');
-      const linhasTt = [];
-      for (const s of series) {
-        let p = s.pontos[0];
-        for (const q of s.pontos) if (Math.abs(q.x - melhor) < Math.abs(p.x - melhor)) p = q;
-        const faixa = (p.lo !== undefined && s.banda) ? `  [${cfg.yFmt(p.lo)} – ${cfg.yFmt(p.hi)}]` : '';
-        linhasTt.push({ cor: s.cor, valor: cfg.yFmt(p.y), rotulo: `${s.rotulo}${faixa}`, ordem: p.y });
-      }
-      linhasTt.sort((a, b) => b.ordem - a.ordem);
-      mostrarTooltip(evt, cfg.xTitulo ? cfg.xTitulo(melhor) : cfg.xFmt(melhor), linhasTt);
-    });
-    alvo.addEventListener('pointerleave', () => { cruz.setAttribute('visibility', 'hidden'); esconderTooltip(); });
-  }
-
-  // ---------------------------------------------------------- histograma
-  /** series: [{rotulo, cor, inicio, passo, freq: []}] desenhadas como áreas em degrau sobrepostas. */
-  function histograma(container, cfg) {
-    const altura = cfg.altura || 250;
-    const series = (cfg.series || []).filter((s) => s && s.freq && s.freq.length);
-    if (!series.length) return vazio(container, cfg.vazio);
-    const { svg, largura } = preparar(container, altura);
-    const m = { esq: 46, dir: 14, topo: 14, base: 28 };
-    const x0 = m.esq, x1 = largura - m.dir, yTopo = m.topo, y0 = altura - m.base;
-
-    let xMin = Math.min(...series.map((s) => s.inicio));
-    let xMax = Math.max(...series.map((s) => s.inicio + s.passo * s.freq.length));
-    for (const r of cfg.refs || []) { xMin = Math.min(xMin, r.x); xMax = Math.max(xMax, r.x); }
-    const pad = (xMax - xMin) * 0.03 || 0.5;
-    xMin -= pad; xMax += pad;
-    // Densidade (% das simulações por unidade do eixo X) — classes de larguras diferentes ficam comparáveis
-    const dens = (s, f) => f / s.passo;
-    const yMax = Math.max(...series.flatMap((s) => s.freq.map((f) => dens(s, f)))) * 1.08 || 1;
-    const xEsc = (v) => x0 + ((v - xMin) / (xMax - xMin)) * (x1 - x0);
-    const yEsc = (v) => y0 - (v / yMax) * (y0 - yTopo);
-
-    const g = el('g', {}, svg);
-    eixos(g, {
-      x0, x1, y0, y1: yTopo, xEsc, yEsc,
-      xs: marcas(xMin, xMax, Math.max(2, Math.floor((x1 - x0) / 80))),
-      ys: marcas(0, yMax, 4),
-      xFmt: cfg.xFmt, yFmt: (v) => `${(v * 100).toFixed(v * 100 < 10 ? 1 : 0).replace('.', ',')}%`,
-    });
-    for (const r of cfg.refs || []) linhaRef(g, { horizontal: false, valor: r.x, esc: xEsc, de: yTopo, ate: y0, rotulo: r.rotulo });
-
-    for (const s of series) {
-      let d = `M${xEsc(s.inicio)},${y0}`;
-      s.freq.forEach((f, i) => {
-        const xa = xEsc(s.inicio + i * s.passo), xb = xEsc(s.inicio + (i + 1) * s.passo);
-        d += `L${xa},${yEsc(dens(s, f))}L${xb},${yEsc(dens(s, f))}`;
-      });
-      d += `L${xEsc(s.inicio + s.freq.length * s.passo)},${y0}Z`;
-      el('path', { d, fill: s.cor, 'fill-opacity': 0.22, stroke: s.cor, 'stroke-width': 1.5, 'stroke-linejoin': 'round' }, g);
-    }
-
-    const cruz = el('line', { y1: yTopo, y2: y0, stroke: token('--texto-3'), 'stroke-width': 1, visibility: 'hidden' }, g);
-    const alvo = el('rect', { x: x0, y: yTopo, width: x1 - x0, height: y0 - yTopo, fill: 'transparent' }, svg);
-    alvo.addEventListener('pointermove', (evt) => {
-      const r = svg.getBoundingClientRect();
-      const px = ((evt.clientX - r.left) / r.width) * largura;
-      const vx = xMin + ((px - x0) / (x1 - x0)) * (xMax - xMin);
-      cruz.setAttribute('x1', px); cruz.setAttribute('x2', px); cruz.setAttribute('visibility', 'visible');
-      const linhasTt = series.map((s) => {
-        const i = Math.floor((vx - s.inicio) / s.passo);
-        const f = i >= 0 && i < s.freq.length ? s.freq[i] : 0;
-        return { cor: s.cor, valor: `${(f * 100).toFixed(1).replace('.', ',')}%`, rotulo: `${s.rotulo} (classe de ${String(s.passo).replace('.', ',')} p.p.)` };
-      });
-      mostrarTooltip(evt, `em torno de ${cfg.xFmt(vx)}`, linhasTt);
-    });
-    alvo.addEventListener('pointerleave', () => { cruz.setAttribute('visibility', 'hidden'); esconderTooltip(); });
-  }
-
-  // ------------------------------------------------------ barras horiz.
-  /** linhas: [{rotulo, valor, detalhe}] — uma série, uma cor. */
-  function barrasH(container, cfg) {
-    const linhasDados = cfg.linhas || [];
-    if (!linhasDados.length) return vazio(container, cfg.vazio);
-    const alturaBarra = cfg.alturaBarra || 16, gap = 6;
-    const altura = 10 + linhasDados.length * (alturaBarra + gap) + 6;
-    const { svg, largura } = preparar(container, altura);
-    const x0 = cfg.margemRotulo || 60, x1 = largura - 86;
-    const max = Math.max(...linhasDados.map((l) => l.valor)) || 1;
-    const g = el('g', {}, svg);
-    const cor = cfg.cor || token('--seq');
-    linhasDados.forEach((l, i) => {
-      const y = 8 + i * (alturaBarra + gap);
-      texto(g, x0 - 8, y + alturaBarra - 4, l.rotulo, { class: 'eixo-texto', 'text-anchor': 'end' });
-      const w = Math.max(l.valor > 0 ? 2 : 0, ((x1 - x0) * l.valor) / max);
-      el('rect', { x: x0, y, width: w, height: alturaBarra, rx: 3, fill: cor }, g);
-      texto(g, x0 + w + 6, y + alturaBarra - 4, cfg.fmt(l.valor), { class: 'rotulo-direto' });
-      const alvo = el('rect', { x: 0, y: y - gap / 2, width: largura, height: alturaBarra + gap, fill: 'transparent' }, svg);
-      alvo.addEventListener('pointermove', (evt) => mostrarTooltip(evt, l.rotulo, [{ cor, valor: cfg.fmt(l.valor), rotulo: l.detalhe || '' }]));
-      alvo.addEventListener('pointerleave', esconderTooltip);
-    });
-  }
-
-  // ------------------------------------------------- barras empilhadas
-  /** linhas: [{rotulo, segmentos: [{rotulo, cor, valor (0-100)}]}] — partes de 100%. */
-  function barrasEmpilhadas(container, cfg) {
-    const linhasDados = cfg.linhas || [];
-    if (!linhasDados.length) return vazio(container, cfg.vazio);
-    const alturaBarra = cfg.alturaBarra || 18, gap = cfg.gap || 8;
-    const gapGrupo = 10;
-    const grupos = linhasDados.filter((l) => l.grupoInicio).length;
-    const altura = 8 + linhasDados.length * (alturaBarra + gap) + grupos * gapGrupo + 4;
-    const { svg, largura } = preparar(container, altura);
-    const x0 = cfg.margemRotulo || 120, x1 = largura - 10;
-    const g = el('g', {}, svg);
-    const sup = token('--superficie');
-    let deslocamento = 0;
-    linhasDados.forEach((l, i) => {
-      if (l.grupoInicio) deslocamento += gapGrupo;
-      const y = 6 + i * (alturaBarra + gap) + deslocamento;
-      texto(g, x0 - 8, y + alturaBarra - 5, l.rotulo, { class: 'eixo-texto', 'text-anchor': 'end' });
-      const total = l.segmentos.reduce((a, s) => a + s.valor, 0) || 1;
-      let acc = 0;
-      for (const s of l.segmentos) {
-        const xa = x0 + ((x1 - x0) * acc) / total;
-        const w = ((x1 - x0) * s.valor) / total;
-        acc += s.valor;
-        if (w <= 0) continue;
-        const r = el('rect', { x: xa, y, width: Math.max(0, w - 2), height: alturaBarra, rx: 2, fill: s.cor, stroke: sup, 'stroke-width': 0 }, g);
-        if (w > 46) {
-          texto(g, xa + 5, y + alturaBarra - 5, `${s.valor.toFixed(1).replace('.', ',')}%`, {
-            fill: textoSobre(s.cor), 'font-size': 11, 'font-weight': 600,
-          });
-        }
-        const alvo = el('rect', { x: xa, y: y - gap / 2, width: Math.max(4, w), height: alturaBarra + gap, fill: 'transparent' }, svg);
-        alvo.addEventListener('pointermove', (evt) => {
-          r.setAttribute('opacity', 0.8);
-          mostrarTooltip(evt, l.rotulo, [{ cor: s.cor, valor: `${s.valor.toFixed(2)}%`, rotulo: s.rotulo }]);
-        });
-        alvo.addEventListener('pointerleave', () => { r.removeAttribute('opacity'); esconderTooltip(); });
-      }
-    });
-  }
-
-  return { linhas, histograma, barrasH, barrasEmpilhadas, mostrarTooltip, esconderTooltip, token };
+  return { linhas, histograma, barrasH, barrasEmpilhadas, vazio, mostrarTooltip, esconderTooltip, token };
 })();
