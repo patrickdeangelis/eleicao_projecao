@@ -58,6 +58,15 @@ def create_api_app(
     async def serve_inicio():
         return FileResponse(UI_ASSETS_DIR / "inicio.html", headers={"Cache-Control": "no-store"})
 
+    # Arquivos do painel: o navegador/janela sempre revalida (ETag/304), para nunca exibir
+    # uma versão antiga do painel guardada em cache depois de uma atualização do SPETR
+    @app.middleware("http")
+    async def sem_cache_do_painel(request, call_next):
+        resposta = await call_next(request)
+        if request.url.path.startswith("/static/"):
+            resposta.headers["Cache-Control"] = "no-cache"
+        return resposta
+
     # Monta arquivos estáticos
     if UI_ASSETS_DIR.exists():
         app.mount("/static", StaticFiles(directory=str(UI_ASSETS_DIR)), name="static")

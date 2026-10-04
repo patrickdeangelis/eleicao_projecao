@@ -99,3 +99,11 @@ def test_raiz_leva_a_tela_inicial_sem_sessao_e_bloqueia_outras_origens(tmp_path)
         )
         assert texto.status_code in (415, 422)
         assert not sessao.ativa
+
+
+def test_arquivos_do_painel_sempre_revalidados(tmp_path):
+    bus = EventBus()
+    with TestClient(create_api_app(event_bus=bus, sessao=SessaoSPETR(bus, db_path=str(tmp_path / "s.sqlite")))) as cliente:
+        r = cliente.get("/static/js/app.js")
+        assert r.status_code == 200 and r.headers["cache-control"] == "no-cache"
+        assert cliente.get("/static/js/app.js", headers={"If-None-Match": r.headers["etag"]}).status_code == 304
