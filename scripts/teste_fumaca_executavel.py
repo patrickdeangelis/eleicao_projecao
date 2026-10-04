@@ -68,7 +68,7 @@ def main() -> int:
                     print(f"[OK] projeção: ciclo {ultimo['ciclo_id']}, {ultimo['perc_secoes_apuradas']}% das seções, "
                           f"{len(ultimo['candidatos'])} candidatos, status {ultimo['status_call']} "
                           f"({time.monotonic() - inicio:.0f}s)")
-                    for caminho in ("/inicio", "/static/js/app.js", "/static/js/charts.js", "/static/css/style.css"):
+                    for caminho in ("/inicio", "/static/js/app.js", "/static/js/charts.js", "/static/js/vendor/echarts.min.js", "/static/css/style.css"):
                         status, _ = obter(base + caminho)
                         assert status == 200, f"{caminho} respondeu {status}"
                     print("[OK] tela inicial e arquivos do painel servidos")
