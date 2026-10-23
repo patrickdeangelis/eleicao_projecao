@@ -175,9 +175,12 @@ class MonteCarloProjectionEngine:
     def separar_versoes(snapshots: Dict[str, SnapshotParcial]):
         """(normal, subestratificado, UFs subestratificadas) a partir dos estratos publicados."""
         ufs_sub = sorted({eid.split("_")[0] for eid in snapshots if "_SUB_" in eid})
-        normal = {k: v for k, v in snapshots.items() if "_SUB_" not in k}
+        ufs_cid = {eid.split("_")[0] for eid in snapshots if "_CID_" in eid}
+        normal = {k: v for k, v in snapshots.items() if "_SUB_" not in k and "_CID_" not in k}
+        # UF com cidades agrupadas por região: só os estratos _SUB_ e _CID_ (sem Interior nem cidades soltas)
         sub = {k: v for k, v in snapshots.items()
-               if not (k.endswith("_INTERIOR") and k.split("_")[0] in ufs_sub)}
+               if not (k.endswith("_INTERIOR") and k.split("_")[0] in ufs_sub)
+               and not (k.split("_")[0] in ufs_cid and "_SUB_" not in k and "_CID_" not in k)}
         return normal, sub, ufs_sub
 
     def calcular(
@@ -215,10 +218,13 @@ class MonteCarloProjectionEngine:
         analise["crescimento"] = cresc
         analise["crescimento_nacional"] = cresc["nacional"]
 
+        # Crescimento nas duas versões, no país inteiro (aba Modelos); sem subestratos as versões coincidem
+        cresc_por_versao = {principal: cresc}
         if ufs_sub:
             outra = "normal" if principal == "subestratificado" else "subestratificado"
             res_outra, extras_outra = self._projetar(versoes[outra], num_simulacoes, ciclo_id, ufs_sub, analise_completa=False)
-            cresc_outra = self.crescimento.projetar({k: v for k, v in versoes[outra].items() if k.split("_")[0] in ufs_sub}, numeros)
+            cresc_outra = self.crescimento.projetar(versoes[outra], numeros)
+            cresc_por_versao[outra] = cresc_outra
             comparacao = {
                 principal: self._resumo_versao(resultado, extras, versoes[principal], ufs_sub, cresc),
                 outra: self._resumo_versao(res_outra, extras_outra, versoes[outra], ufs_sub, cresc_outra),
@@ -229,6 +235,16 @@ class MonteCarloProjectionEngine:
                     **{uf: {n: d["pct"] for n, d in c["ufs"][uf].items()} for uf in ufs_sub}}
                 for v, c in comparacao.items()
             }
+
+        for v in VERSOES:
+            cresc_por_versao.setdefault(v, cresc)
+        analise["crescimento_versoes"] = {v: c["nacional"] for v, c in cresc_por_versao.items()}
+        analise["modelos"] = {
+            "crescimento": {
+                v: {k: c[k] for k in ("nacional", "votos_nacionais", "ufs", "ufs_detalhe")}
+                for v, c in cresc_por_versao.items()
+            },
+        }
 
         tempo_ms = (time.perf_counter() - inicio_t) * 1000.0
         object.__setattr__(resultado, "tempo_computacao_ms", round(tempo_ms, 2))
@@ -556,6 +572,8 @@ class MonteCarloProjectionEngine:
     def _tipo_estrato(self, eid: str) -> str:
         if eid.endswith("_INTERIOR"):
             return "INTERIOR"
+        if "_CID_" in eid:
+            return "SUBESTRATO_CIDADES"
         if "_SUB_" in eid:
             return "SUBESTRATO"
         if eid.endswith("_TOTAL"):
@@ -575,6 +593,8 @@ class MonteCarloProjectionEngine:
             return f"Interior {uf}"
         if resto in ("TOTAL", "SEM_DADOS"):
             return uf
+        if resto.startswith("CID_"):
+            return f"Cidades {resto[4:].title()} ({uf})"
         if resto.startswith("SUB_"):
             return f"Interior {resto[4:].title()} ({uf})"
         return f"{uf} {resto}"

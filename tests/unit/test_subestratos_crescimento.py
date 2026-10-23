@@ -195,3 +195,95 @@ def test_replay_entrega_arquivos_na_ordem_de_recebimento(tmp_path):
     assert mg["apuradas"] == 4 and mg["votos"] == [460, 490]
     payload = est.gerar_payload(mg)
     assert payload["st"] == "4" and payload["cand"][0]["st"] in ("Eleito", "Não eleito")
+
+
+# ---------------------------------------------- cidades grandes agrupadas por região
+
+def _lote_cidades():
+    # MG = BH (sul) + Montes Claros (norte) + Interior (Norte: 47015, 47016; Sul: o resto)
+    return {
+        "UF_MG": _arq(1400, 700, 400000, 220000, 60000, 130000, 90000),
+        "MUN_MG_41238": _arq(300, 150, 90000, 50000, 10000, 20000, 25000),
+        "MUN_MG_45535": _arq(100, 50, 40000, 22000, 3000, 9000, 8000),
+        "MUN_MG_47015": _arq(100, 50, 30000, 15000, 5000, 9000, 4000),
+        "MUN_MG_47016": _arq(100, 40, 30000, 12000, 3000, 7000, 3000),
+    }
+
+
+def _agregador_cidades():
+    ag = VectorAggregator(cidades_100k_map={"MG": ["41238", "45535"]})
+    ag.configurar_subestratos({"MG": {
+        "grupos": {"NORTE": ["47015", "47016"]}, "resto": "SUL",
+        "cidades": {"NORTE": ["45535"], "SUL": ["41238"]},
+    }})
+    return ag
+
+
+def test_cidades_grandes_agrupadas_por_regiao_e_fecham_com_a_uf():
+    snaps = _agregador_cidades().processar_lote_bruto(_lote_cidades())
+    cn, cs = snaps["MG_CID_NORTE"], snaps["MG_CID_SUL"]
+    assert cn.votos_candidatos == snaps["MG_45535"].votos_candidatos
+    assert cs.votos_candidatos == snaps["MG_41238"].votos_candidatos
+    # As quatro partes recompõem a UF
+    partes = [snaps[k] for k in ("MG_CID_NORTE", "MG_CID_SUL", "MG_SUB_NORTE", "MG_SUB_SUL")]
+    uf = _lote_cidades()["UF_MG"]
+    assert sum(p.secoes_total for p in partes) == int(uf["s"])
+    assert sum(p.secoes_apuradas for p in partes) == int(uf["st"])
+    assert sum(p.votos_candidatos["13"] for p in partes) == sum(
+        int(c["vap"]) for c in uf["cand"] if c["n"] == "13")
+
+
+def test_versao_subestratificada_usa_quatro_estratos_em_mg_e_a_normal_as_cidades():
+    snaps = _agregador_cidades().processar_lote_bruto(_lote_cidades())
+    normal, sub, ufs_sub = MonteCarloProjectionEngine.separar_versoes(snaps)
+    assert ufs_sub == ["MG"]
+    assert set(sub) == {"MG_CID_NORTE", "MG_CID_SUL", "MG_SUB_NORTE", "MG_SUB_SUL"}
+    assert set(normal) == {"MG_41238", "MG_45535", "MG_INTERIOR"}
+
+    eng = MonteCarloProjectionEngine(num_simulacoes=300, seed=1)
+    eng.inicializar_ufs({"MG": {"eleitores": 300000, "secoes": 1400}})
+    r = eng.calcular(snaps, num_simulacoes=300)
+    tipos = {e["id"]: e["tipo"] for e in r.analise["estratos"]}
+    assert tipos["MG_CID_NORTE"] == "SUBESTRATO_CIDADES" and tipos["MG_SUB_NORTE"] == "SUBESTRATO"
+    assert "MG_41238" not in tipos and "MG_INTERIOR" not in tipos
+
+
+def test_lote_sem_alguma_cidade_do_grupo_mantem_a_divisao_anterior():
+    ag = _agregador_cidades()
+    antes = ag.processar_lote_bruto(_lote_cidades())
+    lote = _lote_cidades()
+    del lote["MUN_MG_45535"]
+    depois = ag.processar_lote_bruto(lote)
+    assert depois["MG_CID_NORTE"] == antes["MG_CID_NORTE"]
+    assert depois["MG_CID_SUL"] == antes["MG_CID_SUL"]
+
+
+# ---------------------------------------------- aba Modelos: crescimento nas duas versões
+
+def test_crescimento_nas_duas_versoes_no_pais_inteiro():
+    snaps = _agregador_cidades().processar_lote_bruto(_lote_cidades())
+    eng = MonteCarloProjectionEngine(num_simulacoes=300, seed=1)
+    eng.inicializar_ufs({"MG": {"eleitores": 300000, "secoes": 1400}})
+    a = eng.calcular(snaps, num_simulacoes=300).analise
+    cr = a["modelos"]["crescimento"]
+    assert set(cr) == {"normal", "subestratificado"}
+    assert cr["subestratificado"]["nacional"] == a["crescimento_nacional"]  # principal = subestratificada
+    assert set(cr["normal"]["ufs"]) == {"MG"} and "MG" in cr["normal"]["ufs_detalhe"]
+    det = cr["subestratificado"]["ufs_detalhe"]["MG"]
+    assert det["estratos_recentes"] + det["estratos_acumulados"] == 4  # 4 estratos de MG
+    assert set(a["crescimento_versoes"]) == {"normal", "subestratificado"}
+
+    # O Monte Carlo não muda por causa do crescimento
+    eng2 = MonteCarloProjectionEngine(num_simulacoes=300, seed=1)
+    eng2.inicializar_ufs({"MG": {"eleitores": 300000, "secoes": 1400}})
+    r2 = eng2.calcular(snaps, num_simulacoes=300)
+    assert [c.perc_projetado for c in r2.candidatos] == [c.perc_projetado for c in
+        MonteCarloProjectionEngine(num_simulacoes=300, seed=1).calcular(snaps, num_simulacoes=300).candidatos]
+
+
+def test_sem_subestratos_as_duas_versoes_de_crescimento_coincidem():
+    ag = VectorAggregator(cidades_100k_map={"MG": ["41238"]})
+    snaps = ag.processar_lote_bruto(_lote())
+    a = MonteCarloProjectionEngine(num_simulacoes=300, seed=1).calcular(snaps, num_simulacoes=300).analise
+    cr = a["modelos"]["crescimento"]
+    assert cr["normal"]["nacional"] == cr["subestratificado"]["nacional"] == a["crescimento_nacional"]

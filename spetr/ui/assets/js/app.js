@@ -13,6 +13,7 @@ const state = {
   aba: 'geral',
   modoMapa: 'lider',
   modoCorrida: 'votos',
+  versaoCrescimento: 'subestratificado',  // estratificação usada na razão de crescimento (aba Modelos e mapa)
   ufSelecionada: null,
   ordemUf: { chave: 'restantes', desc: true },
   slots: {},              // número do candidato -> slot de cor (fixo para a entidade)
@@ -63,13 +64,14 @@ const ROTULO_TIPO = {
   GRANDE_CIDADE: 'Cidades com 100 mil+ eleitores',
   INTERIOR: 'Interior',
   SUBESTRATO: 'Parte do interior',
+  SUBESTRATO_CIDADES: 'Cidades grandes da região',
   UF_INTEIRA: 'Exterior / UF inteira',
   SEM_DADOS: 'Sem dados',
 };
-const ORDEM_TIPO = { CAPITAL: 0, GRANDE_CIDADE: 1, INTERIOR: 2, SUBESTRATO: 3, UF_INTEIRA: 4, SEM_DADOS: 5 };
+const ORDEM_TIPO = { CAPITAL: 0, GRANDE_CIDADE: 1, INTERIOR: 2, SUBESTRATO: 3, SUBESTRATO_CIDADES: 3, UF_INTEIRA: 4, SEM_DADOS: 5 };
 const GRAFICOS = ['g-corrida', 'g-intervalos', 'g-projecao', 'g-prob', 'g-mapa', 'g-uf-barras', 'g-dist', 'g-margem',
   'g-restantes', 'g-apurado', 'g-ritmo', 'g-apuracao-uf', 'g-regioes', 'g-tipos', 'g-composicao', 'g-exterior',
-  'g-sub-intervalos', 'g-sub-uf', 'g-sub-nacional', 'g-cresc', 'g-cresc-dif'];
+  'g-sub-intervalos', 'g-sub-uf', 'g-sub-nacional', 'g-cresc', 'g-cresc-dif', 'g-modelos'];
 const ROTULO_VERSAO = { subestratificado: 'subestratificado', normal: 'normal' };
 
 // ------------------------------------------------------------------ utilidades
@@ -528,6 +530,20 @@ function renderMapa(d) {
     const difs = ufs.map((u) => (u.proj_pct[A] || 0) - (u.proj_pct[B] || 0));
     const lim = Math.max(5, Math.ceil(Math.max(...difs.map(Math.abs)) / 5) * 5);
     dados = ufs.map((u, i) => ({ uf: u.uf, valor: +difs[i].toFixed(1), tooltip: tooltipUf(u) }));
+    escala = { min: -lim, max: lim, cores: [cor(B), G.token('--div-meio'), cor(A)], rotulos: [`${nomeCurto(A)} +${lim}`, `${nomeCurto(B)} +${lim}`] };
+  } else if (state.modoMapa === 'crescimento' && A && B) {
+    const cr = crescimentoUfs(a, state.versaoCrescimento);
+    const comDados = ufs.filter((u) => cr[u.uf]);
+    const difs = comDados.map((u) => (cr[u.uf][A] || 0) - (cr[u.uf][B] || 0));
+    const lim = Math.max(5, Math.ceil(Math.max(0, ...difs.map(Math.abs)) / 5) * 5);
+    dados = comDados.map((u, i) => ({
+      uf: u.uf, valor: +difs[i].toFixed(1),
+      tooltip: {
+        titulo: `Razão de crescimento (${state.versaoCrescimento}) · ${pct(pctApurado(u), 1)} apurado`,
+        linhas: Object.entries(cr[u.uf]).sort((x, y) => y[1] - x[1]).slice(0, 3)
+          .map(([n, v]) => ({ cor: cor(n), valor: pct(v, 1), rotulo: nome(n) })),
+      },
+    }));
     escala = { min: -lim, max: lim, cores: [cor(B), G.token('--div-meio'), cor(A)], rotulos: [`${nomeCurto(A)} +${lim}`, `${nomeCurto(B)} +${lim}`] };
   } else {
     dados = ufs.filter((u) => !u.sem_dados).map((u) => {
@@ -1079,7 +1095,7 @@ function renderSubestratos(d) {
     ...top.map((n) => thCandidato(n, ' apurado')), ...top.map((n) => thCandidato(n, ' cresc.')),
   ]);
   for (const ver of versoes) {
-    for (const e of v[ver].estratos.filter((x) => x.tipo === 'INTERIOR' || x.tipo === 'SUBESTRATO')) {
+    for (const e of v[ver].estratos.filter((x) => x.tipo === 'INTERIOR' || x.tipo === 'SUBESTRATO' || x.tipo === 'SUBESTRATO_CIDADES')) {
       const apur = e.secoes_apuradas / Math.max(1, e.secoes_total) * 100;
       corpo.appendChild(el('tr', { classe: ver === sub.versao_principal ? 'destaque' : '' }, [
         el('td', { texto: e.nome }), el('td', { texto: ROTULO_VERSAO[ver] }),
@@ -1090,8 +1106,9 @@ function renderSubestratos(d) {
     }
   }
   document.getElementById('sub-explicacao').textContent =
-    `As duas versões usam as mesmas cidades grandes; muda só o interior de ${nomeUf}. A versão subestratificada ` +
-    'projeta cada grupo do interior com a própria tendência, o que corrige o viés quando um grupo é apurado mais devagar. ' +
+    `A versão normal projeta cada cidade grande de ${nomeUf} e o interior inteiro. A versão subestratificada divide o estado ` +
+    'em regiões e projeta, em cada uma, as cidades grandes e o interior com a própria tendência, o que corrige o viés quando ' +
+    'uma região é apurada mais devagar. ' +
     'A versão principal define os números do painel e a chamada da disputa.';
 
   // Histórico: UF e Brasil nas duas versões
@@ -1190,10 +1207,167 @@ function renderCrescimento(d) {
   }
 }
 
+// ------------------------------------------------------------------ modelos lado a lado
+
+const MODELOS = [
+  { id: 'parcial', rotulo: 'Parcial apurada', nota: 'Só o que já foi contado', token: '--neutro' },
+  { id: 'mc-normal', rotulo: 'Monte Carlo normal', nota: 'Cidades grandes e interior inteiro', token: '--s2' },
+  { id: 'mc-sub', rotulo: 'Monte Carlo subestratificado', nota: 'Seu modelo: regiões separadas em MG', token: '--s1', principal: true },
+  { id: 'cresc', rotulo: 'Razão de crescimento', nota: '', token: '--s3' },
+];
+const STATUS_TEXTO = {
+  MATEMATICAMENTE_ELEITO: 'Matematicamente eleito',
+  VITORIA_PROJETADA: 'Vitória projetada',
+  SEGUNDO_TURNO_PROJETADO: 'Segundo turno projetado',
+};
+
+/** Números do Monte Carlo de uma versão; sem subestratos as duas versões são a própria projeção principal. */
+function resumoMonteCarlo(d, versao) {
+  const sub = (d.analise || {}).subestratificacao;
+  if (sub && sub.versoes && sub.versoes[versao]) {
+    const v = sub.versoes[versao];
+    return { por: v.nacional, status: v.status_call, vencedor: v.vencedor_projetado };
+  }
+  return {
+    por: Object.fromEntries(d.candidatos.map((c) => [c.numero, { pct: c.perc_projetado, ic: [c.ic_inferior_95, c.ic_superior_95], prob_vitoria: c.prob_vitoria }])),
+    status: d.status_call, vencedor: d.vencedor_projetado,
+  };
+}
+
+function modeloCrescimento(a, versao) {
+  const m = a.modelos && a.modelos.crescimento && a.modelos.crescimento[versao];
+  return m || (a.crescimento ? { nacional: a.crescimento.nacional, votos_nacionais: a.crescimento.votos_nacionais, ufs: a.crescimento.ufs, ufs_detalhe: {} } : null);
+}
+function crescimentoUfs(a, versao) {
+  const m = modeloCrescimento(a, versao);
+  return m ? m.ufs : {};
+}
+
+function cartaoModelo(m, nums, linhas, rodape, nota) {
+  const raiz = el('article', { classe: `cartao-modelo${m.principal ? ' principal' : ''}` }, [
+    el('h4', { texto: m.rotulo }), el('span', { classe: 'nota', texto: nota || m.nota, title: nota || m.nota }),
+  ]);
+  raiz.style.setProperty('--cor-modelo', G.token(m.token));
+  for (const n of nums) {
+    const l = linhas[n];
+    raiz.appendChild(el('div', { classe: 'linha-cand' }, [
+      el('span', { classe: 'chave-tab', estilo: { background: cor(n) } }),
+      el('span', { texto: nomeCurto(n) }),
+      el('span', { classe: 'valor', texto: l ? pct(l.valor, 1) : '—' }),
+      l && l.detalhe ? el('span', { classe: 'detalhe', texto: l.detalhe }) : null,
+    ].filter(Boolean)));
+  }
+  if (rodape) raiz.appendChild(el('div', { classe: 'rodape-cartao', texto: rodape }));
+  return raiz;
+}
+
+function renderModelos(d) {
+  const a = d.analise || {};
+  const nums = candidatosDosGraficos().slice(0, 4);
+  const ver = state.versaoCrescimento;
+  for (const b of document.querySelectorAll('[data-cresc-versao]')) {
+    const ativo = b.dataset.crescVersao === ver;
+    b.classList.toggle('ativo', ativo);
+    b.setAttribute('aria-pressed', String(ativo));
+  }
+  const caixa = document.getElementById('cartoes-modelos');
+  caixa.textContent = '';
+  if (!nums.length) {
+    G.vazio(document.getElementById('g-modelos'), SEM_SELECAO);
+    caixa.appendChild(el('p', { classe: 'nota', texto: SEM_SELECAO }));
+    return;
+  }
+  const textoStatus = (r) => {
+    const t = STATUS_TEXTO[r.status] || 'Em aberto';
+    return r.vencedor ? `${t}: ${nome(r.vencedor)}` : t;
+  };
+  const mcSub = resumoMonteCarlo(d, 'subestratificado');
+  const refSub = (n) => (mcSub.por[n] || {}).pct;
+  const dif = (n, v) => (refSub(n) === undefined || v === undefined ? '' : `${fmtDif(v - refSub(n))} p.p. vs seu modelo`);
+  const detalheMC = (v) => `IC ${pct(v.ic[0], 1)} a ${pct(v.ic[1], 1)} · chance de vencer ${prob(v.prob_vitoria)}`;
+
+  const porId = {};
+  porId.parcial = Object.fromEntries(d.candidatos.map((c) => [c.numero, { valor: c.perc_apurado, detalhe: `${compacto(c.votos_apurados)} votos` }]));
+  for (const [id, versao] of [['mc-normal', 'normal'], ['mc-sub', 'subestratificado']]) {
+    porId[id] = Object.fromEntries(Object.entries(resumoMonteCarlo(d, versao).por).map(([n, v]) => [n, { valor: v.pct, detalhe: detalheMC(v) }]));
+  }
+  const cresc = modeloCrescimento(a, ver);
+  porId.cresc = cresc ? Object.fromEntries(Object.entries(cresc.nacional).map(([n, v]) => [n, {
+    valor: v, detalhe: cresc.votos_nacionais ? `${compacto(cresc.votos_nacionais[n])} votos projetados` : '',
+  }])) : {};
+
+  const n0 = nums[0];
+  const unir = (...partes) => partes.filter(Boolean).join(' · ');
+  const rodapes = {
+    parcial: `Faltam ${pct(100 - d.perc_secoes_apuradas, 1)} das seções`,
+    'mc-normal': unir(textoStatus(resumoMonteCarlo(d, 'normal')), dif(n0, (porId['mc-normal'][n0] || {}).valor)),
+    'mc-sub': textoStatus(mcSub),
+    cresc: cresc ? unir(dif(n0, porId.cresc[n0] && porId.cresc[n0].valor), 'leitura extra, fora da chamada') : 'Aguardando votos apurados',
+  };
+  for (const m of MODELOS) {
+    const nota = m.id === 'cresc' ? `Estratificação ${ver}` : (m.id === 'parcial' ? m.nota : null);
+    caixa.appendChild(cartaoModelo(m, nums, porId[m.id], rodapes[m.id], nota));
+  }
+
+  // Evolução do primeiro candidato selecionado nos quatro modelos
+  document.getElementById('modelos-hist-titulo').textContent = `${nome(n0)}: modelos ao longo da apuração`;
+  const linha = (m, espessura, fn) => {
+    const s = serieHistorico(n0, (r, c) => {
+      const y = fn(r, c);
+      return y === undefined || y === null ? null : { x: valorX(r), y };
+    });
+    return { ...s, id: `${n0}-${m.id}`, rotulo: `${nome(n0)} · ${m.rotulo}`, rotuloCurto: m.rotulo, cor: G.token(m.token), espessura };
+  };
+  const resumoVersao = (r, v) => r.analise && r.analise.versoes_resumo && r.analise.versoes_resumo[v];
+  G.linhas(document.getElementById('g-modelos'), {
+    vazio: SEM_SELECAO, ...cfgEixoX(), yFmt: fmtPctEixo, refs: [{ y: 50, rotulo: '50%' }],
+    series: [
+      linha(MODELOS[0], 1, (r, c) => c.perc_apurado),
+      linha(MODELOS[1], 1.5, (r, c) => { const v = resumoVersao(r, 'normal'); return v ? v.nacional[n0] : c.perc_projetado; }),
+      linha(MODELOS[2], 3, (r, c) => { const v = resumoVersao(r, 'subestratificado'); return v ? v.nacional[n0] : c.perc_projetado; }),
+      linha(MODELOS[3], 1.5, (r) => {
+        const an = r.analise || {};
+        const v = an.crescimento_versoes && an.crescimento_versoes[ver];
+        return v ? v[n0] : (an.crescimento_nacional ? an.crescimento_nacional[n0] : null);
+      }),
+    ],
+  });
+
+  // Estados pela razão de crescimento, ao lado da projeção principal
+  const top = nums.slice(0, 2);
+  const crUf = cresc ? cresc.ufs : {};
+  const detUf = (cresc && cresc.ufs_detalhe) || {};
+  const corpo = cabecalhoTabela('#tabela-modelos-uf', [
+    el('th', { texto: 'UF' }), el('th', { classe: 'num', texto: '% apurado' }),
+    ...top.flatMap((n) => [thCandidato(n, ' MC'), thCandidato(n, ' cresc.')]),
+    el('th', { classe: 'num', texto: 'Diferença' }), el('th', { classe: 'num', texto: 'Faltam' }), el('th', { classe: 'num', texto: 'Recente', title: 'Estratos da UF com razão da janela recente / total de estratos' }),
+  ]);
+  const ufs = [...(a.ufs || [])].sort((x, y) => y.restantes_esperados - x.restantes_esperados);
+  for (const u of ufs) {
+    const c = crUf[u.uf];
+    const det = detUf[u.uf];
+    const difUf = c ? c[n0] - (u.proj_pct[n0] || 0) : null;
+    const total = det ? det.estratos_recentes + det.estratos_acumulados : 0;
+    corpo.appendChild(el('tr', {}, [
+      el('td', { texto: u.uf }), el('td', { classe: 'num', texto: pct(pctApurado(u), 1) }),
+      ...top.flatMap((n) => [el('td', { classe: 'num', texto: pct(u.proj_pct[n] || 0, 1) }),
+        el('td', { classe: 'num', texto: c ? pct(c[n], 1) : '—' })]),
+      el('td', { classe: 'num', texto: difUf === null ? '—' : `${fmtDif(difUf)} p.p.`, title: `${nome(n0)}: crescimento − Monte Carlo` }),
+      el('td', { classe: 'num', texto: det ? compacto(det.eleitores_faltantes) : '—' }),
+      el('td', { classe: 'num', texto: total ? `${det.estratos_recentes}/${total}` : '—',
+        title: 'Estratos da UF com razão da janela recente (últimos 15% das seções); os demais usam a razão acumulada' }),
+    ]));
+  }
+  document.getElementById('modelos-explicacao').textContent =
+    'MC = projeção principal do Monte Carlo (versão definida na aba Subestratos). Crescimento = votos ganhos por eleitor nas seções ' +
+    'apuradas recentemente × eleitores que faltam, em cada estrato da estratificação escolhida. É uma leitura extra: não entra no ' +
+    'Monte Carlo, no intervalo nem na chamada. Sem subestratos na apuração, as duas estratificações coincidem.';
+}
+
 const RENDER_ABA = {
   geral: renderGeral, consolidado: renderConsolidado, mapa: renderMapa, simulacao: renderCenarios,
   apuracao: renderApuracao, estratos: renderEstratos, ufs: renderUfs, exterior: renderExterior,
-  subestratos: renderSubestratos, crescimento: renderCrescimento,
+  subestratos: renderSubestratos, crescimento: renderCrescimento, modelos: renderModelos,
 };
 
 // --------------------------------------------------------------- orquestração
@@ -1387,6 +1561,16 @@ function iniciarControles() {
         o.setAttribute('aria-pressed', String(o === b));
       }
       if (state.atual) renderMapa(state.atual);
+    });
+  }
+
+  const versaoSalva = recuperar('spetr-cresc-versao', 'subestratificado');
+  state.versaoCrescimento = versaoSalva === 'normal' ? 'normal' : 'subestratificado';
+  for (const b of document.querySelectorAll('[data-cresc-versao]')) {
+    b.addEventListener('click', () => {
+      state.versaoCrescimento = b.dataset.crescVersao;
+      armazenar('spetr-cresc-versao', state.versaoCrescimento);
+      renderAbaAtual();
     });
   }
 

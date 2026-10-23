@@ -82,6 +82,22 @@ class PipelineCoordinator:
         self.bus.unsubscribe(ProjectionCalculatedEvent, self.repo._ao_calcular_projecao)
         await self.scheduler.http_client.fechar()
 
+    @staticmethod
+    def _cidades_por_grupo(cfg: Dict, cidades_uf: List[str]) -> Dict[str, List[str]]:
+        """
+        Cidades grandes da UF por grupo: as listadas em cada grupo e, no resto, todas as demais.
+        Vazio se a configuração não lista cidades (a UF só subestratifica o interior).
+        """
+        listadas = {ch: list(g.get("cidades", {})) for ch, g in cfg["grupos"].items()}
+        if not any(listadas.values()):
+            return {}
+        usadas = {c for cods in listadas.values() for c in cods}
+        fora = [c for c in usadas if c not in cidades_uf]
+        if fora:
+            raise ValueError(f"Subestratos: cidades fora da lista de cidades grandes da UF: {fora}")
+        listadas[cfg["resto"]["chave"]] = [c for c in cidades_uf if c not in usadas]
+        return listadas
+
     def _carregar_metadados_iniciais(self) -> None:
         """Carrega arquivos JSON de UFs, cidades > 100k e priors."""
         ufs_file = DATA_DIR / "ufs_metadados.json"
@@ -131,8 +147,10 @@ class PipelineCoordinator:
         # Configura o agregador e o coletor
         self.aggregator.configurar_cidades(cidades_por_uf)
         self.aggregator.configurar_exterior(exterior)
+        cidades_sub = {uf: self._cidades_por_grupo(cfg, cidades_por_uf[uf]) for uf, cfg in subestratos.items()}
         self.aggregator.configurar_subestratos({
-            uf: {"grupos": {ch: list(g["municipios"]) for ch, g in cfg["grupos"].items()}, "resto": cfg["resto"]["chave"]}
+            uf: {"grupos": {ch: list(g["municipios"]) for ch, g in cfg["grupos"].items()}, "resto": cfg["resto"]["chave"],
+                 "cidades": cidades_sub[uf]}
             for uf, cfg in subestratos.items()
         })
         self.scheduler.configurar_alvos(
@@ -225,6 +243,22 @@ class PipelineCoordinator:
                         estratos.append(EstratoEleitoral(
                             id=eid_sub, uf=uf, nome=f"{uf} - {nome}", eleitores_aptos=max(1000, el),
                             secoes_totais=max(10, sc), tipo=TipoEstrato.SUBESTRATO_INTERIOR, prior_alpha=prior_int,
+                        ))
+                    # Cidades grandes agrupadas pela região do grupo (ex.: Cidades Norte × Cidades Sul)
+                    nomes_grupos = {ch: g["nome"] for ch, g in cfg_sub["grupos"].items()}
+                    nomes_grupos[resto["chave"]] = resto["nome"]
+                    for chave, cods in cidades_sub.get(uf, {}).items():
+                        if not cods:
+                            continue
+                        el = sum(int(municipios_meta.get(f"{uf}_{c}", {}).get("eleitores", 0)) for c in cods)
+                        sc = sum(int(municipios_meta.get(f"{uf}_{c}", {}).get("secoes", 0)) for c in cods)
+                        nome = nomes_grupos[chave].replace("Interior", "Cidades grandes")
+                        eid_cid = VectorAggregator.id_cidades_grupo(uf, chave)
+                        self.engine.nomes_estratos[eid_cid] = f"{nome} ({uf})"
+                        estratos.append(EstratoEleitoral(
+                            id=eid_cid, uf=uf, nome=f"{uf} - {nome}", eleitores_aptos=max(1000, el),
+                            secoes_totais=max(10, sc), tipo=TipoEstrato.SUBESTRATO_CIDADES,
+                            prior_alpha=priors_especiais.get(eid_cid, priors_padrao),
                         ))
             else:
                 eid_tot = f"{uf}_TOTAL"

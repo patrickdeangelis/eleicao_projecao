@@ -69,6 +69,7 @@ class ProjecaoCrescimento:
 
         nacional = {n: 0.0 for n in numeros}
         por_uf: Dict[str, Dict[str, float]] = {}
+        detalhe_uf: Dict[str, Dict[str, int]] = {}
         estratos: Dict[str, Any] = {}
         for eid, snap in snapshots.items():
             r = self.estrato(eid, snap)
@@ -77,6 +78,9 @@ class ProjecaoCrescimento:
             votos = {n: float(r["votos_projetados"].get(n, 0.0)) for n in numeros}
             uf = eid.split("_")[0]
             alvo = por_uf.setdefault(uf, {n: 0.0 for n in numeros})
+            det = detalhe_uf.setdefault(uf, {"eleitores_faltantes": 0, "estratos_recentes": 0, "estratos_acumulados": 0})
+            det["eleitores_faltantes"] += int(r["eleitores_faltantes"])
+            det["estratos_recentes" if r["base"] == "recente" else "estratos_acumulados"] += 1
             for n in numeros:
                 nacional[n] += votos[n]
                 alvo[n] += votos[n]
@@ -93,5 +97,6 @@ class ProjecaoCrescimento:
             "nacional": pct(nacional),
             "votos_nacionais": {n: int(round(v)) for n, v in nacional.items()},
             "ufs": {uf: pct(v) for uf, v in por_uf.items()},
+            "ufs_detalhe": detalhe_uf,
             "estratos": estratos,
         }

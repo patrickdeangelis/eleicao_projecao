@@ -26,6 +26,7 @@ class TipoEstrato(str, Enum):
     GRANDE_CIDADE = "GRANDE_CIDADE"
     INTERIOR_REMANESCENTE = "INTERIOR_REMANESCENTE"
     SUBESTRATO_INTERIOR = "SUBESTRATO_INTERIOR"
+    SUBESTRATO_CIDADES = "SUBESTRATO_CIDADES"
     ESTADO_TOTAL = "ESTADO_TOTAL"
 
 
@@ -72,3 +73,9 @@ class CodigoMunicipioTSE:
 
     def __str__(self) -> str:
         return self.codigo
+
+
+# Chaves da análise que formam o resumo enviado nas curvas do histórico (o resto só vai no ciclo atual)
+CHAVES_RESUMO_ANALISE: Tuple[str, ...] = (
+    "nacional", "faltam", "prob_top2", "aguardando", "crescimento_nacional", "crescimento_versoes", "versoes_resumo",
+)

@@ -69,6 +69,7 @@
           <button type="button" role="tab" data-aba="exterior" id="tab-exterior" aria-controls="aba-exterior">Exterior</button>
           <button type="button" role="tab" data-aba="subestratos" id="tab-subestratos" aria-controls="aba-subestratos">Subestratos</button>
           <button type="button" role="tab" data-aba="crescimento" id="tab-crescimento" aria-controls="aba-crescimento">Crescimento</button>
+          <button type="button" role="tab" data-aba="modelos" id="tab-modelos" aria-controls="aba-modelos">Modelos</button>
         </div>
         <div class="segmentado" role="group" aria-label="Eixo horizontal das curvas" id="controle-eixo">
           <span class="filtro-rotulo">Eixo</span>
@@ -130,6 +131,7 @@
               <button type="button" data-mapa="lider" class="ativo">Líder projetado</button>
               <button type="button" data-mapa="apurado">% apurado</button>
               <button type="button" data-mapa="vantagem">Vantagem 1º × 2º</button>
+              <button type="button" data-mapa="crescimento" title="Vantagem 1º × 2º pela razão de crescimento">Vantagem (crescimento)</button>
             </div>
           </header>
           <div class="grafico preenche" id="g-mapa"></div>
@@ -261,6 +263,28 @@
             <table class="tabela densa" id="tabela-cresc-estratos"><thead></thead><tbody></tbody></table>
           </div>
           <p class="nota explicacao">Leitura extra: não entra na projeção principal nem na chamada. Em cada estrato, mede quantos votos cada candidato ganhou por eleitor nas seções apuradas recentemente (últimos 15% das seções) e aplica essa razão aos eleitores que ainda faltam. Com poucas seções novas, usa a razão acumulada.</p>
+        </article>
+      </div>
+
+      <!-- Modelos lado a lado -->
+      <div class="aba grade-modelos" role="tabpanel" id="aba-modelos" aria-labelledby="tab-modelos" data-aba="modelos" hidden>
+        <div class="cartoes-modelos largo" id="cartoes-modelos"></div>
+        <article class="bloco">
+          <header><h3 id="modelos-hist-titulo">Modelos ao longo da apuração</h3><span class="nota">Linha grossa: Monte Carlo subestratificado (seu modelo)</span></header>
+          <div class="grafico preenche" id="g-modelos"></div>
+        </article>
+        <article class="bloco">
+          <header>
+            <h3>Estados pela razão de crescimento</h3>
+            <div class="segmentado pequeno" role="group" aria-label="Estratificação usada na razão de crescimento" id="controle-cresc-versao">
+              <button type="button" data-cresc-versao="subestratificado">Subestratificado</button>
+              <button type="button" data-cresc-versao="normal">Normal</button>
+            </div>
+          </header>
+          <div class="tabela-rolagem">
+            <table class="tabela densa" id="tabela-modelos-uf"><thead></thead><tbody></tbody></table>
+          </div>
+          <p class="nota explicacao" id="modelos-explicacao"></p>
         </article>
       </div>
 

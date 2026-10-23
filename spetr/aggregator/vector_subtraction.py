@@ -6,7 +6,11 @@ Interior Remanescente(UF) = Total(UF) - Σ Cidades > 100k(UF)
 Subestratificação opcional do interior (ex.: MG):
 Grupo listado (UF_SUB_NORTE) = Σ municípios do grupo
 Resto (UF_SUB_SUL)           = Interior Remanescente(UF) - Σ grupos listados
-Os subestratos são publicados junto com o Interior; o motor escolhe qual versão usar.
+Cidades grandes agrupadas por região (opcional, "cidades" na configuração):
+Cidades do grupo (UF_CID_NORTE) = Σ cidades grandes listadas para o grupo
+Cidades do resto (UF_CID_SUL)   = Σ demais cidades grandes da UF
+Os subestratos são publicados junto com o Interior; o motor escolhe qual versão usar. Na versão
+subestratificada, as cidades grandes da UF são substituídas por esses dois estratos.
 """
 from typing import Dict, List, Any, Optional, Set
 import datetime
@@ -63,7 +67,11 @@ class VectorAggregator:
         self.cidades_por_uf = cidades_por_uf
 
     def configurar_subestratos(self, subestratos: Dict[str, Dict[str, Any]]) -> None:
-        """{uf: {"grupos": {chave: [cod_mun, ...]}, "resto": chave_do_resto}}."""
+        """
+        {uf: {"grupos": {chave: [cod_mun, ...]}, "resto": chave_do_resto,
+              "cidades": {chave: [cod_cidade_grande, ...]}}}; "cidades" é opcional e deve incluir
+        a chave do resto (as cidades grandes da UF que não estão em nenhum grupo).
+        """
         self.subestratos = subestratos
 
     @staticmethod
@@ -103,6 +111,10 @@ class VectorAggregator:
     @staticmethod
     def id_subestrato(uf: str, chave: str) -> str:
         return f"{uf}_SUB_{chave}"
+
+    @staticmethod
+    def id_cidades_grupo(uf: str, chave: str) -> str:
+        return f"{uf}_CID_{chave}"
 
     def configurar_exterior(self, cidades_exterior: Dict[str, Dict[str, Any]]) -> None:
         """{cod: {cidade, pais, continente, eleitores, secoes}} das cidades do exterior (UF ZZ)."""
@@ -308,7 +320,10 @@ class VectorAggregator:
         """
         cfg = self.subestratos[uf]
         grupos: Dict[str, List[str]] = cfg.get("grupos", {})
+        cidades_grupos: Dict[str, List[str]] = cfg.get("cidades", {})
         if any(f"{uf}_{c}" not in muns_lote for cods in grupos.values() for c in cods):
+            return
+        if any(f"{uf}_{c}" not in muns_lote for cods in cidades_grupos.values() for c in cods):
             return
         campos = ("secoes_total", "secoes_apuradas", "eleitores", "comparecimento",
                   "abstencao", "votos_validos", "votos_brancos", "votos_nulos", "votos_anulados")
@@ -342,6 +357,17 @@ class VectorAggregator:
             return
         eid_resto = self.id_subestrato(uf, cfg["resto"])
         novos[eid_resto] = self._snapshot(eid_resto, ts, {**resto, "candidatos_votos": resto_cands})
+        for chave, cods in cidades_grupos.items():
+            soma = {c: 0 for c in campos}
+            cands = {}
+            for cod in cods:
+                d = muns_lote[f"{uf}_{cod}"]
+                for c in campos:
+                    soma[c] += d.get(c, 0)
+                for n, v in d["candidatos_votos"].items():
+                    cands[n] = cands.get(n, 0) + v
+            eid = self.id_cidades_grupo(uf, chave)
+            novos[eid] = self._snapshot(eid, ts, {**soma, "candidatos_votos": cands})
         self._sub_por_uf[uf] = novos
 
     def _registrar_snapshots(self, uf: str, novos: Dict[str, SnapshotParcial]) -> None:

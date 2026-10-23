@@ -213,6 +213,18 @@ a.botao { text-decoration: none; display: inline-block; }
 .grade-mapa { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
 .grade-sim { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
 .grade-sim .largo, .grade-ap .largo { grid-column: 1 / -1; }
+.grade-modelos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto minmax(0, 1fr); }
+.grade-modelos .largo { grid-column: 1 / -1; }
+.cartoes-modelos { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 0.6rem; }
+.cartao-modelo { background: var(--superficie); border: 1px solid var(--borda); border-top: 3px solid var(--cor-modelo, var(--neutro));
+  border-radius: var(--raio); padding: 0.6rem 0.75rem; min-width: 0; }
+.cartao-modelo.principal { box-shadow: 0 0 0 1px var(--cor-modelo, var(--destaque)); }
+.cartao-modelo h4 { margin: 0; font-size: 0.82rem; }
+.cartao-modelo .nota { display: block; color: var(--texto-3); font-size: 0.7rem; margin-bottom: 0.35rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cartao-modelo .linha-cand { display: grid; grid-template-columns: auto 1fr auto; gap: 0.4rem; align-items: baseline; margin-top: 0.25rem; }
+.cartao-modelo .linha-cand .valor { font-size: 1.15rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+.cartao-modelo .linha-cand .detalhe { color: var(--texto-3); font-size: 0.7rem; grid-column: 2 / -1; }
+.cartao-modelo .rodape-cartao { margin-top: 0.45rem; padding-top: 0.35rem; border-top: 1px solid var(--grade); font-size: 0.72rem; color: var(--texto-2); }
 .grade-consolidado { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
 .grade-exterior { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
 .bloco > .tabela-rolagem { flex: 1; min-height: 0; }

@@ -13,12 +13,17 @@ from spetr.domain.entities import (
     ResultadoProjecao,
     ProjecaoCandidato,
 )
-from spetr.domain.value_objects import StatusCall
+from spetr.domain.value_objects import CHAVES_RESUMO_ANALISE, StatusCall
 from spetr.domain.interfaces import IRepository, IEventBus
 from spetr.storage.database import SQLiteDatabase
 from spetr.services.events import ProjectionCalculatedEvent, StrataNormalizedEvent
 
 logger = logging.getLogger("spetr.storage.repository")
+
+# json_object(...) do resumo da análise, calculado pelo SQLite (sem decodificar a análise inteira)
+SQL_RESUMO_ANALISE = "json_object(" + ", ".join(
+    f"'{k}', json(json_extract(analise_json, '$.{k}'))" for k in CHAVES_RESUMO_ANALISE
+) + ")"
 
 # Retenção do histórico: a análise completa (180–340 KB por ciclo) só interessa nos ciclos recentes
 # e de tempos em tempos; nos demais fica o resumo usado pelas curvas e pelo time-travel.
@@ -171,15 +176,8 @@ class ElectionRepository(IRepository):
         conn = self.db.get_connection()
         with conn:
             cur = conn.execute(
-                """
-                UPDATE projecoes_historico SET analise_json = json_object(
-                    'nacional', json(json_extract(analise_json, '$.nacional')),
-                    'faltam', json(json_extract(analise_json, '$.faltam')),
-                    'prob_top2', json(json_extract(analise_json, '$.prob_top2')),
-                    'aguardando', json(json_extract(analise_json, '$.aguardando')),
-                    'crescimento_nacional', json(json_extract(analise_json, '$.crescimento_nacional')),
-                    'versoes_resumo', json(json_extract(analise_json, '$.versoes_resumo'))
-                )
+                f"""
+                UPDATE projecoes_historico SET analise_json = {SQL_RESUMO_ANALISE}
                 WHERE execucao_id = ?
                   AND id < COALESCE((SELECT id FROM projecoes_historico WHERE execucao_id = ?
                                      ORDER BY id DESC LIMIT 1 OFFSET ?), 0)
@@ -195,15 +193,8 @@ class ElectionRepository(IRepository):
         conn = self.db.get_connection()
         cursor = conn.cursor()
         cursor.execute(
-            """
-            SELECT *, json_object(
-                'nacional', json(json_extract(analise_json, '$.nacional')),
-                'faltam', json(json_extract(analise_json, '$.faltam')),
-                'prob_top2', json(json_extract(analise_json, '$.prob_top2')),
-                'aguardando', json(json_extract(analise_json, '$.aguardando')),
-                'crescimento_nacional', json(json_extract(analise_json, '$.crescimento_nacional')),
-                'versoes_resumo', json(json_extract(analise_json, '$.versoes_resumo'))
-            ) AS analise_resumo
+            f"""
+            SELECT *, {SQL_RESUMO_ANALISE} AS analise_resumo
             FROM projecoes_historico
             WHERE execucao_id = ?
             ORDER BY id DESC LIMIT ?

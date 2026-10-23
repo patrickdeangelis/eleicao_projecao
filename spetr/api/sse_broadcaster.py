@@ -8,11 +8,11 @@ import logging
 
 from spetr.domain.interfaces import IEventBus
 from spetr.domain.entities import ResultadoProjecao
+from spetr.domain.value_objects import CHAVES_RESUMO_ANALISE
 from spetr.services.events import CollectionErrorEvent, ProjectionCalculatedEvent
 
 logger = logging.getLogger("spetr.api.sse")
 
-CHAVES_RESUMO_ANALISE = ("nacional", "faltam", "prob_top2", "aguardando", "crescimento_nacional", "versoes_resumo")
 
 
 def serializar_resultado(p: ResultadoProjecao, completo: bool = True) -> Dict[str, Any]:

@@ -5,6 +5,10 @@ O grupo nomeado (ex.: NORTE) é a lista de municípios das mesorregiões do IBGE
 cidades que já são estratos próprios (cidades_100k.json). O outro grupo (ex.: SUL) não precisa de
 lista: é o Interior Remanescente menos o grupo nomeado, pela mesma subtração vetorial do SPETR.
 
+As cidades com 100 mil eleitores ou mais dessas mesorregiões são gravadas em "cidades" do grupo: na
+versão subestratificada elas formam o estrato "Cidades do grupo" (ex.: MG_CID_NORTE); as demais
+cidades grandes da UF formam o estrato das cidades do grupo obtido por subtração (ex.: MG_CID_SUL).
+
 Fontes:
 - Mesorregiões e municípios: API de localidades do IBGE (servicodados.ibge.gov.br)
 - Código TSE de cada município: arquivo de configuração de municípios do TSE (EA12), que traz o
@@ -80,6 +84,8 @@ def main() -> int:
     ap.add_argument("--resto", default="SUL", help="Chave do grupo obtido por subtração")
     ap.add_argument("--nome-resto", default="Interior Sul")
     ap.add_argument("--config-mun", default=str(RAIZ / "docs/tse_oficial/mun-e021270-cm.json"))
+    ap.add_argument("--atualizar-cidades", action="store_true",
+                    help="Só regrava as cidades grandes do grupo no subestratos.json existente (sem baixar nada do TSE)")
     ap.add_argument("--validar", action="store_true", help="Confere cada URL no TSE (eleição já publicada)")
     ap.add_argument("--ano", default="2026")
     ap.add_argument("--eleicao", default="6257", help="Eleição publicada usada na validação (6257 = 1º turno 2026, presidente)")
@@ -97,18 +103,26 @@ def main() -> int:
     if sem_tse:
         raise SystemExit(f"Municípios do IBGE sem código TSE: {', '.join(sem_tse)}")
 
-    municipios, ja_estratos = {}, []
+    municipios, ja_estratos, cidades_grupo = {}, [], {}
     for cdi, info in sorted(ibge.items()):
         cod = tse_por_ibge[cdi]["cd"]
         if cod in cidades:
             ja_estratos.append(tse_por_ibge[cdi]["nm"])
+            cidades_grupo[cod] = {"nome": tse_por_ibge[cdi]["nm"], "ibge": cdi, "mesorregiao": info["mesorregiao"]}
             continue
         municipios[cod] = {"nome": tse_por_ibge[cdi]["nm"], "ibge": cdi, "mesorregiao": info["mesorregiao"]}
+    caminho = DATA_DIR / "subestratos.json"
+    if args.atualizar_cidades:
+        dados = json.loads(caminho.read_text(encoding="utf-8"))
+        dados[uf]["grupos"][args.grupo]["cidades"] = cidades_grupo
+        caminho.write_text(json.dumps(dados, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        print(f"{uf}/{args.grupo}: {len(cidades_grupo)} cidades grandes gravadas: {', '.join(v['nome'] for v in cidades_grupo.values())}")
+        return 0
     print(f"{uf}/{args.grupo}: {len(municipios)} municípios a coletar "
           f"({len(ja_estratos)} já são estratos próprios: {', '.join(ja_estratos)})")
 
     saida_uf = {
-        "grupos": {args.grupo: {"nome": args.nome_grupo, "municipios": municipios}},
+        "grupos": {args.grupo: {"nome": args.nome_grupo, "municipios": municipios, "cidades": cidades_grupo}},
         "resto": {"chave": args.resto, "nome": args.nome_resto},
         "mesorregioes_ibge": sorted({v["mesorregiao"] for v in ibge.values()}),
         "gerado_em": datetime.date.today().isoformat(),
@@ -132,7 +146,6 @@ def main() -> int:
         print("Resultado do grupo na eleição validada: " + " · ".join(f"{n}: {votos[n] / total * 100:.2f}%" for n in topo))
         saida_uf["validado"]["votos_grupo"] = votos
 
-    caminho = DATA_DIR / "subestratos.json"
     dados = json.loads(caminho.read_text(encoding="utf-8")) if caminho.exists() else {}
     dados[uf] = saida_uf
     caminho.write_text(json.dumps(dados, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")

@@ -1964,6 +1964,28 @@
       "eleitores": 4613,
       "secoes": 17
      }
+    },
+    "cidades": {
+     "45535": {
+      "nome": "GOVERNADOR VALADARES",
+      "ibge": "3127701",
+      "mesorregiao": "Vale do Rio Doce"
+     },
+     "46256": {
+      "nome": "IPATINGA",
+      "ibge": "3131307",
+      "mesorregiao": "Vale do Rio Doce"
+     },
+     "48658": {
+      "nome": "MONTES CLAROS",
+      "ibge": "3143302",
+      "mesorregiao": "Norte de Minas"
+     },
+     "53716": {
+      "nome": "TEÓFILO OTONI",
+      "ibge": "3168606",
+      "mesorregiao": "Vale do Mucuri"
+     }
     }
    }
   },
