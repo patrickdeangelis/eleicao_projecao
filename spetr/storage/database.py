@@ -25,6 +25,7 @@ MIGRACOES = [
 INDICES_POS_MIGRACAO = [
     "CREATE INDEX IF NOT EXISTS idx_projecoes_eleicao_ts ON projecoes_historico (eleicao, timestamp)",
     "CREATE INDEX IF NOT EXISTS idx_projecoes_execucao ON projecoes_historico (execucao_id, id)",
+    "CREATE INDEX IF NOT EXISTS idx_snapshots_execucao ON snapshots_apuracao (execucao_id, id)",
 ]
 
 

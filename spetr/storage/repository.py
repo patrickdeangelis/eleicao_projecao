@@ -20,6 +20,12 @@ from spetr.services.events import ProjectionCalculatedEvent, StrataNormalizedEve
 
 logger = logging.getLogger("spetr.storage.repository")
 
+# Retenção do histórico: a análise completa (180–340 KB por ciclo) só interessa nos ciclos recentes
+# e de tempos em tempos; nos demais fica o resumo usado pelas curvas e pelo time-travel.
+ANALISES_RECENTES = 60       # ciclos mais novos da execução mantidos completos
+ANALISE_COMPLETA_A_CADA = 20 # além dos recentes, um ciclo a cada N continua completo
+COMPACTAR_A_CADA = 10        # roda a compactação a cada N projeções salvas
+
 
 class ElectionRepository(IRepository):
     """Repositório de persistência SQLite com suporte a Time-Travel."""
@@ -40,6 +46,7 @@ class ElectionRepository(IRepository):
         self.bus = event_bus
         self.eleicao = eleicao
         self.execucao_id = execucao_id or uuid.uuid4().hex[:12]
+        self._salvas = 0
 
         if self.bus is not None:
             self.bus.subscribe(ProjectionCalculatedEvent, self._ao_calcular_projecao)
@@ -50,6 +57,13 @@ class ElectionRepository(IRepository):
             await asyncio.to_thread(self.salvar_projecao, evento.resultado)
         except Exception as e:
             logger.error(f"Erro ao salvar projeção no banco: {e}", exc_info=True)
+            return
+        self._salvas += 1
+        if self._salvas % COMPACTAR_A_CADA == 0:
+            try:
+                await asyncio.to_thread(self.compactar_analises)
+            except Exception as e:
+                logger.error(f"Erro ao compactar análises antigas: {e}", exc_info=True)
 
     async def _ao_normalizar_estratos(self, evento: StrataNormalizedEvent) -> None:
         try:
@@ -147,6 +161,34 @@ class ElectionRepository(IRepository):
                 json.dumps(p.ufs_sem_dados),
                 json.dumps(p.analise, separators=(",", ":")),
             ))
+
+    def compactar_analises(self, manter_recentes: int = ANALISES_RECENTES, a_cada: int = ANALISE_COMPLETA_A_CADA) -> int:
+        """
+        Troca a análise completa dos ciclos antigos desta execução pelo resumo (as mesmas chaves que
+        o histórico já lê). Mantém completos os `manter_recentes` últimos ciclos e um a cada `a_cada`.
+        Idempotente: só toca linhas que ainda têm a análise completa. Retorna as linhas compactadas.
+        """
+        conn = self.db.get_connection()
+        with conn:
+            cur = conn.execute(
+                """
+                UPDATE projecoes_historico SET analise_json = json_object(
+                    'nacional', json(json_extract(analise_json, '$.nacional')),
+                    'faltam', json(json_extract(analise_json, '$.faltam')),
+                    'prob_top2', json(json_extract(analise_json, '$.prob_top2')),
+                    'aguardando', json(json_extract(analise_json, '$.aguardando')),
+                    'crescimento_nacional', json(json_extract(analise_json, '$.crescimento_nacional')),
+                    'versoes_resumo', json(json_extract(analise_json, '$.versoes_resumo'))
+                )
+                WHERE execucao_id = ?
+                  AND id < COALESCE((SELECT id FROM projecoes_historico WHERE execucao_id = ?
+                                     ORDER BY id DESC LIMIT 1 OFFSET ?), 0)
+                  AND ciclo_id % ? != 0
+                  AND json_type(analise_json, '$.estratos') IS NOT NULL
+                """,
+                (self.execucao_id, self.execucao_id, max(0, manter_recentes - 1), a_cada),
+            )
+        return cur.rowcount
 
     def obter_historico_projecoes(self, limite: int = 100) -> List[ResultadoProjecao]:
         """Recupera as últimas projeções calculadas."""

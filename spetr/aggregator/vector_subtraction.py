@@ -51,6 +51,10 @@ class VectorAggregator:
         self._rejeicoes_seguidas: Dict[str, int] = {}
         # Após N lotes inconsistentes seguidos, aceita truncado para a UF não ficar congelada
         self.max_rejeicoes_seguidas = 3
+        # Arquivo de cidade em apuração mais antigo que o da UF por mais que isso = lote defasado
+        self.tolerancia_defasagem_s = 90.0
+        self.defasagens_detectadas = 0
+        self._defasagens_seguidas: Dict[str, int] = {}
 
         if self.bus is not None:
             self.bus.subscribe(RawBatchReceivedEvent, self.ao_receber_lote_bruto)
@@ -61,6 +65,40 @@ class VectorAggregator:
     def configurar_subestratos(self, subestratos: Dict[str, Dict[str, Any]]) -> None:
         """{uf: {"grupos": {chave: [cod_mun, ...]}, "resto": chave_do_resto}}."""
         self.subestratos = subestratos
+
+    @staticmethod
+    def _instante_geracao(parsed: Dict[str, Any]) -> Optional[datetime.datetime]:
+        """Instante de geração do arquivo (campos `dg` + `hg` do TSE), ou None se ausente/ilegível."""
+        try:
+            return datetime.datetime.strptime(parsed.get("timestamp_tse", ""), "%d/%m/%Y %H:%M:%S")
+        except (ValueError, TypeError):
+            return None
+
+    def _defasagem_cidades(self, dados_uf: Dict[str, Any], cidades_lote: List[str],
+                           muns_lote: Dict[str, Dict[str, Any]], uf: str) -> Optional[str]:
+        """
+        Descreve a defasagem quando o arquivo da UF é bem mais novo que o de uma cidade ainda em
+        apuração (o avanço da cidade seria atribuído ao Interior sem a subtração ficar negativa).
+        Cidades com 100% das seções não mudam mais, então a data antiga delas é normal.
+        """
+        t_uf = self._instante_geracao(dados_uf)
+        if t_uf is None:
+            return None
+        piores = []
+        for cod in cidades_lote:
+            d = muns_lote[f"{uf}_{cod}"]
+            if d["secoes_total"] > 0 and d["secoes_apuradas"] >= d["secoes_total"]:
+                continue
+            t_mun = self._instante_geracao(d)
+            if t_mun is None:
+                continue
+            atraso = (t_uf - t_mun).total_seconds()
+            if atraso > self.tolerancia_defasagem_s:
+                piores.append((atraso, cod))
+        if not piores:
+            return None
+        atraso, cod = max(piores)
+        return f"cidade {cod} {atraso:.0f}s mais antiga que a UF ({len(piores)} cidade(s))"
 
     @staticmethod
     def id_subestrato(uf: str, chave: str) -> str:
@@ -164,6 +202,19 @@ class VectorAggregator:
                 continue
 
             cidades_lote = [c for c in codigos_cidades if f"{uf}_{c}" in muns_lote]
+
+            defasagem = self._defasagem_cidades(dados_uf, cidades_lote, muns_lote, uf)
+            if defasagem:
+                self.defasagens_detectadas += 1
+                seguidas = self._defasagens_seguidas.get(uf, 0) + 1
+                self._defasagens_seguidas[uf] = seguidas
+                if uf in self._snapshots_por_uf and seguidas < self.max_rejeicoes_seguidas:
+                    logger.warning(f"{uf}: lote defasado ({defasagem}); mantendo o último cálculo consistente.")
+                    continue
+                logger.warning(f"{uf}: lote defasado ({defasagem}) aceito após {seguidas} ciclo(s) seguidos.")
+            else:
+                self._defasagens_seguidas[uf] = 0
+
             novos: Dict[str, SnapshotParcial] = {}
 
             campos = ("secoes_total", "secoes_apuradas", "eleitores", "comparecimento",

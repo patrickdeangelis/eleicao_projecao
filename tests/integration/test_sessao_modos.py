@@ -53,7 +53,7 @@ async def test_opcoes_invalidas_nao_iniciam_sessao(tmp_path):
     for modo, opcoes in [
         ("real", {"ano": "20x6"}),
         ("real", {"turno": 3}),
-        ("real", {"ano": "2022", "formato": "r"}),  # formato 'r' exige o código da eleição
+        ("real", {"ano": "2024", "formato": "r"}),  # formato 'r' exige o código da eleição
         ("real", {"tse_url": "ftp://x"}),
         ("simulado", {"cenario": "3t"}),
         ("simulado", {"inicio": 150}),
@@ -62,6 +62,16 @@ async def test_opcoes_invalidas_nao_iniciam_sessao(tmp_path):
         with pytest.raises(ErroSessao):
             await sessao.iniciar(modo, opcoes)
         assert not sessao.ativa
+
+
+@pytest.mark.asyncio
+async def test_2022_sem_replay_preparado_nao_inicia_sessao(tmp_path, monkeypatch):
+    # 2022 usa o replay local dos boletins; sem ele a sessão não pode iniciar (independe da máquina)
+    monkeypatch.setattr("spetr.services.sessao.listar_replays", lambda: {})
+    sessao = SessaoSPETR(EventBus(), db_path=str(tmp_path / "s.sqlite"))
+    with pytest.raises(ErroSessao):
+        await sessao.iniciar("real", {"ano": "2022", "turno": 1})
+    assert not sessao.ativa
 
 
 @pytest.mark.asyncio

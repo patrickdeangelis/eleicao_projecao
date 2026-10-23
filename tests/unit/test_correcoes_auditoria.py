@@ -4,6 +4,7 @@ URLs 2026, regra de maioria absoluta, calibração da incerteza, UFs sem dados,
 consistência do Interior, cliente HTTP/pacing, JWS e persistência por execução.
 """
 import base64
+import dataclasses
 import json
 import os
 import sqlite3
@@ -412,3 +413,33 @@ async def test_erro_inesperado_em_uma_url_vira_falha_e_nao_excecao():
     cliente._client = httpx.AsyncClient(transport=httpx.MockTransport(responder))
     res = await cliente.fetch_json("http://x/a.json")
     assert res.falhou and res.payload is None
+
+
+def test_compactacao_mantem_recentes_e_resumo_dos_antigos():
+    eng = MonteCarloProjectionEngine(num_simulacoes=500, seed=6)
+    base = eng.calcular(_snapshots(["SP"], 0.5, {"13": 0.5, "22": 0.5}))
+    assert "estratos" in base.analise
+
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = ElectionRepository(SQLiteDatabase(os.path.join(tmp, "c.sqlite")), eleicao="x", execucao_id="a")
+        outra = ElectionRepository(repo.db, eleicao="x", execucao_id="b")
+        for ciclo in range(1, 31):
+            r = dataclasses.replace(base, ciclo_id=ciclo)
+            repo.salvar_projecao(r)
+            outra.salvar_projecao(r)
+
+        n = repo.compactar_analises(manter_recentes=5, a_cada=10)
+        assert n > 0
+        assert repo.compactar_analises(manter_recentes=5, a_cada=10) == 0  # idempotente
+
+        conn = repo.db.get_connection()
+        completos = {c for (c,) in conn.execute(
+            "SELECT ciclo_id FROM projecoes_historico WHERE execucao_id='a' AND json_type(analise_json,'$.estratos') IS NOT NULL")}
+        assert completos == {10, 20, 30, 26, 27, 28, 29}
+        # outra execução não é tocada
+        assert conn.execute(
+            "SELECT COUNT(*) FROM projecoes_historico WHERE execucao_id='b' AND json_type(analise_json,'$.estratos') IS NOT NULL"
+        ).fetchone()[0] == 30
+        # histórico (resumo) continua igual e o ciclo compactado ainda carrega
+        hist = repo.obter_historico_projecoes()
+        assert len(hist) == 30 and hist[0].analise["nacional"] == base.analise["nacional"]

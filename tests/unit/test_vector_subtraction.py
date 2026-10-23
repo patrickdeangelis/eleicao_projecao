@@ -90,3 +90,60 @@ def test_subtracao_vetorial_caso_paraiba():
     assert pct_lula_cg < 0.50  # Bolsonaro venceu em Campina Grande
     assert pct_lula_jp > 0.53  # Lula venceu em João Pessoa
     assert pct_lula_interior > 0.70  # Lula venceu massivamente no Sertão/Interior
+
+
+def _arq(secoes, apuradas, votos, hg):
+    return {
+        "dg": "29/09/2026", "hg": hg,
+        "s": str(secoes), "st": str(apuradas), "e": "1000", "c": "800", "a": "200",
+        "vvc": str(sum(votos)), "vb": "0", "vn": "0",
+        "cand": [{"n": "13", "vap": str(votos[0])}, {"n": "22", "vap": str(votos[1])}],
+    }
+
+
+def test_cidade_defasada_em_relacao_a_uf_nao_infla_o_interior():
+    ag = VectorAggregator(cidades_100k_map={"PB": ["1"]})
+    ok = ag.processar_lote_bruto({
+        "UF_PB": _arq(100, 50, [500, 300], "20:00:00"),
+        "MUN_PB_1": _arq(40, 20, [200, 100], "20:00:00"),
+    })
+    assert ok["PB_INTERIOR"].votos_candidatos["13"] == 300
+
+    # UF avançou (20:05), mas o arquivo da cidade ainda é o de 20:00: o avanço dela cairia no Interior
+    lote = ag.processar_lote_bruto({
+        "UF_PB": _arq(100, 70, [800, 400], "20:05:00"),
+        "MUN_PB_1": _arq(40, 20, [200, 100], "20:00:00"),
+    })
+    assert lote["PB_INTERIOR"].votos_candidatos["13"] == 300  # manteve o último cálculo consistente
+    assert ag.defasagens_detectadas == 1
+
+    # Cidade em dia: o lote é aceito
+    lote = ag.processar_lote_bruto({
+        "UF_PB": _arq(100, 70, [800, 400], "20:05:00"),
+        "MUN_PB_1": _arq(40, 30, [350, 150], "20:05:00"),
+    })
+    assert lote["PB_INTERIOR"].votos_candidatos["13"] == 450
+
+
+def test_cidade_concluida_com_arquivo_antigo_nao_e_defasagem():
+    ag = VectorAggregator(cidades_100k_map={"PB": ["1"]})
+    lote = ag.processar_lote_bruto({
+        "UF_PB": _arq(100, 70, [800, 400], "20:30:00"),
+        "MUN_PB_1": _arq(40, 40, [350, 150], "19:00:00"),
+    })
+    assert ag.defasagens_detectadas == 0
+    assert lote["PB_INTERIOR"].votos_candidatos["13"] == 450
+
+
+def test_defasagem_persistente_e_aceita_para_a_uf_nao_congelar():
+    ag = VectorAggregator(cidades_100k_map={"PB": ["1"]})
+    ag.processar_lote_bruto({
+        "UF_PB": _arq(100, 50, [500, 300], "20:00:00"),
+        "MUN_PB_1": _arq(40, 20, [200, 100], "20:00:00"),
+    })
+    for _ in range(ag.max_rejeicoes_seguidas):
+        lote = ag.processar_lote_bruto({
+            "UF_PB": _arq(100, 70, [800, 400], "20:05:00"),
+            "MUN_PB_1": _arq(40, 20, [200, 100], "20:00:00"),
+        })
+    assert lote["PB_INTERIOR"].votos_candidatos["13"] == 600
