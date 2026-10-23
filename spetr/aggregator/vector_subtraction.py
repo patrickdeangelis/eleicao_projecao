@@ -323,7 +323,9 @@ class VectorAggregator:
         cidades_grupos: Dict[str, List[str]] = cfg.get("cidades", {})
         if any(f"{uf}_{c}" not in muns_lote for cods in grupos.values() for c in cods):
             return
-        if any(f"{uf}_{c}" not in muns_lote for cods in cidades_grupos.values() for c in cods):
+        # Com grupos listados (ex.: MG Norte), as cidades de cada grupo precisam estar todas no lote: o resto
+        # sai da subtração. Sem grupos, as cidades presentes são as mesmas que saíram do Interior da UF.
+        if grupos and any(f"{uf}_{c}" not in muns_lote for cods in cidades_grupos.values() for c in cods):
             return
         campos = ("secoes_total", "secoes_apuradas", "eleitores", "comparecimento",
                   "abstencao", "votos_validos", "votos_brancos", "votos_nulos", "votos_anulados")
@@ -361,7 +363,9 @@ class VectorAggregator:
             soma = {c: 0 for c in campos}
             cands = {}
             for cod in cods:
-                d = muns_lote[f"{uf}_{cod}"]
+                d = muns_lote.get(f"{uf}_{cod}")
+                if d is None:  # cidade ainda sem arquivo: está no Interior, como na versão normal
+                    continue
                 for c in campos:
                     soma[c] += d.get(c, 0)
                 for n, v in d["candidatos_votos"].items():

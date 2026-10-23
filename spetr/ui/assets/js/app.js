@@ -13,10 +13,14 @@ const state = {
   aba: 'geral',
   modoMapa: 'lider',
   modoCorrida: 'votos',
+  familiaModelos: 'todos', // família de modelos mostrada na aba Modelos
+  coletaEncerrada: false, // apuração em 100% e coleta parada
+  ufSubestratos: null,    // UF mostrada na aba Subestratos
   versaoCrescimento: 'subestratificado',  // estratificação usada na razão de crescimento (aba Modelos e mapa)
   ufSelecionada: null,
   ordemUf: { chave: 'restantes', desc: true },
-  slots: {},              // número do candidato -> slot de cor (fixo para a entidade)
+  slots: {},              // número do candidato -> slot de cor (pelo partido; PL azul, PT vermelho)
+  assinaturaCores: null,  // candidatos/partidos para os quais os slots foram calculados
   marcados: null,         // Set de números exibidos nos gráficos (null = ainda não definido)
   candidatos: {},         // número -> {nome, partido}
   chave: 'spetr',         // prefixo de armazenamento por eleição
@@ -72,7 +76,7 @@ const ORDEM_TIPO = { CAPITAL: 0, GRANDE_CIDADE: 1, INTERIOR: 2, SUBESTRATO: 3, S
 const GRAFICOS = ['g-corrida', 'g-intervalos', 'g-projecao', 'g-prob', 'g-mapa', 'g-uf-barras', 'g-dist', 'g-margem',
   'g-restantes', 'g-apurado', 'g-ritmo', 'g-apuracao-uf', 'g-regioes', 'g-tipos', 'g-composicao', 'g-exterior',
   'g-sub-intervalos', 'g-sub-uf', 'g-sub-nacional', 'g-cresc', 'g-cresc-dif', 'g-modelos'];
-const ROTULO_VERSAO = { subestratificado: 'subestratificado', normal: 'normal' };
+const ROTULO_VERSAO = { subestratificado: 'Meu Modelo', normal: 'normal' };
 
 // ------------------------------------------------------------------ utilidades
 
@@ -146,17 +150,45 @@ function marcadosEmOrdem() {
   return ordemCandidatos().filter((n) => state.marcados && state.marcados.has(n));
 }
 
-/** Cores seguem a entidade: dadas na primeira aparição (ordem de projeção) e nunca repintadas à vista. */
+// Cores por partido (slots --s1..--s8: 0 azul · 1 laranja · 2 verde-água · 3 amarelo · 4 rosa · 5 verde · 6 roxo · 7 vermelho).
+// PL é sempre azul e PT sempre vermelho (os dois slots ficam reservados a eles); os demais partidos pegam a cor
+// preferida deles se estiver livre e, senão, a primeira cor livre.
+const SLOT_PARTIDO = { PL: 0, PT: 7 };
+const SLOTS_PREFERIDOS = {
+  AVANTE: [1, 3], NOVO: [1, 3, 4], MISSAO: [3, 1], MDB: [5, 2], PV: [5, 2],
+  PSOL: [4, 3], PCDOB: [4], PSTU: [4], PCB: [4], UP: [4], PCO: [4],
+};
+function chavePartido(partido) {
+  return String(partido || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z]/g, '');
+}
+
+/** Cor de cada candidato: determinada pelo partido (e pelo número, para desempatar), estável durante a apuração. */
 function atribuirCores(candidatos) {
-  const usados = new Set(Object.values(state.slots));
-  for (const c of [...candidatos].sort((a, b) => b.perc_projetado - a.perc_projetado)) {
-    if (state.slots[c.numero] !== undefined) continue;
-    let livre = -1;
-    for (let i = 0; i < SLOTS; i++) if (!usados.has(i)) { livre = i; break; }
-    if (livre < 0) break;
-    state.slots[c.numero] = livre;
-    usados.add(livre);
+  // Em conflito (dois partidos com a mesma cor preferida), vence o mais bem colocado na projeção
+  const ranking = [...candidatos].sort((a, b) => (b.perc_projetado || 0) - (a.perc_projetado || 0) || Number(a.numero) - Number(b.numero));
+  const assinatura = `${candidatos.map((c) => `${c.numero}:${c.partido}`).sort().join('|')}#${ranking.slice(0, 6).map((c) => c.numero).join(',')}`;
+  if (state.assinaturaCores === assinatura) return;
+  state.assinaturaCores = assinatura;
+  const slots = {};
+  const ocupados = new Set();
+  for (const c of candidatos) {
+    const fixo = SLOT_PARTIDO[chavePartido(c.partido)];
+    if (fixo !== undefined) { slots[c.numero] = fixo; ocupados.add(fixo); }
   }
+  // 1ª passada: partidos com cor própria; 2ª: os demais ficam com a primeira cor livre
+  for (const passada of [true, false]) {
+    for (const c of ranking) {
+      if (slots[c.numero] !== undefined) continue;
+      const preferidos = SLOTS_PREFERIDOS[chavePartido(c.partido)] || [];
+      if (passada && !preferidos.length) continue;
+      const ordem = passada ? preferidos : [...preferidos, ...Array.from({ length: SLOTS }, (_, i) => i)];
+      const livre = ordem.find((i) => !ocupados.has(i));
+      if (livre === undefined) continue;
+      slots[c.numero] = livre;
+      ocupados.add(livre);
+    }
+  }
+  state.slots = slots;
 }
 
 /** Ao marcar um candidato sem cor, usa um slot livre ou o de um candidato desmarcado (que não aparece). */
@@ -166,7 +198,8 @@ function garantirCor(n) {
   for (let i = 0; i < SLOTS; i++) {
     if (!usados.has(i)) { state.slots[n] = i; return; }
   }
-  const doador = [...ordemCandidatos()].reverse().find((m) => state.slots[m] !== undefined && !state.marcados.has(m));
+  const reservado = (m) => SLOT_PARTIDO[chavePartido((state.candidatos[m] || {}).partido)] !== undefined;
+  const doador = [...ordemCandidatos()].reverse().find((m) => state.slots[m] !== undefined && !state.marcados.has(m) && !reservado(m));
   if (doador) {
     state.slots[n] = state.slots[doador];
     delete state.slots[doador];
@@ -174,7 +207,6 @@ function garantirCor(n) {
 }
 
 function salvarSelecao() {
-  armazenar(`${state.chave}:slots`, state.slots);
   armazenar(`${state.chave}:marcados`, [...(state.marcados || [])]);
 }
 
@@ -203,21 +235,21 @@ function renderCabecalho(info) {
   const selo = document.getElementById('selo-modo');
   if (info.modo) {
     selo.hidden = false;
-    selo.textContent = { simulado: 'SIMULAÇÃO', replay: 'REPLAY' }[info.modo] || 'COLETA REAL';
+    selo.textContent = { replay: 'REPLAY' }[info.modo] || 'COLETA REAL';
     selo.classList.toggle('simulado', info.modo !== 'real');
   }
   const linkSim = document.getElementById('link-simulador');
   if (info.simulador_url) { linkSim.hidden = false; linkSim.href = info.simulador_url; }
+  state.coletaEncerrada = Boolean(info.coleta_encerrada);
   if (info.ultimo_aviso) mostrarAviso(info.ultimo_aviso);
 
   let texto;
-  if (e.simulado) {
+  if (e.replay) {
     const ritmos = { lenta: 'lento', normal: 'normal', rapida: 'rápido' };
-    texto = `${e.replay ? '' : 'Dados fictícios · '}${e.descricao || ''} · ritmo ${ritmos[e.velocidade] || e.velocidade || ''}`;
-    state.chave = `spetr:sim:${e.cenario || ''}`;
+    texto = `${e.descricao || ''} · ritmo ${ritmos[e.velocidade] || e.velocidade || ''}`;
+    state.chave = `spetr:replay:${e.cenario || ''}`;
   } else {
     const partes = [];
-    if (e.mock) partes.push('Teste');
     if (e.ano) partes.push(`Eleições ${e.ano}`);
     partes.push(e.cargo === '1' || !e.cargo ? 'Presidente' : `Cargo ${e.cargo}`);
     if (e.turno) partes.push(`${e.turno}º turno`);
@@ -225,7 +257,8 @@ function renderCabecalho(info) {
     state.chave = `spetr:${e.ambiente || ''}:${e.ano || ''}:${e.codigo || 'auto'}:${e.cargo || ''}:${e.turno || ''}`;
   }
   document.getElementById('info-eleicao').textContent = texto;
-  state.slots = recuperar(`${state.chave}:slots`, {});
+  state.slots = {};
+  state.assinaturaCores = null;
   const salvos = recuperar(`${state.chave}:marcados`, null);
   state.marcados = salvos ? new Set(salvos) : null;
 }
@@ -275,7 +308,7 @@ function renderChamada(d) {
 }
 
 function kpi(rotulo, valor, detalhe, titulo) {
-  return el('div', { classe: 'kpi', title: titulo }, [
+  return el('div', { classe: 'kpi', title: titulo || [rotulo, valor, detalhe].filter(Boolean).join(' · ') }, [
     el('div', { classe: 'kpi-rotulo', texto: rotulo }),
     el('div', { classe: 'kpi-valor', texto: valor }),
     detalhe ? el('div', { classe: 'kpi-detalhe', texto: detalhe }) : null,
@@ -314,7 +347,7 @@ function renderStatus(d) {
   );
   const info = document.getElementById('ultima-atualizacao');
   info.classList.remove('aviso-coleta');
-  info.textContent = `Atualizado às ${d.timestamp.slice(11)} · ciclo ${d.ciclo_id}`;
+  info.textContent = `Atualizado às ${d.timestamp.slice(11)} · ciclo ${d.ciclo_id}${state.coletaEncerrada ? ' · coleta encerrada (100%)' : ''}`;
 }
 
 // -------------------------------------------------------------- lista lateral
@@ -333,6 +366,8 @@ function renderListaCandidatos(d, aguardando) {
     ? 'Cadastrados nos arquivos do TSE, em ordem alfabética.'
     : (dois ? 'Disputa do 2º turno.' : 'Marque para exibir nos gráficos.');
   const top2 = (d.analise && d.analise.prob_top2) || {};
+  const an = d.analise || {};
+  const crescNacional = (an.crescimento_versoes && an.crescimento_versoes[state.versaoCrescimento]) || an.crescimento_nacional;
   const lista = document.getElementById('lista-candidatos');
   lista.textContent = '';
   for (const c of d.candidatos) {
@@ -350,10 +385,13 @@ function renderListaCandidatos(d, aguardando) {
       el('small', { texto: `${c.partido || '—'} · ${c.numero}${c.vice ? ` · vice ${tituloProprio(c.vice)}` : ''}` }),
       probs ? el('small', { classe: 'cand-probs', texto: probs }) : null,
     ]);
+    const crescPct = aguardando ? undefined : (crescNacional || {})[c.numero];
     const nums = el('div', { classe: 'cand-num' }, [
-      el('span', { classe: 'proj', texto: aguardando ? '—' : pct(c.perc_projetado, 1), title: 'Projeção do resultado final' }),
+      el('span', { classe: 'proj', texto: aguardando ? '—' : pct(c.perc_projetado, 1), title: 'Projeção do resultado final (Monte Carlo)' }),
+      aguardando ? null : el('span', { classe: 'cresc', texto: crescPct === undefined ? 'cresc. —' : `cresc. ${pct(crescPct, 1)}`,
+        title: `Projeção pela razão de crescimento (estratificação ${ROTULO_VERSAO[state.versaoCrescimento]}); leitura extra, fora da chamada` }),
       el('span', { classe: 'apur', texto: aguardando ? 'sem votos' : `apurado ${pct(c.perc_apurado, 1)}` }),
-    ]);
+    ].filter(Boolean));
     const entrada = el('input', { type: 'checkbox', 'aria-label': `Exibir ${c.nome} nos gráficos` });
     entrada.checked = marcado;
     entrada.disabled = dois || aguardando;
@@ -1030,12 +1068,13 @@ function cabecalhoTabela(seletor, colunas) {
 function thCandidato(n, sufixo = '') {
   return el('th', { classe: 'num' }, [el('span', { classe: 'chave-tab', estilo: { background: cor(n) } }), nomeCurto(n) + sufixo]);
 }
-const fmtDif = (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${fmt2.format(Math.abs(v))}`;
+const fmtDif = (v) => { const r = Math.round(v * 100) / 100; return `${r > 0 ? '+' : r < 0 ? '−' : ''}${fmt2.format(Math.abs(r))}`; };
 
 function renderSubestratos(d) {
   const sub = (d.analise || {}).subestratificacao;
   const ids = ['g-sub-intervalos', 'g-sub-uf', 'g-sub-nacional'];
   const controle = document.getElementById('controle-versao');
+  document.getElementById('sub-uf').hidden = !sub;
   if (!sub) {
     controle.hidden = true;
     document.getElementById('sub-kpis').textContent = '';
@@ -1050,83 +1089,152 @@ function renderSubestratos(d) {
     b.classList.toggle('ativo', ativo);
     b.setAttribute('aria-pressed', String(ativo));
   }
-  const uf = sub.ufs[0];
-  const nomeUf = NOMES_UF[uf] || uf;
-  document.getElementById('sub-titulo').textContent = `${nomeUf}: normal × subestratificado`;
-  document.getElementById('sub-hist-titulo').textContent = `${nomeUf} ao longo da apuração`;
   const versoes = ['subestratificado', 'normal'];
   const v = sub.versoes;
   const nums = candidatosDosGraficos().slice(0, 4);
+  const top = nums.slice(0, 2);
 
-  // KPIs: líder em cada versão e status nacional de cada versão
+  // Seletor: Brasil (cálculo nacional) ou uma UF, com o efeito da subestratificação no 1º candidato
+  const efeitoUf = (u) => {
+    const n = nums[0];
+    const x = (((v.subestratificado.ufs || {})[u] || {})[n] || {}).pct;
+    const y = (((v.normal.ufs || {})[u] || {})[n] || {}).pct;
+    return x === undefined || y === undefined ? '' : ` · ${fmtDif(x - y)} p.p.`;
+  };
+  const efeitoBr = nums.length ? (() => {
+    const x = (v.subestratificado.nacional[nums[0]] || {}).pct;
+    const y = (v.normal.nacional[nums[0]] || {}).pct;
+    return x === undefined || y === undefined ? '' : ` · ${fmtDif(x - y)} p.p.`;
+  })() : '';
+  const seletor = document.getElementById('sub-uf');
+  seletor.textContent = '';
+  seletor.appendChild(el('option', { value: 'BR', texto: `Brasil (nacional)${efeitoBr}` }));
+  for (const u of [...sub.ufs].sort()) seletor.appendChild(el('option', { value: u, texto: `${NOMES_UF[u] || u}${efeitoUf(u)}` }));
+  const escolhida = state.ufSubestratos === 'BR' || (state.ufSubestratos && sub.ufs.includes(state.ufSubestratos)) ? state.ufSubestratos : 'BR';
+  seletor.value = escolhida;
+  seletor.title = nums.length ? `Efeito do Meu Modelo em ${nomeCurto(nums[0])}, Meu Modelo − normal` : '';
+  const nacional = escolhida === 'BR';
+  const uf = escolhida;
+  const nomeUf = nacional ? 'Brasil' : (NOMES_UF[uf] || uf);
+  const dadosEscopo = (ver) => (nacional ? v[ver].nacional : ((v[ver].ufs || {})[uf] || {}));
+  document.getElementById('sub-titulo').textContent = `${nomeUf}: normal × Meu Modelo`;
+  document.getElementById('sub-hist-titulo').textContent = nacional
+    ? 'Diferença nacional ao longo da apuração' : `${nomeUf} ao longo da apuração`;
+
+  // KPIs: líder em cada versão e efeito no resultado
   const mini = (r, val, det) => el('div', { classe: 'mini-kpi' }, [
     el('div', { classe: 'kpi-rotulo', texto: r }), el('div', { classe: 'kpi-valor', texto: val }),
     det ? el('div', { classe: 'kpi-detalhe', texto: det }) : null]);
   const caixa = document.getElementById('sub-kpis');
   caixa.textContent = '';
   for (const ver of versoes) {
-    const dados = (v[ver].ufs || {})[uf] || {};
-    const lider = Object.entries(dados).sort((a, b) => b[1].pct - a[1].pct)[0];
+    const lider = Object.entries(dadosEscopo(ver)).sort((a, b) => b[1].pct - a[1].pct)[0];
+    const chance = lider ? (nacional ? `chance de vencer ${prob(lider[1].prob_vitoria)}` : `chance de liderar ${prob(lider[1].prob_lider)}`) : '';
     caixa.append(mini(
       `${nomeUf} · ${ROTULO_VERSAO[ver]}${ver === sub.versao_principal ? ' (principal)' : ''}`,
-      lider ? `${nomeCurto(lider[0])} ${pct(lider[1].pct, 1)}` : '—',
-      lider ? `chance de liderar ${prob(lider[1].prob_lider)}` : '',
-    ));
+      lider ? `${nomeCurto(lider[0])} ${pct(lider[1].pct, 1)}` : '—', chance));
   }
   if (nums.length) {
     const n = nums[0];
-    const dif = (v.subestratificado.nacional[n] || {}).pct - (v.normal.nacional[n] || {}).pct;
-    caixa.append(mini(`Efeito no Brasil (${nomeCurto(n)})`, `${fmtDif(dif)} p.p.`, 'subestratificado − normal'));
+    const x = (dadosEscopo('subestratificado')[n] || {}).pct;
+    const y = (dadosEscopo('normal')[n] || {}).pct;
+    caixa.append(mini(`Efeito em ${nomeCurto(n)}${nacional ? ' no Brasil' : ''}`,
+      x === undefined || y === undefined ? '—' : `${fmtDif(x - y)} p.p.`, 'Meu Modelo − normal'));
   }
 
   // Intervalos de cada candidato nas duas versões
   G.intervalos(document.getElementById('g-sub-intervalos'), {
     vazio: SEM_SELECAO, fmt: (x) => pct(x, 1), refs: [{ x: 50, rotulo: '50%' }],
-    itens: nums.flatMap((n) => versoes.map((ver) => {
-      const c = ((v[ver].ufs || {})[uf] || {})[n];
+    itens: top.flatMap((n) => versoes.map((ver) => {
+      const c = dadosEscopo(ver)[n];
       return c ? { rotulo: `${nomeCurto(n)} · ${ROTULO_VERSAO[ver]}`, cor: cor(n), lo: c.ic[0], hi: c.ic[1], media: c.pct } : null;
     }).filter(Boolean)),
   });
 
-  // Tabela: o interior em cada versão
-  const top = nums.slice(0, 2);
-  const corpo = cabecalhoTabela('#tabela-sub', [
-    el('th', { texto: 'Parte' }), el('th', { texto: 'Versão' }), el('th', { texto: '% apurado' }),
-    ...top.map((n) => thCandidato(n, ' apurado')), ...top.map((n) => thCandidato(n, ' cresc.')),
-  ]);
-  for (const ver of versoes) {
-    for (const e of v[ver].estratos.filter((x) => x.tipo === 'INTERIOR' || x.tipo === 'SUBESTRATO' || x.tipo === 'SUBESTRATO_CIDADES')) {
-      const apur = e.secoes_apuradas / Math.max(1, e.secoes_total) * 100;
-      corpo.appendChild(el('tr', { classe: ver === sub.versao_principal ? 'destaque' : '' }, [
-        el('td', { texto: e.nome }), el('td', { texto: ROTULO_VERSAO[ver] }),
-        el('td', {}, [el('span', { classe: 'mini-medidor' }, [el('span', { estilo: { width: `${apur}%` } })]), pct(apur, 1)]),
-        ...top.map((n) => el('td', { classe: 'num', texto: e.secoes_apuradas ? pct(e.pct_apurado[n], 1) : '—' })),
-        ...top.map((n) => el('td', { classe: 'num', texto: e.crescimento ? pct(e.crescimento[n], 1) : '—' })),
+  // Tabela: as UFs lado a lado (Brasil) ou os estratos da UF nas duas versões
+  if (nacional) {
+    const corpo = cabecalhoTabela('#tabela-sub', [
+      el('th', { texto: 'UF' }),
+      ...top.flatMap((n) => [thCandidato(n, ' norm.'), thCandidato(n, ' sub.')]),
+      el('th', { classe: 'num', texto: 'Diferença' }),
+    ]);
+    const n0 = top[0];
+    const linhas = sub.ufs.map((u) => {
+      const a = ((v.subestratificado.ufs || {})[u] || {});
+      const b = ((v.normal.ufs || {})[u] || {});
+      return { u, a, b, dif: n0 && a[n0] && b[n0] ? a[n0].pct - b[n0].pct : 0 };
+    }).sort((x, y) => Math.abs(y.dif) - Math.abs(x.dif));
+    for (const l of linhas) {
+      corpo.appendChild(el('tr', {}, [
+        el('td', { texto: l.u }),
+        ...top.flatMap((n) => [el('td', { classe: 'num', texto: l.b[n] ? pct(l.b[n].pct, 1) : '—' }),
+          el('td', { classe: 'num', texto: l.a[n] ? pct(l.a[n].pct, 1) : '—' })]),
+        el('td', { classe: 'num', texto: `${fmtDif(l.dif)} p.p.`, title: n0 ? `${nome(n0)}: Meu Modelo − normal` : '' }),
       ]));
     }
+  } else {
+    const corpo = cabecalhoTabela('#tabela-sub', [
+      el('th', { texto: 'Parte' }), el('th', { texto: 'Versão' }), el('th', { texto: '% apurado' }),
+      ...top.map((n) => thCandidato(n, ' apurado')), ...top.map((n) => thCandidato(n, ' cresc.')),
+    ]);
+    for (const ver of versoes) {
+      const estratosUf = v[ver].estratos.filter((x) => x.id.split('_')[0] === uf)
+        .sort((x, y) => (ORDEM_TIPO[x.tipo] ?? 9) - (ORDEM_TIPO[y.tipo] ?? 9));
+      for (const e of estratosUf) {
+        const apur = e.secoes_apuradas / Math.max(1, e.secoes_total) * 100;
+        corpo.appendChild(el('tr', { classe: ver === sub.versao_principal ? 'destaque' : '' }, [
+          el('td', { texto: e.nome }), el('td', { texto: ROTULO_VERSAO[ver] }),
+          el('td', {}, [el('span', { classe: 'mini-medidor' }, [el('span', { estilo: { width: `${apur}%` } })]), pct(apur, 1)]),
+          ...top.map((n) => el('td', { classe: 'num', texto: e.secoes_apuradas ? pct(e.pct_apurado[n], 1) : '—' })),
+          ...top.map((n) => el('td', { classe: 'num', texto: e.crescimento ? pct(e.crescimento[n], 1) : '—' })),
+        ]));
+      }
+    }
   }
-  document.getElementById('sub-explicacao').textContent =
-    `A versão normal projeta cada cidade grande de ${nomeUf} e o interior inteiro. A versão subestratificada divide o estado ` +
-    'em regiões e projeta, em cada uma, as cidades grandes e o interior com a própria tendência, o que corrige o viés quando ' +
-    'uma região é apurada mais devagar. ' +
-    'A versão principal define os números do painel e a chamada da disputa.';
+  document.getElementById('sub-explicacao').textContent = nacional
+    ? 'Cálculo nacional pelas duas metodologias. Normal: cada cidade grande é um estrato, mais o interior de cada UF. ' +
+      'Meu Modelo: as cidades grandes de cada UF são agrupadas e projetadas junto com o interior, cada grupo com a própria ' +
+      'tendência (Minas Gerais, separada em Norte e Sul). A tabela ordena as UFs pelo efeito no 1º candidato. ' +
+      'A versão principal define os números do painel e a chamada da disputa.'
+    : `A versão normal projeta cada cidade grande de ${nomeUf} e o interior inteiro. O Meu Modelo agrupa as cidades ` +
+      'grandes e projeta o grupo e o interior, cada um com a própria tendência (em Minas Gerais, separados em Norte e Sul). ' +
+      'O cálculo nacional usa a versão escolhida em todas as UFs. A versão principal define os números do painel e a chamada da disputa.';
 
-  // Histórico: UF e Brasil nas duas versões
+  // Histórico: o escopo escolhido nas duas versões e o Brasil
+  const resumoDe = (r, ver) => r.analise && r.analise.versoes_resumo && r.analise.versoes_resumo[ver];
   const serieVersao = (n, ver, onde) => {
     const s = serieHistorico(n, (r) => {
-      const vr = r.analise && r.analise.versoes_resumo && r.analise.versoes_resumo[ver];
+      const vr = resumoDe(r, ver);
       const val = vr && vr[onde] ? vr[onde][n] : undefined;
       return val === undefined ? null : { x: valorX(r), y: val };
     });
     return { ...s, id: `${n}-${ver}`, rotulo: `${s.rotulo} · ${ROTULO_VERSAO[ver]}`,
-      rotuloCurto: `${s.rotuloCurto} ${ver === 'normal' ? 'norm.' : 'sub.'}`, espessura: ver === 'normal' ? 1 : 2.5 };
+      rotuloCurto: `${s.rotuloCurto} ${ver === 'normal' ? 'norm.' : 'MM'}`, espessura: ver === 'normal' ? 1 : 2.5 };
   };
-  for (const [id, onde] of [['g-sub-uf', uf], ['g-sub-nacional', 'nacional']]) {
-    G.linhas(document.getElementById(id), {
+  const serieDif = (n) => {
+    const s = serieHistorico(n, (r) => {
+      const a = resumoDe(r, 'subestratificado');
+      const b = resumoDe(r, 'normal');
+      return a && b && a.nacional && b.nacional && a.nacional[n] !== undefined && b.nacional[n] !== undefined
+        ? { x: valorX(r), y: a.nacional[n] - b.nacional[n] } : null;
+    });
+    return { ...s, id: `${n}-dif`, espessura: 2 };
+  };
+  if (nacional) {
+    G.linhas(document.getElementById('g-sub-uf'), {
+      vazio: SEM_SELECAO, ...cfgEixoX(), yFmt: (x) => `${fmtDif(x)} p.p.`, refs: [{ y: 0, rotulo: 'iguais' }],
+      series: nums.slice(0, 2).map(serieDif),
+    });
+  } else {
+    G.linhas(document.getElementById('g-sub-uf'), {
       vazio: SEM_SELECAO, ...cfgEixoX(), yFmt: fmtPctEixo, refs: [{ y: 50, rotulo: '50%' }],
-      series: nums.slice(0, 2).flatMap((n) => versoes.map((ver) => serieVersao(n, ver, onde))),
+      series: nums.slice(0, 2).flatMap((n) => versoes.map((ver) => serieVersao(n, ver, uf))),
     });
   }
+  G.linhas(document.getElementById('g-sub-nacional'), {
+    vazio: SEM_SELECAO, ...cfgEixoX(), yFmt: fmtPctEixo, refs: [{ y: 50, rotulo: '50%' }],
+    series: nums.slice(0, 2).flatMap((n) => versoes.map((ver) => serieVersao(n, ver, 'nacional'))),
+  });
 }
 
 async function definirVersao(versao) {
@@ -1191,9 +1299,9 @@ function renderCrescimento(d) {
   }
 
   const corpoEst = cabecalhoTabela('#tabela-cresc-estratos', [
-    el('th', { texto: 'Estrato' }), el('th', { classe: 'num', texto: 'Eleitores a computar' }),
+    el('th', { texto: 'Estrato' }), el('th', { classe: 'num', texto: 'Faltam', title: 'Eleitores a computar' }),
     ...top.flatMap((n) => [thCandidato(n, ' apur.'), thCandidato(n, ' cresc.')]),
-    el('th', { texto: 'Base' }),
+    el('th', { texto: 'Base', title: 'Recente: seções dos últimos 15% do estrato · acumulada: desde o início' }),
   ]);
   const nomes = Object.fromEntries((a.estratos || []).map((e) => [e.id, e.nome]));
   const linhasEst = Object.entries(cresc.estratos).sort((x, y) => y[1].eleitores_faltantes - x[1].eleitores_faltantes);
@@ -1201,20 +1309,35 @@ function renderCrescimento(d) {
     corpoEst.appendChild(el('tr', {}, [
       el('td', { texto: nomes[id] || id }), el('td', { classe: 'num', texto: compacto(e.eleitores_faltantes) }),
       ...top.flatMap((n) => [el('td', { classe: 'num', texto: pct(e.pct_apurado[n], 1) }), el('td', { classe: 'num', texto: pct(e.pct[n], 1) })]),
-      el('td', { texto: e.base === 'recente' ? `recente (${fmtInt.format(e.secoes_janela)} seções)` : 'acumulada',
-        title: 'Recente: seções apuradas nos últimos 15% do estrato · acumulada: desde o início' }),
+      el('td', { texto: e.base === 'recente' ? `rec. ${fmtInt.format(e.secoes_janela)}` : 'acum.',
+        title: e.base === 'recente' ? `Janela recente: ${fmtInt.format(e.secoes_janela)} seções (últimos 15% do estrato)` : 'Razão acumulada desde o início' }),
     ]));
   }
 }
 
 // ------------------------------------------------------------------ modelos lado a lado
 
+// Famílias: mc = Monte Carlo · est = estimadores · ref = eleição de referência · cons = consenso e limites.
+// O Meu Modelo aparece em todas, como referência para comparar.
+const FAMILIAS = ['todos', 'mc', 'est', 'ref', 'cons'];
 const MODELOS = [
-  { id: 'parcial', rotulo: 'Parcial apurada', nota: 'Só o que já foi contado', token: '--neutro' },
-  { id: 'mc-normal', rotulo: 'Monte Carlo normal', nota: 'Cidades grandes e interior inteiro', token: '--s2' },
-  { id: 'mc-sub', rotulo: 'Monte Carlo subestratificado', nota: 'Seu modelo: regiões separadas em MG', token: '--s1', principal: true },
-  { id: 'cresc', rotulo: 'Razão de crescimento', nota: '', token: '--s3' },
+  { id: 'mc-sub', rotulo: 'Meu Modelo', nota: 'Monte Carlo subestratificado: cidades e interior por região', token: '--s1', principal: true, familias: ['mc', 'est', 'ref', 'cons'], espessura: 3 },
+  { id: 'mc-normal', rotulo: 'Monte Carlo normal', nota: 'Cidades grandes e interior inteiro', token: '--s2', familias: ['mc'] },
+  { id: 'mc-regional', rotulo: 'Meu Modelo + choques regionais', nota: 'Choque de incerteza por macrorregião, não por UF', token: '--s6', familias: ['mc'] },
+  { id: 'bayes-puro', rotulo: 'Bayes puro', nota: 'Dirichlet sem choques nem limite de concentração', token: '--s7', familias: ['mc'] },
+  { id: 'parcial', rotulo: 'Parcial apurada', nota: 'Só o que já foi contado', token: '--neutro', familias: ['est'], espessura: 1 },
+  { id: 'direto', rotulo: 'Estimador direto', nota: '% atual de cada estrato × votos que faltam', token: '--s4', familias: ['est'] },
+  { id: 'cresc', rotulo: 'Razão de crescimento', nota: 'Janela dos últimos 15%', token: '--s3', familias: ['est'] },
+  { id: 'cresc-curto', rotulo: 'Crescimento curto', nota: 'Janela dos últimos 5%', token: '--s8', familias: ['est'], espessura: 1 },
+  { id: 'cresc-longo', rotulo: 'Crescimento longo', nota: 'Janela dos últimos 30%', token: '--s2', familias: ['est'], espessura: 1 },
+  { id: 'tendencia', rotulo: 'Tendência temporal', nota: 'Reta nos últimos blocos de votos de cada estrato', token: '--s5', familias: ['est'], espessura: 1 },
+  { id: 'hierarquico', rotulo: 'Bayes hierárquico', nota: 'Encolhimento empírico para a média da UF', token: '--s7', familias: ['est'], espessura: 1 },
+  { id: 'swing', rotulo: 'Swing sobre a referência', nota: 'Compara com uma eleição anterior', token: '--s5', familias: ['ref'] },
+  { id: 'consenso', rotulo: 'Consenso', nota: 'Média dos modelos', token: '--s3', familias: ['cons'] },
+  { id: 'limites', rotulo: 'Limites matemáticos', nota: 'Melhor e pior caso', token: '--neutro', familias: ['cons'], semLinha: true },
 ];
+const ROTULO_FAMILIA = { todos: 'Todos', mc: 'Monte Carlo', est: 'Estimadores', ref: 'Referência', cons: 'Consenso e limites' };
+const rotuloReferencia = (fonte) => { const [ano, t] = String(fonte || '').split('_'); return ano ? `${t ? t[0] + 'º turno ' : ''}${ano}` : ''; };
 const STATUS_TEXTO = {
   MATEMATICAMENTE_ELEITO: 'Matematicamente eleito',
   VITORIA_PROJETADA: 'Vitória projetada',
@@ -1243,35 +1366,42 @@ function crescimentoUfs(a, versao) {
   return m ? m.ufs : {};
 }
 
-function cartaoModelo(m, nums, linhas, rodape, nota) {
+function cartaoModelo(m, nums, linhas, rodape, nota, compacto2) {
   const raiz = el('article', { classe: `cartao-modelo${m.principal ? ' principal' : ''}` }, [
     el('h4', { texto: m.rotulo }), el('span', { classe: 'nota', texto: nota || m.nota, title: nota || m.nota }),
   ]);
   raiz.style.setProperty('--cor-modelo', G.token(m.token));
   for (const n of nums) {
     const l = linhas[n];
-    raiz.appendChild(el('div', { classe: 'linha-cand' }, [
+    const texto = l ? (l.texto !== undefined ? l.texto : pct(l.valor, 1)) : '—';
+    raiz.appendChild(el('div', { classe: 'linha-cand', title: l && l.detalhe ? l.detalhe : '' }, [
       el('span', { classe: 'chave-tab', estilo: { background: cor(n) } }),
       el('span', { texto: nomeCurto(n) }),
-      el('span', { classe: 'valor', texto: l ? pct(l.valor, 1) : '—' }),
-      l && l.detalhe ? el('span', { classe: 'detalhe', texto: l.detalhe }) : null,
+      el('span', { classe: l && l.texto !== undefined ? 'valor faixa' : 'valor', texto }),
+      !compacto2 && l && l.detalhe ? el('span', { classe: 'detalhe', texto: l.detalhe }) : null,
     ].filter(Boolean)));
   }
-  if (rodape) raiz.appendChild(el('div', { classe: 'rodape-cartao', texto: rodape }));
+  if (rodape) raiz.appendChild(el('div', { classe: 'rodape-cartao', texto: rodape, title: rodape }));
   return raiz;
 }
 
 function renderModelos(d) {
   const a = d.analise || {};
-  const nums = candidatosDosGraficos().slice(0, 4);
   const ver = state.versaoCrescimento;
+  const familia = FAMILIAS.includes(state.familiaModelos) ? state.familiaModelos : 'todos';
   for (const b of document.querySelectorAll('[data-cresc-versao]')) {
     const ativo = b.dataset.crescVersao === ver;
     b.classList.toggle('ativo', ativo);
     b.setAttribute('aria-pressed', String(ativo));
   }
+  for (const b of document.querySelectorAll('[data-familia]')) {
+    const ativo = b.dataset.familia === familia;
+    b.classList.toggle('ativo', ativo);
+    b.setAttribute('aria-pressed', String(ativo));
+  }
   const caixa = document.getElementById('cartoes-modelos');
   caixa.textContent = '';
+  const nums = candidatosDosGraficos().slice(0, 4);
   if (!nums.length) {
     G.vazio(document.getElementById('g-modelos'), SEM_SELECAO);
     caixa.appendChild(el('p', { classe: 'nota', texto: SEM_SELECAO }));
@@ -1283,54 +1413,112 @@ function renderModelos(d) {
   };
   const mcSub = resumoMonteCarlo(d, 'subestratificado');
   const refSub = (n) => (mcSub.por[n] || {}).pct;
-  const dif = (n, v) => (refSub(n) === undefined || v === undefined ? '' : `${fmtDif(v - refSub(n))} p.p. vs seu modelo`);
+  const dif = (n, v) => (refSub(n) === undefined || v === undefined ? '' : `${fmtDif(v - refSub(n))} p.p. vs Meu Modelo`);
   const detalheMC = (v) => `IC ${pct(v.ic[0], 1)} a ${pct(v.ic[1], 1)} · chance de vencer ${prob(v.prob_vitoria)}`;
-
-  const porId = {};
-  porId.parcial = Object.fromEntries(d.candidatos.map((c) => [c.numero, { valor: c.perc_apurado, detalhe: `${compacto(c.votos_apurados)} votos` }]));
-  for (const [id, versao] of [['mc-normal', 'normal'], ['mc-sub', 'subestratificado']]) {
-    porId[id] = Object.fromEntries(Object.entries(resumoMonteCarlo(d, versao).por).map(([n, v]) => [n, { valor: v.pct, detalhe: detalheMC(v) }]));
-  }
-  const cresc = modeloCrescimento(a, ver);
-  porId.cresc = cresc ? Object.fromEntries(Object.entries(cresc.nacional).map(([n, v]) => [n, {
-    valor: v, detalhe: cresc.votos_nacionais ? `${compacto(cresc.votos_nacionais[n])} votos projetados` : '',
-  }])) : {};
-
-  const n0 = nums[0];
   const unir = (...partes) => partes.filter(Boolean).join(' · ');
-  const rodapes = {
-    parcial: `Faltam ${pct(100 - d.perc_secoes_apuradas, 1)} das seções`,
-    'mc-normal': unir(textoStatus(resumoMonteCarlo(d, 'normal')), dif(n0, (porId['mc-normal'][n0] || {}).valor)),
-    'mc-sub': textoStatus(mcSub),
-    cresc: cresc ? unir(dif(n0, porId.cresc[n0] && porId.cresc[n0].valor), 'leitura extra, fora da chamada') : 'Aguardando votos apurados',
-  };
-  for (const m of MODELOS) {
-    const nota = m.id === 'cresc' ? `Estratificação ${ver}` : (m.id === 'parcial' ? m.nota : null);
-    caixa.appendChild(cartaoModelo(m, nums, porId[m.id], rodapes[m.id], nota));
+  const n0 = nums[0];
+  const extras = a.modelos || {};
+  const porVersao = (id) => (extras[id] && extras[id][ver]) || null;
+  const FORA = 'leitura extra, fora da chamada';
+  const AGUARDA = 'Aguardando votos apurados';
+
+  const porId = {};   // id -> { linhas: {n: {valor|texto, detalhe}}, rodape, nota }
+  const doPct = (mapa, detalhe) => Object.fromEntries(Object.entries(mapa || {}).map(([n, v]) => [n, { valor: v, detalhe: detalhe ? detalhe(n) : '' }]));
+  const doMC = (por) => Object.fromEntries(Object.entries(por || {}).map(([n, v]) => [n, { valor: v.pct, detalhe: detalheMC(v) }]));
+  const comRodape = (linhas, ...resto) => ({ linhas, rodape: unir(dif(n0, (linhas[n0] || {}).valor), ...resto) });
+
+  porId['mc-sub'] = { linhas: doMC(mcSub.por), rodape: textoStatus(mcSub) };
+  const mcNormal = resumoMonteCarlo(d, 'normal');
+  porId['mc-normal'] = { linhas: doMC(mcNormal.por), rodape: unir(textoStatus(mcNormal), dif(n0, (mcNormal.por[n0] || {}).pct)) };
+  for (const [id, chave] of [['mc-regional', 'mc_regional'], ['bayes-puro', 'bayes_puro']]) {
+    const m = extras[chave];
+    porId[id] = m ? { linhas: doMC(m.nacional), rodape: unir(textoStatus({ status: m.status_call }), dif(n0, (m.nacional[n0] || {}).pct)),
+      nota: `${(MODELOS.find((x) => x.id === id) || {}).nota} · ${ROTULO_VERSAO[m.estratificacao]}` } : { linhas: {}, rodape: AGUARDA };
+  }
+  porId.parcial = { linhas: Object.fromEntries(d.candidatos.map((c) => [c.numero, { valor: c.perc_apurado, detalhe: `${compacto(c.votos_apurados)} votos` }])),
+    rodape: `Faltam ${pct(100 - d.perc_secoes_apuradas, 1)} das seções` };
+  const comVotos = (m) => (m ? doPct(m.nacional, m.votos_nacionais ? (n) => `${compacto(m.votos_nacionais[n])} votos projetados` : null) : {});
+  const cresc = modeloCrescimento(a, ver);
+  porId.cresc = { linhas: comVotos(cresc), nota: `Janela dos últimos 15% · ${ROTULO_VERSAO[ver]}` };
+  porId['cresc-curto'] = { linhas: comVotos(porVersao('crescimento_curto')), nota: `Janela dos últimos 5% · ${ROTULO_VERSAO[ver]}` };
+  porId['cresc-longo'] = { linhas: comVotos(porVersao('crescimento_longo')), nota: `Janela dos últimos 30% · ${ROTULO_VERSAO[ver]}` };
+  const direto = porVersao('estimador_direto');
+  porId.direto = { linhas: comVotos(direto), nota: `% atual de cada estrato × votos que faltam · ${ROTULO_VERSAO[ver]}` };
+  const tend = porVersao('tendencia');
+  porId.tendencia = { linhas: comVotos(tend), nota: `${tend ? `${tend.estratos_com_tendencia} estratos com tendência` : 'Reta nos últimos blocos'} · ${ROTULO_VERSAO[ver]}` };
+  porId.hierarquico = { linhas: comVotos(porVersao('hierarquico')), nota: `Encolhimento empírico para a média da UF · ${ROTULO_VERSAO[ver]}` };
+  for (const id of ['cresc', 'cresc-curto', 'cresc-longo', 'direto', 'tendencia', 'hierarquico']) {
+    porId[id].rodape = Object.keys(porId[id].linhas).length ? unir(dif(n0, (porId[id].linhas[n0] || {}).valor), FORA) : AGUARDA;
+  }
+  const swing = porVersao('swing');
+  porId.swing = swing ? {
+    linhas: doPct(swing.nacional, (n) => (swing.sem_swing && swing.sem_swing[n] !== undefined
+      ? `sem swing ${pct(swing.sem_swing[n], 1)} · swing ${fmtDif(swing.nacional[n] - swing.sem_swing[n])} p.p.` : '')),
+    rodape: unir(dif(n0, (swing.nacional[n0] || {})), `cobre ${pct(swing.cobertura * 100, 0)} dos votos apurados`, FORA),
+    nota: `Referência: ${rotuloReferencia(swing.referencia)} · ${ROTULO_VERSAO[ver]}`,
+  } : { linhas: {}, rodape: 'Sem eleição de referência preparada para este pleito (scripts/preparar_replay.py)' };
+  if (swing) porId.swing.rodape = unir(dif(n0, swing.nacional[n0]), `cobre ${pct(swing.cobertura * 100, 0)} dos votos apurados`, FORA);
+  const cons = porVersao('consenso');
+  porId.consenso = cons ? {
+    linhas: Object.fromEntries(Object.entries(cons.media).map(([n, v]) => [n, { valor: v,
+      detalhe: `mediana ${pct(cons.mediana[n], 1)} · entre ${pct(cons.minimo[n], 1)} e ${pct(cons.maximo[n], 1)}` }])),
+    rodape: unir(dif(n0, cons.media[n0]), `${cons.modelos.length} modelos`, FORA),
+    nota: `Média de ${cons.modelos.length} modelos · ${ROTULO_VERSAO[ver]}`,
+  } : { linhas: {}, rodape: AGUARDA };
+  const lim = extras.limites;
+  porId.limites = lim ? {
+    linhas: Object.fromEntries(Object.entries(lim).map(([n, v]) => [n, { texto: `${pct(v.min, 1)} a ${pct(v.max, 1)}`,
+      detalhe: 'se todo voto que falta fosse contra ou a favor' }])),
+    rodape: 'Faixa extrema: não é uma previsão',
+  } : { linhas: {}, rodape: AGUARDA };
+
+  // Cards da família escolhida (em "Todos", mais compactos: 2 candidatos e detalhe só no tooltip)
+  const visiveis = MODELOS.filter((m) => familia === 'todos' || m.familias.includes(familia));
+  const compactos = visiveis.length > 6;
+  const numsCards = compactos ? nums.slice(0, 2) : nums;
+  for (const m of visiveis) {
+    const info = porId[m.id] || { linhas: {}, rodape: AGUARDA };
+    caixa.appendChild(cartaoModelo(m, numsCards, info.linhas, info.rodape, info.nota || m.nota, compactos));
   }
 
-  // Evolução do primeiro candidato selecionado nos quatro modelos
+  // Evolução do primeiro candidato selecionado nos modelos da família
   document.getElementById('modelos-hist-titulo').textContent = `${nome(n0)}: modelos ao longo da apuração`;
-  const linha = (m, espessura, fn) => {
+  const resumoVersao = (r, v) => r.analise && r.analise.versoes_resumo && r.analise.versoes_resumo[v];
+  const doResumo = (r, id) => {
+    const grupo = r.analise && r.analise.modelos_resumo && r.analise.modelos_resumo[id];
+    const x = grupo && (grupo[ver] || grupo._);
+    return x ? x[n0] : null;
+  };
+  const valorHistorico = {
+    parcial: (r, c) => c.perc_apurado,
+    'mc-normal': (r, c) => { const v = resumoVersao(r, 'normal'); return v ? v.nacional[n0] : c.perc_projetado; },
+    'mc-sub': (r, c) => { const v = resumoVersao(r, 'subestratificado'); return v ? v.nacional[n0] : c.perc_projetado; },
+    'mc-regional': (r) => doResumo(r, 'mc_regional'),
+    'bayes-puro': (r) => doResumo(r, 'bayes_puro'),
+    cresc: (r) => {
+      const an = r.analise || {};
+      const v = an.crescimento_versoes && an.crescimento_versoes[ver];
+      return v ? v[n0] : (an.crescimento_nacional ? an.crescimento_nacional[n0] : null);
+    },
+    'cresc-curto': (r) => doResumo(r, 'crescimento_curto'),
+    'cresc-longo': (r) => doResumo(r, 'crescimento_longo'),
+    direto: (r) => { const v = r.analise && r.analise.direto_versoes && r.analise.direto_versoes[ver]; return v ? v[n0] : null; },
+    tendencia: (r) => doResumo(r, 'tendencia'),
+    hierarquico: (r) => doResumo(r, 'hierarquico'),
+    swing: (r) => { const v = r.analise && r.analise.swing_versoes && r.analise.swing_versoes[ver]; return v ? v[n0] : null; },
+    consenso: (r) => doResumo(r, 'consenso'),
+  };
+  const linha = (m) => {
+    const fn = valorHistorico[m.id];
     const s = serieHistorico(n0, (r, c) => {
       const y = fn(r, c);
       return y === undefined || y === null ? null : { x: valorX(r), y };
     });
-    return { ...s, id: `${n0}-${m.id}`, rotulo: `${nome(n0)} · ${m.rotulo}`, rotuloCurto: m.rotulo, cor: G.token(m.token), espessura };
+    return { ...s, id: `${n0}-${m.id}`, rotulo: `${nome(n0)} · ${m.rotulo}`, rotuloCurto: m.rotulo, cor: G.token(m.token), espessura: m.espessura || 1.5 };
   };
-  const resumoVersao = (r, v) => r.analise && r.analise.versoes_resumo && r.analise.versoes_resumo[v];
   G.linhas(document.getElementById('g-modelos'), {
-    vazio: SEM_SELECAO, ...cfgEixoX(), yFmt: fmtPctEixo, refs: [{ y: 50, rotulo: '50%' }],
-    series: [
-      linha(MODELOS[0], 1, (r, c) => c.perc_apurado),
-      linha(MODELOS[1], 1.5, (r, c) => { const v = resumoVersao(r, 'normal'); return v ? v.nacional[n0] : c.perc_projetado; }),
-      linha(MODELOS[2], 3, (r, c) => { const v = resumoVersao(r, 'subestratificado'); return v ? v.nacional[n0] : c.perc_projetado; }),
-      linha(MODELOS[3], 1.5, (r) => {
-        const an = r.analise || {};
-        const v = an.crescimento_versoes && an.crescimento_versoes[ver];
-        return v ? v[n0] : (an.crescimento_nacional ? an.crescimento_nacional[n0] : null);
-      }),
-    ],
+    vazio: SEM_SELECAO, ...cfgEixoX(), yFmt: fmtPctEixo, refs: [{ y: 50, rotulo: '50%' }], maxRotulos: 14,
+    series: visiveis.filter((m) => !m.semLinha && valorHistorico[m.id]).map(linha),
   });
 
   // Estados pela razão de crescimento, ao lado da projeção principal
@@ -1340,7 +1528,7 @@ function renderModelos(d) {
   const corpo = cabecalhoTabela('#tabela-modelos-uf', [
     el('th', { texto: 'UF' }), el('th', { classe: 'num', texto: '% apurado' }),
     ...top.flatMap((n) => [thCandidato(n, ' MC'), thCandidato(n, ' cresc.')]),
-    el('th', { classe: 'num', texto: 'Diferença' }), el('th', { classe: 'num', texto: 'Faltam' }), el('th', { classe: 'num', texto: 'Recente', title: 'Estratos da UF com razão da janela recente / total de estratos' }),
+    el('th', { classe: 'num', texto: 'Diferença' }), el('th', { classe: 'num', texto: 'Faltam' }), el('th', { classe: 'num', texto: 'Rec.', title: 'Estratos da UF com razão da janela recente / total de estratos' }),
   ]);
   const ufs = [...(a.ufs || [])].sort((x, y) => y.restantes_esperados - x.restantes_esperados);
   for (const u of ufs) {
@@ -1359,9 +1547,12 @@ function renderModelos(d) {
     ]));
   }
   document.getElementById('modelos-explicacao').textContent =
-    'MC = projeção principal do Monte Carlo (versão definida na aba Subestratos). Crescimento = votos ganhos por eleitor nas seções ' +
-    'apuradas recentemente × eleitores que faltam, em cada estrato da estratificação escolhida. É uma leitura extra: não entra no ' +
-    'Monte Carlo, no intervalo nem na chamada. Sem subestratos na apuração, as duas estratificações coincidem.';
+    'MC = projeção principal do Monte Carlo (a subestratificada é o Meu Modelo). Estimadores, tendência, Bayes hierárquico, swing e ' +
+    'consenso são leituras extras na estratificação escolhida: não entram no Monte Carlo, no intervalo nem na chamada. ' +
+    'Crescimento = votos ganhos por eleitor nas seções apuradas recentemente × eleitores que faltam (janelas de 5%, 15% e 30%). ' +
+    'Tendência = reta do % dos últimos blocos de votos de cada estrato. Bayes hierárquico = % de cada estrato encolhido para a média da UF. ' +
+    'Swing = resultado na eleição de referência deslocado pela mudança nacional medida no apurado (resultado de eleição, nunca pesquisa). ' +
+    'Bayes puro = Dirichlet sem choques nem limite de concentração (sem folga para o viés de ordem). Sem subestratos, as duas estratificações coincidem.';
 }
 
 const RENDER_ABA = {
@@ -1470,6 +1661,15 @@ function conectarSSE() {
   fonte.onopen = () => { caixa.className = 'conexao on'; txt.textContent = 'Ao vivo'; };
   fonte.onerror = () => { caixa.className = 'conexao off'; txt.textContent = 'Reconectando…'; };
   fonte.addEventListener('sessao', () => location.reload());
+  fonte.addEventListener('coleta_encerrada', (evt) => {
+    try {
+      const e = JSON.parse(evt.data);
+      state.coletaEncerrada = true;
+      const info = document.getElementById('ultima-atualizacao');
+      info.classList.remove('aviso-coleta');
+      info.textContent = `${e.mensagem} · às ${(e.timestamp || '').slice(11)}`;
+    } catch (err) { /* ignora evento malformado */ }
+  });
   fonte.addEventListener('aviso', (evt) => {
     try { mostrarAviso(JSON.parse(evt.data)); } catch (e) { /* ignora aviso malformado */ }
   });
@@ -1564,13 +1764,29 @@ function iniciarControles() {
     });
   }
 
+  state.ufSubestratos = recuperar('spetr-sub-uf', null);
+  document.getElementById('sub-uf').addEventListener('change', (e) => {
+    state.ufSubestratos = e.target.value;
+    armazenar('spetr-sub-uf', state.ufSubestratos);
+    if (state.atual && !emEspera(state.atual)) renderSubestratos(state.atual);
+  });
+
+  state.familiaModelos = recuperar('spetr-familia-modelos', 'todos');
+  for (const b of document.querySelectorAll('[data-familia]')) {
+    b.addEventListener('click', () => {
+      state.familiaModelos = b.dataset.familia;
+      armazenar('spetr-familia-modelos', state.familiaModelos);
+      renderAbaAtual();
+    });
+  }
+
   const versaoSalva = recuperar('spetr-cresc-versao', 'subestratificado');
   state.versaoCrescimento = versaoSalva === 'normal' ? 'normal' : 'subestratificado';
   for (const b of document.querySelectorAll('[data-cresc-versao]')) {
     b.addEventListener('click', () => {
       state.versaoCrescimento = b.dataset.crescVersao;
       armazenar('spetr-cresc-versao', state.versaoCrescimento);
-      renderAbaAtual();
+      renderTudo();
     });
   }
 

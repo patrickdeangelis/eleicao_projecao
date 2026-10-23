@@ -148,9 +148,9 @@ a.botao { text-decoration: none; display: inline-block; }
   background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio);
   padding: 0.45rem 0.6rem; box-shadow: var(--sombra); min-width: 0;
 }
-.kpi-rotulo { color: var(--texto-2); font-size: 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
-.kpi-valor { font-size: 1.12rem; font-weight: 650; margin-top: 0.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.kpi-detalhe { color: var(--texto-3); font-size: 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi-rotulo { color: var(--texto-2); font-size: 0.7rem; display: block; overflow-wrap: anywhere; }
+.kpi-valor { font-size: 1.12rem; font-weight: 650; margin-top: 0.05rem; overflow-wrap: anywhere; }
+.kpi-detalhe { color: var(--texto-3); font-size: 0.7rem; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* ------------------------------------------------------------------ corpo */
 .cartao {
@@ -180,11 +180,12 @@ a.botao { text-decoration: none; display: inline-block; }
 }
 .cand.marcado .cand-chave::after { content: "✓"; }
 .cand-info { min-width: 0; }
-.cand-info strong { display: block; font-size: 0.86rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cand-info small { display: block; color: var(--texto-3); font-size: 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cand-info strong { display: block; font-size: 0.86rem; overflow-wrap: anywhere; }
+.cand-info small { display: block; color: var(--texto-3); font-size: 0.7rem; overflow-wrap: anywhere; }
 .cand-info .cand-probs { color: var(--texto-2); }
 .cand-num { text-align: right; font-variant-numeric: tabular-nums; }
 .cand-num .proj { display: block; font-weight: 700; font-size: 1rem; }
+.cand-num .cresc { display: block; color: var(--texto-2); font-size: 0.74rem; }
 .cand-num .apur { display: block; color: var(--texto-3); font-size: 0.7rem; }
 .cand:not(.marcado) .cand-info strong, .cand:not(.marcado) .proj { color: var(--texto-2); font-weight: 600; }
 
@@ -213,16 +214,17 @@ a.botao { text-decoration: none; display: inline-block; }
 .grade-mapa { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
 .grade-sim { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
 .grade-sim .largo, .grade-ap .largo { grid-column: 1 / -1; }
-.grade-modelos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto minmax(0, 1fr); }
+.grade-modelos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto minmax(340px, 1fr); overflow-y: auto; }
 .grade-modelos .largo { grid-column: 1 / -1; }
-.cartoes-modelos { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 0.6rem; }
+.cartoes-modelos { display: grid; grid-template-columns: repeat(auto-fit, minmax(196px, 1fr)); gap: 0.6rem; }
 .cartao-modelo { background: var(--superficie); border: 1px solid var(--borda); border-top: 3px solid var(--cor-modelo, var(--neutro));
   border-radius: var(--raio); padding: 0.6rem 0.75rem; min-width: 0; }
 .cartao-modelo.principal { box-shadow: 0 0 0 1px var(--cor-modelo, var(--destaque)); }
 .cartao-modelo h4 { margin: 0; font-size: 0.82rem; }
-.cartao-modelo .nota { display: block; color: var(--texto-3); font-size: 0.7rem; margin-bottom: 0.35rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cartao-modelo .nota { display: block; color: var(--texto-3); font-size: 0.7rem; margin-bottom: 0.35rem; overflow-wrap: anywhere; }
 .cartao-modelo .linha-cand { display: grid; grid-template-columns: auto 1fr auto; gap: 0.4rem; align-items: baseline; margin-top: 0.25rem; }
-.cartao-modelo .linha-cand .valor { font-size: 1.15rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+.cartao-modelo .linha-cand .valor { font-size: 1.05rem; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cartao-modelo .linha-cand .valor.faixa { font-size: 0.82rem; }
 .cartao-modelo .linha-cand .detalhe { color: var(--texto-3); font-size: 0.7rem; grid-column: 2 / -1; }
 .cartao-modelo .rodape-cartao { margin-top: 0.45rem; padding-top: 0.35rem; border-top: 1px solid var(--grade); font-size: 0.72rem; color: var(--texto-2); }
 .grade-consolidado { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
@@ -249,7 +251,7 @@ a.botao { text-decoration: none; display: inline-block; }
 }
 .bloco > header { display: flex; justify-content: space-between; align-items: baseline; gap: 0.6rem; margin-bottom: 0.3rem; min-width: 0; }
 .bloco > header h3 { flex: none; }
-.bloco > header .nota { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; }
+.bloco > header .nota { min-width: 0; text-align: right; overflow-wrap: anywhere; }
 .rodape-bloco { color: var(--texto-2); font-size: 0.74rem; display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; padding-top: 0.25rem; }
 .explicacao { margin-top: 0.4rem; line-height: 1.45; }
 
@@ -295,7 +297,7 @@ a.botao { text-decoration: none; display: inline-block; }
 .tooltip .tt-titulo { color: var(--texto-2); font-size: 0.75rem; margin-bottom: 0.3rem; }
 .tooltip .tt-linha { display: flex; align-items: center; gap: 0.45rem; white-space: nowrap; }
 .tooltip .tt-valor { font-weight: 700; font-variant-numeric: tabular-nums; min-width: 3.5rem; }
-.tooltip .tt-rotulo { color: var(--texto-2); overflow: hidden; text-overflow: ellipsis; }
+.tooltip .tt-rotulo { color: var(--texto-2); overflow-wrap: anywhere; }
 .chave-linha { width: 14px; height: 2px; border-radius: 1px; display: inline-block; }
 
 /* ---------------------------------------- tela única (desktop) × rolagem (telas pequenas) */
@@ -353,25 +355,19 @@ a.botao { text-decoration: none; display: inline-block; }
 .erro { color: var(--critico); font-size: 0.86rem; }
 
 
-/* configuração da simulação */
-.config-sim summary { margin-top: 0.2rem; }
-.config-sim .nota { margin: 0.4rem 0 0.5rem; line-height: 1.45; }
-.config-rolagem { overflow-x: auto; border: 1px solid var(--borda); border-radius: 8px; }
-.tabela.config th, .tabela.config td { padding: 0.25rem 0.35rem; }
-.tabela.config input[type="number"] {
-  width: 4.4rem; font: inherit; font-size: 0.8rem; color: var(--texto); background: var(--pagina);
-  border: 1px solid var(--borda); border-radius: 5px; padding: 0.2rem 0.3rem; text-align: right;
-}
-.tabela.config td.soma { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.tabela.config td.soma.erro { color: var(--critico); font-weight: 700; }
-.tabela.config .botao-mini { margin-left: 0.3rem; }
-.tabela.config th.vel, .tabela.config td.vel { border-left: 1px solid var(--grade); }
-.config-check { display: flex; align-items: center; gap: 0.45rem; font-size: 0.82rem; color: var(--texto-2); margin: 0.6rem 0 0.4rem; }
-.previa { background: var(--pagina); border: 1px solid var(--borda); border-radius: 8px; padding: 0.6rem 0.75rem; font-size: 0.8rem; color: var(--texto-2); }
-.previa strong { color: var(--texto); }
-.previa ul { margin: 0.35rem 0 0; padding-left: 1.1rem; }
-.previa li { margin: 0.15rem 0; }
-.previa .erro { color: var(--critico); }
 #tabela-estratos td:first-child, #tabela-exterior td:first-child { white-space: normal; min-width: 6rem; }
 .tabela.densa .mini-medidor { display: none; }
 #tabela-estratos th, #tabela-estratos td { padding-left: 0.3rem; padding-right: 0.3rem; }
+
+.seletor-pequeno { font: inherit; font-size: 0.78rem; color: var(--texto); background: var(--superficie-2); border: 1px solid var(--borda);
+  border-radius: 8px; padding: 0.2rem 0.4rem; max-width: 100%; }
+#aba-subestratos .bloco > header { flex-wrap: wrap; row-gap: 0.25rem; }
+
+/* Cartões da aba Subestratos: valores longos quebram a linha em vez de cortar os pontos percentuais */
+#sub-kpis { gap: 0.4rem 1rem; }
+#sub-kpis .mini-kpi { min-width: 0; max-width: 100%; }
+#sub-kpis .kpi-rotulo, #sub-kpis .kpi-valor { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+#sub-kpis .kpi-valor { font-size: 1rem; }
+
+.bloco-modelos { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+.cartoes-modelos .cartao-modelo .linha-cand { margin-top: 0.15rem; }

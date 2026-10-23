@@ -31,6 +31,10 @@ from spetr.domain.value_objects import REGIAO_POR_UF, StatusCall, TipoEstrato
 from spetr.domain.interfaces import IEventBus
 from spetr.services.events import StrataNormalizedEvent, ProjectionCalculatedEvent
 from spetr.stats_engine.crescimento import ProjecaoCrescimento
+from spetr.stats_engine.modelos_extras import (
+    ReferenciaEleitoral, consenso, limites_matematicos, projetar_direto, projetar_hierarquico, projetar_swing,
+    projetar_tendencia,
+)
 from spetr.stats_engine.bayesian_dirichlet import (
     calcular_parametros_posteriores,
     limitar_concentracao,
@@ -72,6 +76,7 @@ class MonteCarloProjectionEngine:
         self.num_simulacoes = num_simulacoes
         self.peso_prior_n0 = peso_prior_n0
         self.rng = np.random.default_rng(seed)
+        self.seed = seed if seed is not None else 0
         self.concentracao_max = concentracao_max
         self.sigma_uf = sigma_uf
         self.sigma_nacional = sigma_nacional
@@ -82,6 +87,11 @@ class MonteCarloProjectionEngine:
         self.tamanho_lote_sim = tamanho_lote_sim
         self.versao_principal = "subestratificado"
         self.crescimento = ProjecaoCrescimento()
+        # Janelas curta e longa da razão de crescimento: leem a mesma série de cada estrato
+        self.crescimento_curto = ProjecaoCrescimento(janela=0.05)
+        self.crescimento_longo = ProjecaoCrescimento(janela=0.30)
+        self.crescimento_curto.historico = self.crescimento_longo.historico = self.crescimento.historico
+        self.referencia: Optional[ReferenciaEleitoral] = None  # eleição anterior para o modelo de swing (opcional)
 
         self.estratos: Dict[str, EstratoEleitoral] = {}
         self.ufs_meta: Dict[str, Dict[str, int]] = {}
@@ -145,10 +155,10 @@ class MonteCarloProjectionEngine:
         novos = []
         for i, num in enumerate(sorted(numeros)):
             c_info = meta.get(num, {})
-            if num == "13":
-                cor = "#EF4444"
-            elif num == "22":
-                cor = "#22C55E"
+            if num == "13":      # PT: vermelho
+                cor = "#e34948"
+            elif num == "22":    # PL: azul
+                cor = "#2a78d6"
             else:
                 cor = CORES_DEFAULT[i % len(CORES_DEFAULT)]
             novos.append(Candidato(
@@ -246,6 +256,93 @@ class MonteCarloProjectionEngine:
             },
         }
 
+        # Estimador direto e swing sobre a eleição de referência (leituras extras, nas duas estratificações)
+        extras_por_versao = {principal: extras}
+        if ufs_sub:
+            extras_por_versao[outra] = extras_outra
+        for v in VERSOES:
+            extras_por_versao.setdefault(v, extras)
+        direto, swing = {}, {}
+        for v, ex in extras_por_versao.items():
+            if "votos_obs" not in ex:
+                continue
+            direto[v] = projetar_direto(ex["estrato_ids"], ex["votos_obs"], ex["restantes"], numeros)
+            if self.referencia is not None:
+                sw = projetar_swing(self.referencia, ex["estrato_ids"], ex["votos_obs"], ex["restantes"], numeros)
+                if sw is not None:
+                    swing[v] = sw
+        if direto:
+            analise["modelos"]["estimador_direto"] = direto
+            analise["direto_versoes"] = {v: d["nacional"] for v, d in direto.items()}
+        if swing:
+            analise["modelos"]["swing"] = swing
+            analise["swing_versoes"] = {v: d["nacional"] for v, d in swing.items()}
+
+        # Mais leituras extras: tendência, Bayes empírico hierárquico e janelas de crescimento (nas duas estratificações)
+        sem_ufs = lambda d: {k: d[k] for k in d if k != "ufs"}   # o resumo por UF só vai para os modelos da tabela de estados
+        tendencia, hierarquico, cresc_curto, cresc_longo = {}, {}, {}, {}
+        for v, ex in extras_por_versao.items():
+            if "votos_obs" not in ex:
+                continue
+            tendencia[v] = sem_ufs(projetar_tendencia(self.crescimento.historico, versoes[v], ex["estrato_ids"], ex["votos_obs"], ex["restantes"], numeros))
+            hierarquico[v] = sem_ufs(projetar_hierarquico(ex["estrato_ids"], ex["votos_obs"], ex["restantes"], numeros))
+            for alvo, motor in ((cresc_curto, self.crescimento_curto), (cresc_longo, self.crescimento_longo)):
+                c = motor.projetar(versoes[v], numeros)
+                alvo[v] = {"nacional": c["nacional"], "votos_nacionais": c["votos_nacionais"]}
+        analise["modelos"].update({"tendencia": tendencia, "hierarquico": hierarquico,
+                                   "crescimento_curto": cresc_curto, "crescimento_longo": cresc_longo})
+
+        # Variantes do Monte Carlo na estratificação principal (menos simulações; sorteios próprios por ciclo)
+        sims_var = min(num_simulacoes, 3000)
+        variantes: Dict[str, Any] = {}
+        for nome_v, ajustes_v in (
+            ("mc_regional", {"choque_por": "regiao"}),
+            ("bayes_puro", {"sigma_uf": 0.0, "sigma_nacional": 0.0, "sigma_comparecimento": 0.0, "concentracao_max": None}),
+        ):
+            rng_v = np.random.default_rng(self.seed * 1000003 + ciclo_id)
+            res_v, _ = self._projetar(versoes[principal], sims_var, ciclo_id, [], analise_completa=False, ajustes=ajustes_v, rng=rng_v)
+            if res_v.candidatos:
+                variantes[nome_v] = {
+                    "estratificacao": principal, "status_call": res_v.status_call.value,
+                    "nacional": {c.numero: {"pct": c.perc_projetado, "ic": [c.ic_inferior_95, c.ic_superior_95],
+                                            "prob_vitoria": c.prob_vitoria} for c in res_v.candidatos},
+                }
+        analise["modelos"].update(variantes)
+
+        # Limites matemáticos e consenso entre os modelos (por estratificação)
+        if "votos_obs" in extras:
+            lim = limites_matematicos(extras["votos_obs"], extras["restantes_maximos"], numeros)
+            if lim:
+                analise["modelos"]["limites"] = lim
+        pct_mc = {principal: {c.numero: c.perc_projetado for c in resultado.candidatos}}
+        if ufs_sub:
+            pct_mc[outra] = {c.numero: c.perc_projetado for c in res_outra.candidatos}
+        for v in VERSOES:
+            pct_mc.setdefault(v, pct_mc[principal])
+        cons = {}
+        for v in VERSOES:
+            estim = {"monte_carlo": pct_mc[v], "crescimento": cresc_por_versao[v]["nacional"]}
+            for nome_m, grupo in (("direto", direto), ("tendencia", tendencia), ("hierarquico", hierarquico), ("swing", swing)):
+                if v in grupo:
+                    estim[nome_m] = grupo[v]["nacional"]
+            c = consenso(estim, numeros)
+            if c:
+                cons[v] = c
+        if cons:
+            analise["modelos"]["consenso"] = cons
+
+        # Resumo compacto de cada modelo (só o % nacional), usado pelas curvas do histórico
+        resumo = {
+            "tendencia": {v: d["nacional"] for v, d in tendencia.items()},
+            "hierarquico": {v: d["nacional"] for v, d in hierarquico.items()},
+            "crescimento_curto": {v: d["nacional"] for v, d in cresc_curto.items()},
+            "crescimento_longo": {v: d["nacional"] for v, d in cresc_longo.items()},
+            "consenso": {v: c["media"] for v, c in cons.items()},
+        }
+        for nome_v, d in variantes.items():
+            resumo[nome_v] = {"_": {n: x["pct"] for n, x in d["nacional"].items()}}
+        analise["modelos_resumo"] = resumo
+
         tempo_ms = (time.perf_counter() - inicio_t) * 1000.0
         object.__setattr__(resultado, "tempo_computacao_ms", round(tempo_ms, 2))
         return resultado
@@ -295,8 +392,20 @@ class MonteCarloProjectionEngine:
         ciclo_id: int,
         ufs_detalhe: List[str],
         analise_completa: bool = True,
+        ajustes: Optional[Dict[str, Any]] = None,
+        rng: Optional[np.random.Generator] = None,
     ):
-        """Monte Carlo sobre um conjunto de estratos. Retorna (resultado, extras)."""
+        """
+        Monte Carlo sobre um conjunto de estratos. Retorna (resultado, extras).
+        `ajustes` troca parâmetros só nesta projeção (variantes da aba Modelos): sigma_uf, sigma_nacional,
+        sigma_comparecimento, concentracao_max e choque_por ("uf" ou "regiao").
+        """
+        ajustes = ajustes or {}
+        sig_uf = ajustes.get("sigma_uf", self.sigma_uf)
+        sig_nac = ajustes.get("sigma_nacional", self.sigma_nacional)
+        sig_comp = ajustes.get("sigma_comparecimento", self.sigma_comparecimento)
+        conc_max = ajustes["concentracao_max"] if "concentracao_max" in ajustes else self.concentracao_max
+        rng = rng or self.rng
         inicio_t = time.perf_counter()
         extras: Dict[str, Any] = {"uf_amostras": {}}
 
@@ -393,7 +502,7 @@ class MonteCarloProjectionEngine:
         # 4. Atualização Bayesiana + limite de concentração (sobredispersão)
         alphas_post = limitar_concentracao(
             calcular_parametros_posteriores(prior_alphas, votos_obs),
-            self.concentracao_max
+            conc_max
         )
 
         # 5. Simulação em lotes (limita memória com muitos candidatos), agregando por UF
@@ -402,6 +511,13 @@ class MonteCarloProjectionEngine:
         U = len(ufs_unicas)
         onehot_uf = np.zeros((H, U), dtype=np.float64)
         onehot_uf[np.arange(H), idx_uf] = 1.0
+        # Grupos dos choques correlacionados: a UF (padrão) ou a macrorregião
+        if ajustes.get("choque_por") == "regiao":
+            regioes = [REGIAO_POR_UF.get(u, "Outros") for u in ufs_estratos]
+            _, idx_choque = np.unique(regioes, return_inverse=True)
+        else:
+            idx_choque = idx_uf
+        n_choque = int(idx_choque.max()) + 1
         obs_uf = onehot_uf.T @ votos_obs  # (U, K)
 
         votos_nacionais_simulados = np.empty((num_simulacoes, K), dtype=np.float64)
@@ -412,19 +528,19 @@ class MonteCarloProjectionEngine:
         amostras_uf = {uf: np.empty((num_simulacoes, K)) for uf in idx_detalhe}
         for ini in range(0, num_simulacoes, self.tamanho_lote_sim):
             m = min(self.tamanho_lote_sim, num_simulacoes - ini)
-            props = amostrar_proporcoes_monte_carlo(alphas_post, num_simulacoes=m, rng=self.rng)  # (m, H, K)
+            props = amostrar_proporcoes_monte_carlo(alphas_post, num_simulacoes=m, rng=rng)  # (m, H, K)
 
-            if self.sigma_uf > 0 or self.sigma_nacional > 0:
+            if sig_uf > 0 or sig_nac > 0:
                 log_p = np.log(np.clip(props, 1e-12, None))
-                log_p += self.rng.normal(0.0, self.sigma_uf, size=(m, U, K))[:, idx_uf, :]
-                log_p += self.rng.normal(0.0, self.sigma_nacional, size=(m, 1, K))
+                log_p += rng.normal(0.0, sig_uf, size=(m, n_choque, K))[:, idx_choque, :]
+                log_p += rng.normal(0.0, sig_nac, size=(m, 1, K))
                 log_p -= log_p.max(axis=2, keepdims=True)
                 np.exp(log_p, out=log_p)
                 log_p /= log_p.sum(axis=2, keepdims=True)
                 props = log_p
 
-            s = self.sigma_comparecimento
-            fator_comp = np.exp(self.rng.normal(-0.5 * s * s, s, size=(m, H))) if s > 0 else 1.0
+            s = sig_comp
+            fator_comp = np.exp(rng.normal(-0.5 * s * s, s, size=(m, H))) if s > 0 else 1.0
             votos_rem = votos_rem_esperados[np.newaxis, :] * fator_comp  # (m, H)
 
             props *= votos_rem[:, :, np.newaxis]                            # votos restantes (m, H, K)
@@ -529,6 +645,9 @@ class MonteCarloProjectionEngine:
             status_call = StatusCall.SEGUNDO_TURNO_PROJETADO
 
         extras["uf_amostras"] = amostras_uf
+        # Base dos modelos extras (estimador direto e swing), na mesma estratificação desta projeção
+        extras["estrato_ids"], extras["votos_obs"], extras["restantes"] = estrato_ids, votos_obs, votos_rem_esperados
+        extras["restantes_maximos"] = float(votos_rem_maximos.sum())
         analise = {} if not analise_completa else self._montar_analise(
             snapshots=snapshots,
             estrato_ids=estrato_ids,

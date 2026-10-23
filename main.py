@@ -21,7 +21,7 @@ if sys.stdout is None or sys.stderr is None:
 
 from spetr.services.event_bus import EventBus
 from spetr.services.sessao import SessaoSPETR
-from spetr.simulador import CENARIOS, VELOCIDADES
+from spetr.simulador.replay import VELOCIDADES_REPLAY
 from spetr.api.server import create_api_app
 from spetr.ui.window import DesktopWindow
 from spetr.collector.jws import CHAVES_TSE
@@ -78,19 +78,18 @@ def encerrar(loop, sessao) -> None:
 def main():
     parser = argparse.ArgumentParser(
         description="SPETR - Sistema de Projeção Eleitoral em Tempo Real. "
-                    "Sem --modo, abre a tela inicial para escolher entre coleta real e simulação."
+                    "Sem --modo, abre a tela inicial para escolher entre coleta real e replay de uma apuração real."
     )
     parser.add_argument("--porta", type=int, default=48291, help="Porta local para a API e UI (padrão: 48291)")
     parser.add_argument("--simulacoes", type=int, default=10000, help="Número de simulações de Monte Carlo (padrão: 10000)")
     parser.add_argument("--headless", action="store_true", help="Executar apenas servidor local sem abrir janela nativa")
-    parser.add_argument("--modo", choices=("real", "simulado"), default=None,
+    parser.add_argument("--modo", choices=("real", "replay"), default=None,
                         help="Inicia direto neste modo, sem a tela inicial")
-    parser.add_argument("--cenario", choices=tuple(CENARIOS), default="1t", help="Cenário do modo simulado")
-    parser.add_argument("--velocidade", choices=tuple(VELOCIDADES), default="normal", help="Ritmo do modo simulado")
-    parser.add_argument("--mock", action="store_true",
-                        help="Coleta real apontando para um mock externo (scripts/mock_tse_server.py em :8080)")
-    parser.add_argument("--tse-url", type=str, default=None, help="URL base da CDN do TSE (padrão: oficial ou mock)")
-    parser.add_argument("--ano", type=str, default=None, help="Ano da eleição (padrão: 2026; 2022 com --mock)")
+    parser.add_argument("--fonte", type=str, default=None,
+                        help="Replay a iniciar com --modo replay (ex.: 2026_1t, preparado por scripts/preparar_replay.py)")
+    parser.add_argument("--velocidade", choices=tuple(VELOCIDADES_REPLAY), default="normal", help="Ritmo do replay")
+    parser.add_argument("--tse-url", type=str, default=None, help="URL base da CDN do TSE (padrão: oficial)")
+    parser.add_argument("--ano", type=str, default=None, help="Ano da eleição (padrão: 2026)")
     parser.add_argument("--eleicao", type=str, default=None,
                         help="Código da eleição no TSE (ex: 545). Se omitido no formato 'u', é descoberto via ele-c.json")
     parser.add_argument("--cargo", type=str, default="1", help="Código do cargo (1 = Presidente)")
@@ -99,7 +98,7 @@ def main():
     parser.add_argument("--formato", choices=("u", "r"), default=None,
                         help="'u' = Resultado Unificado EA20 (2024+), 'r' = Dados Simplificados (até 2022)")
     parser.add_argument("--ambiente", type=str, default="oficial",
-                        help="Pasta de ambiente na CDN (ex: oficial, ou simulado/simulado2026)")
+                        help="Pasta de ambiente na CDN (ex: oficial, ou o ambiente de testes do TSE)")
     parser.add_argument("--verificar-jws", choices=tuple(CHAVES_TSE), default=None,
                         help="Baixa os arquivos .jws e valida a assinatura do TSE com a chave do ambiente indicado")
     parser.add_argument("--db", type=str, default=None,
@@ -108,36 +107,36 @@ def main():
     if args.db is None:
         args.db = caminho_banco_padrao()
 
-    # Padrões da coleta real (pré-preenchem a tela inicial); --mock aponta para o emulador externo
+    # Padrões da coleta real (pré-preenchem a tela inicial)
     padroes_reais = {
-        "tse_url": args.tse_url or ("http://127.0.0.1:8080" if args.mock else "https://resultados.tse.jus.br"),
-        "ano": args.ano or ("2022" if args.mock else "2026"),
-        "eleicao": args.eleicao or ("545" if args.mock else ""),
+        "tse_url": args.tse_url or "https://resultados.tse.jus.br",
+        "ano": args.ano or "2026",
+        "eleicao": args.eleicao or "",
         "cargo": args.cargo,
         "turno": args.turno or 1,
         "formato": args.formato or "",
         "ambiente": args.ambiente,
         "jws": args.verificar_jws or "",
     }
-    modo_inicial = "real" if args.mock else args.modo
-    opcoes_iniciais = (
-        {"cenario": args.cenario, "velocidade": args.velocidade} if modo_inicial == "simulado" else {}
-    )
+    modo_inicial = args.modo
+    if modo_inicial == "replay" and not args.fonte:
+        parser.error("--modo replay exige --fonte (ex.: --fonte 2026_1t)")
+    opcoes_iniciais = {"fonte": args.fonte, "velocidade": args.velocidade} if modo_inicial == "replay" else {}
 
     print("=" * 70)
     print(" SPETR // SISTEMA DE PROJEÇÃO ELEITORAL EM TEMPO REAL")
     print(f" Simulações Monte Carlo: {args.simulacoes:,} por ciclo")
     print(f" Servidor local UI:      http://127.0.0.1:{args.porta}")
     print(f" Banco de histórico:     {os.path.abspath(args.db)}")
-    if modo_inicial == "simulado":
-        print(f" Modo:                   simulação local ({args.cenario}, {args.velocidade})")
+    if modo_inicial == "replay":
+        print(f" Modo:                   replay {args.fonte} ({args.velocidade})")
     elif modo_inicial == "real":
         print(f" Modo:                   coleta real em {padroes_reais['tse_url']} (ele{padroes_reais['ano']})")
     else:
-        print(" Modo:                   escolha na tela inicial (coleta real ou simulação)")
+        print(" Modo:                   escolha na tela inicial (coleta real ou replay)")
     print("=" * 70)
 
-    # 1. Barramento, sessão (coleta real ou simulada) e API
+    # 1. Barramento, sessão (coleta real ou replay) e API
     bus = EventBus()
     sessao = SessaoSPETR(event_bus=bus, db_path=args.db, num_simulacoes=args.simulacoes, padroes_reais=padroes_reais)
     api_app = create_api_app(event_bus=bus, sessao=sessao)

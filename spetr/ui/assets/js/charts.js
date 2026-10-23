@@ -23,6 +23,19 @@ const Graficos = (() => {
     return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.3 ? '#0b0b0b' : '#ffffff';
   }
 
+  // Medição de texto: as margens dos gráficos acompanham o maior rótulo, para nenhum valor ser cortado
+  const contextoMedida = document.createElement('canvas').getContext('2d');
+  function larguraTexto(texto, px = 11, peso = 400) {
+    contextoMedida.font = `${peso} ${px}px ${token('--fonte') || 'system-ui, sans-serif'}`;
+    return contextoMedida.measureText(String(texto)).width;
+  }
+  /** Margem (px) que comporta o maior dos textos, limitada a uma fração da largura do gráfico. */
+  function margemTextos(container, textos, { px = 11, peso = 400, extra = 0, minimo = 0, fracao = 0.45 } = {}) {
+    const maior = Math.max(0, ...textos.map((t) => larguraTexto(t, px, peso)));
+    const teto = Math.max(minimo, (container.clientWidth || 600) * fracao);
+    return Math.min(Math.max(minimo, Math.ceil(maior + extra)), teto);
+  }
+
   // ------------------------------------------------------------ infraestrutura
 
   /** Instância ECharts do container (criada uma vez; redimensionada a cada desenho). */
@@ -178,7 +191,13 @@ const Graficos = (() => {
 
     grafico.setOption({
       ...semEixo(b),
-      grid: { left: 48, right: rotulosFim ? 124 : 16, top: 14, bottom: 28 },
+      grid: {
+        left: 48, top: 14, bottom: 28,
+        right: rotulosFim ? margemTextos(container, series.slice(0, maxRotulos).map((s) => {
+          const u = s.pontos[s.pontos.length - 1];
+          return `${s.rotuloCurto || s.rotulo} ${cfg.yFmt(u.y)}`;
+        }), { peso: 600, extra: 16, minimo: 80 }) : 16,
+      },
       xAxis: {
         type: 'value', min: xMin, max: xMax, ...b.eixo,
         splitLine: { show: false },
@@ -282,7 +301,11 @@ const Graficos = (() => {
     const cor = cfg.cor || token('--seq');
     grafico.setOption({
       ...semEixo(b),
-      grid: { left: cfg.margemRotulo || 60, right: 86, top: 4, bottom: 4 },
+      grid: {
+        left: margemTextos(container, linhasDados.map((l) => l.rotulo), { extra: 14, minimo: cfg.margemRotulo || 60 }),
+        right: margemTextos(container, linhasDados.map((l) => cfg.fmt(l.valor)), { peso: 600, extra: 18, minimo: 86 }),
+        top: 4, bottom: 4,
+      },
       xAxis: { type: 'value', show: false },
       yAxis: {
         type: 'category', inverse: true, data: linhasDados.map((l) => l.rotulo),
@@ -357,7 +380,7 @@ const Graficos = (() => {
 
     grafico.setOption({
       ...semEixo(b),
-      grid: { left: cfg.margemRotulo || 120, right: 10, top: 4, bottom: 4 },
+      grid: { left: margemTextos(container, categorias, { extra: 14, minimo: cfg.margemRotulo || 120 }), right: 10, top: 4, bottom: 4 },
       xAxis: { type: 'value', show: false, max: 100 },
       yAxis: {
         type: 'category', inverse: true, data: categorias,
@@ -424,7 +447,11 @@ const Graficos = (() => {
 
     grafico.setOption({
       ...semEixo(b),
-      grid: { left: 52, right: cfg.margemDireita || 118, top: 18, bottom: 28 },
+      grid: {
+        left: 52, top: 18, bottom: 28,
+        right: margemTextos(container, series.map((s) => `${s.rotuloCurto || s.rotulo} ${s.final.rotulo || cfg.yFmt(s.final.y)}`),
+          { peso: 600, extra: 20, minimo: cfg.margemDireita || 118 }),
+      },
       xAxis: {
         type: 'value', min: 0, max: 100, interval: 20, ...b.eixo, splitLine: { show: false },
         axisLabel: { ...b.eixo.axisLabel, formatter: (v) => `${v}%` },
@@ -463,16 +490,20 @@ const Graficos = (() => {
     const sup = token('--superficie');
     const [, xMax] = limitesBonitos(0, Math.max(55, ...itens.map((i) => i.hi)) * 1.02);
     const categorias = itens.map((i) => i.rotulo);
+    const margemEsq = margemTextos(container, categorias, { extra: 30, minimo: 118 });
     grafico.setOption({
       ...semEixo(b),
-      grid: { left: 118, right: 56, top: 10, bottom: 26 },
+      grid: {
+        left: margemEsq, top: 10, bottom: 26,
+        right: margemTextos(container, itens.map((i) => cfg.fmt(i.media)), { peso: 700, extra: 28, minimo: 56 }),
+      },
       xAxis: {
         type: 'value', min: 0, max: xMax, ...b.eixo,
         axisLabel: { ...b.eixo.axisLabel, formatter: (v) => `${v}%` },
       },
       yAxis: {
         type: 'category', inverse: true, data: categorias, ...b.eixo, axisLine: { show: false }, splitLine: { show: false },
-        axisLabel: { ...b.eixo.axisLabel, color: token('--texto-2'), width: 108, overflow: 'truncate', interval: 0 },
+        axisLabel: { ...b.eixo.axisLabel, color: token('--texto-2'), width: margemEsq - 12, overflow: 'break', interval: 0 },
       },
       tooltip: {
         ...b.tooltip, trigger: 'axis', axisPointer: { type: 'shadow', shadowStyle: { color: token('--grade'), opacity: 0.5 } },
@@ -602,7 +633,10 @@ const Graficos = (() => {
     const cor = cfg.cor || token('--seq');
     grafico.setOption({
       ...semEixo(b),
-      grid: { left: 48, right: 14, top: (cfg.grupos || []).length ? 30 : 22, bottom: 24 },
+      grid: {
+        left: 48, top: (cfg.grupos || []).length ? 40 : 22, bottom: 24,
+        right: cfg.ref !== undefined && cfg.refRotulo ? margemTextos(container, [cfg.refRotulo], { px: 10, extra: 14, minimo: 14 }) : 14,
+      },
       xAxis: { type: 'category', data: cats, ...b.eixo, axisLabel: { ...b.eixo.axisLabel, interval: 0, fontSize: 10 } },
       yAxis: {
         type: 'value', min: 0, max: cfg.max, ...b.eixo, axisLine: { show: false },
@@ -624,7 +658,7 @@ const Graficos = (() => {
           lineStyle: { color: token('--texto-3'), type: [4, 4], width: 1 },
           label: { color: token('--texto-2'), fontSize: 10 },
           data: [
-            ...(cfg.ref !== undefined ? [{ yAxis: cfg.ref, label: { formatter: cfg.refRotulo || '', position: 'insideEndTop' } }] : []),
+            ...(cfg.ref !== undefined ? [{ yAxis: cfg.ref, label: { formatter: cfg.refRotulo || '', position: 'end' } }] : []),
             // média de cada grupo: segmento só sobre as colunas da região
             ...(cfg.grupos || []).filter((g) => g.media !== undefined).map((g) => [
               { coord: [cats[g.inicio], g.media], lineStyle: { type: 'solid', width: 2, color: token('--texto-2') },
@@ -635,7 +669,7 @@ const Graficos = (() => {
         } : undefined,
         markArea: (cfg.grupos || []).length ? {
           silent: true,
-          label: { color: token('--texto-2'), fontSize: 11, fontWeight: 600, position: 'insideTop', distance: 2 },
+          label: { color: token('--texto-2'), fontSize: 11, fontWeight: 600, position: 'top', distance: 4 },
           data: cfg.grupos.map((g, i) => [
             { xAxis: cats[g.inicio], name: g.nome, itemStyle: { color: i % 2 ? 'transparent' : token('--superficie-2') } },
             { xAxis: cats[g.fim] },
@@ -652,16 +686,20 @@ const Graficos = (() => {
     if (!itens.length) return vazio(container, cfg.vazio);
     const grafico = instancia(container, 40 + itens.length * 34);
     const b = base();
+    const margemEsq = margemTextos(container, itens.map((i) => i.rotulo), { extra: 30, minimo: 108 });
     const [, xMax] = limitesBonitos(0, Math.max(...itens.flatMap((i) => [i.apurado, i.projetado])) * 1.1);
     grafico.setOption({
       ...semEixo(b),
       legend: { top: 0, right: 0, itemWidth: 10, itemHeight: 10, textStyle: { color: token('--texto-2'), fontSize: 11 },
         data: [{ name: 'Apurado', itemStyle: { color: token('--neutro'), opacity: 0.45 } }, { name: 'Projetado', itemStyle: { color: token('--neutro') } }] },
-      grid: { left: 108, right: 48, top: 22, bottom: 4 },
+      grid: {
+        left: margemEsq, top: 22, bottom: 4,
+        right: margemTextos(container, itens.map((i) => cfg.fmt(i.projetado)), { px: 10, peso: 600, extra: 18, minimo: 48 }),
+      },
       xAxis: { type: 'value', show: false, max: xMax },
       yAxis: {
         type: 'category', inverse: true, data: itens.map((i) => i.rotulo), ...b.eixo, axisLine: { show: false },
-        splitLine: { show: false }, axisLabel: { ...b.eixo.axisLabel, color: token('--texto-2'), width: 100, overflow: 'truncate' },
+        splitLine: { show: false }, axisLabel: { ...b.eixo.axisLabel, color: token('--texto-2'), width: margemEsq - 12, overflow: 'break' },
       },
       tooltip: {
         ...b.tooltip, trigger: 'axis', axisPointer: { type: 'shadow', shadowStyle: { color: token('--grade'), opacity: 0.5 } },

@@ -77,5 +77,5 @@ class CodigoMunicipioTSE:
 
 # Chaves da análise que formam o resumo enviado nas curvas do histórico (o resto só vai no ciclo atual)
 CHAVES_RESUMO_ANALISE: Tuple[str, ...] = (
-    "nacional", "faltam", "prob_top2", "aguardando", "crescimento_nacional", "crescimento_versoes", "versoes_resumo",
+    "nacional", "faltam", "prob_top2", "aguardando", "crescimento_nacional", "crescimento_versoes", "direto_versoes", "swing_versoes", "modelos_resumo", "versoes_resumo",
 )

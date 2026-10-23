@@ -287,3 +287,43 @@ def test_sem_subestratos_as_duas_versoes_de_crescimento_coincidem():
     a = MonteCarloProjectionEngine(num_simulacoes=300, seed=1).calcular(snaps, num_simulacoes=300).analise
     cr = a["modelos"]["crescimento"]
     assert cr["normal"]["nacional"] == cr["subestratificado"]["nacional"] == a["crescimento_nacional"]
+
+
+# ---------------------------------------------- subestratificação no país inteiro
+
+def test_todas_as_ufs_com_cidades_ganham_cidades_agrupadas_e_interior(tmp_path):
+    from spetr.services.pipeline_coordinator import PipelineCoordinator
+    c = PipelineCoordinator(db_path=str(tmp_path / "x.sqlite"))
+    subs = c.aggregator.subestratos
+    assert set(subs) >= {"MG", "SP", "BA", "RJ"}
+    assert subs["SP"]["grupos"] == {} and subs["SP"]["resto"] == "RESTO"
+    assert len(subs["SP"]["cidades"]["RESTO"]) == len(c.aggregator.cidades_por_uf["SP"])
+    assert set(subs["MG"]["cidades"]) == {"NORTE", "SUL"}
+    ids = set(c.engine.estratos)
+    assert {"SP_SUB_RESTO", "SP_CID_RESTO", "MG_CID_NORTE", "MG_SUB_SUL"} <= ids
+    # só MG tem municípios extras a coletar
+    assert set(c.scheduler.municipios_subestratos) == {"MG"}
+    # eleitorado do estado fecha nas duas versões
+    for uf in ("SP", "MG"):
+        normal = sum(e.eleitores_aptos for e in c.engine.estratos.values()
+                     if e.uf == uf and "_SUB_" not in e.id and "_CID_" not in e.id)
+        sub = sum(e.eleitores_aptos for e in c.engine.estratos.values()
+                  if e.uf == uf and ("_SUB_" in e.id or "_CID_" in e.id))
+        assert abs(normal - sub) / normal < 0.001
+
+
+def test_uf_sem_grupos_vira_dois_estratos_e_fecha_com_a_uf():
+    ag = VectorAggregator(cidades_100k_map={"SP": ["71072", "62910"]})
+    ag.configurar_subestratos({"SP": {"grupos": {}, "resto": "RESTO", "cidades": {"RESTO": ["71072", "62910"]}}})
+    lote = {
+        "UF_SP": _arq(1000, 600, 300000, 160000, 40000, 90000, 60000),
+        "MUN_SP_71072": _arq(300, 200, 90000, 50000, 10000, 20000, 25000),
+        "MUN_SP_62910": _arq(100, 50, 30000, 15000, 5000, 9000, 4000),
+    }
+    snaps = ag.processar_lote_bruto(lote)
+    normal, sub, ufs_sub = MonteCarloProjectionEngine.separar_versoes(snaps)
+    assert ufs_sub == ["SP"] and set(sub) == {"SP_CID_RESTO", "SP_SUB_RESTO"}
+    assert set(normal) == {"SP_71072", "SP_62910", "SP_INTERIOR"}
+    assert snaps["SP_CID_RESTO"].votos_candidatos == {"13": 29000, "22": 29000}
+    assert snaps["SP_SUB_RESTO"].votos_candidatos == snaps["SP_INTERIOR"].votos_candidatos
+    assert snaps["SP_CID_RESTO"].secoes_total == 400

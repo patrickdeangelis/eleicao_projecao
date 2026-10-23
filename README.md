@@ -14,8 +14,8 @@ Diferente de placares tradicionais que apenas exibem a soma das urnas que já ch
 
 ### Destaques e Diferenciais
 - **Estratificação por Cidades > 100k + Subtração Vetorial:** Isola os 221 municípios com ≥ 100 mil eleitores e as capitais (gerados do eleitorado oficial de 2026 por `scripts/gerar_metadados_eleitorado.py`) e calcula o "Interior Remanescente" por álgebra vetorial ($\text{Interior} = \text{Total}_{\text{UF}} - \sum \text{Cidades}_{>100\text{k}}$). Isso elimina distorções intrarregionais (como o caso paraibano: João Pessoa ~54% x Campina Grande ~48.5% x Sertão ~75%).
-- **Subestratificação do interior (MG Norte × Sul):** os 280 municípios do Norte de Minas (mesorregiões Noroeste, Norte de Minas, Jequitinhonha, Vale do Mucuri e Vale do Rio Doce, sem as cidades com mais de 100 mil eleitores) são baixados a cada 60 s; o Interior Sul sai da subtração ($\text{Sul} = \text{Interior} - \sum \text{Norte}$), só com arquivos do mesmo lote. Na versão subestratificada, as cidades grandes de MG também são agrupadas por região (Cidades Norte = Montes Claros, Governador Valadares, Ipatinga e Teófilo Otoni; Cidades Sul = as outras 15), e o estado fica em quatro estratos: cidades e interior do Norte, cidades e interior do Sul; a versão normal mantém cada cidade separada. O motor projeta as duas versões (normal e subestratificada) e o painel compara; a versão principal (padrão: subestratificada) define os números e a chamada e pode ser trocada na aba *Subestratos*. Lista gerada e validada no TSE por `scripts/gerar_subestratos.py`.
-- **Aba *Modelos*:** quatro cards lado a lado (parcial apurada, Monte Carlo normal, Monte Carlo subestratificado — o modelo principal — e razão de crescimento), a evolução dos quatro ao longo da apuração e uma tabela por UF com a projeção pelo crescimento (estratificação subestratificada por padrão, com seletor para a normal) ao lado do Monte Carlo. O mapa também ganhou o modo *Vantagem (crescimento)*.
+- **Subestratificação do interior (MG Norte × Sul):** os 280 municípios do Norte de Minas (mesorregiões Noroeste, Norte de Minas, Jequitinhonha, Vale do Mucuri e Vale do Rio Doce, sem as cidades com mais de 100 mil eleitores) são baixados a cada 60 s; o Interior Sul sai da subtração ($\text{Sul} = \text{Interior} - \sum \text{Norte}$), só com arquivos do mesmo lote. Nas demais UFs, a versão subestratificada divide o estado em dois estratos (cidades grandes agrupadas e interior), então o cálculo nacional existe nas duas metodologias; a aba *Subestratos* tem um seletor de UF com o efeito da subestratificação em cada uma. Na versão subestratificada, as cidades grandes de MG também são agrupadas por região (Cidades Norte = Montes Claros, Governador Valadares, Ipatinga e Teófilo Otoni; Cidades Sul = as outras 15), e o estado fica em quatro estratos: cidades e interior do Norte, cidades e interior do Sul; a versão normal mantém cada cidade separada. O motor projeta as duas versões (normal e subestratificada) e o painel compara; a versão principal (padrão: subestratificada) define os números e a chamada e pode ser trocada na aba *Subestratos*. Lista gerada e validada no TSE por `scripts/gerar_subestratos.py`.
+- **Aba *Modelos*:** 14 modelos lado a lado, em cards filtráveis por família, mais a evolução deles ao longo da apuração e uma tabela por UF com a projeção pela razão de crescimento (estratificação *Meu Modelo* por padrão, com seletor para a normal). **Monte Carlo:** Meu Modelo (o subestratificado, principal), Monte Carlo normal, Meu Modelo com choques regionais e Bayes puro (Dirichlet sem choques nem limite de concentração). **Estimadores:** parcial apurada, estimador direto, razão de crescimento (janelas de 5%, 15% e 30%), tendência temporal por estrato e Bayes hierárquico (encolhimento empírico para a média da UF). **Referência:** swing sobre uma eleição anterior (1º turno de 2026 para o 2º; 2022 para o 1º de 2026), resultado de eleição e nunca pesquisa, que depende do replay de referência preparado por `scripts/preparar_replay.py`. **Consenso e limites:** média, mediana e extremos dos modelos, e os limites matemáticos (melhor e pior caso). Tudo além do Meu Modelo e do Monte Carlo normal é leitura à parte: não entra no Monte Carlo, no intervalo nem na chamada. O mapa também ganhou o modo *Vantagem (crescimento)*.
 - **Projeção extra por razão de crescimento:** para cada estrato e subestrato, votos ganhos por eleitor nas seções apuradas recentemente × eleitores que faltam. É só uma leitura à parte (aba *Crescimento*): não entra no Monte Carlo nem na chamada.
 - **Proteção Total contra WAF do TSE:** Limite contínuo de 9 a 12 requisições por segundo com semáforo de concorrência (`asyncio.Semaphore(15)`) e cache condicional (`HTTP 304 / If-Modified-Since`), reduzindo o consumo de banda em mais de 85% e blindando o IP contra banimentos. Arquivos de município com 100% das seções apuradas deixam de ser pedidos (o lote reaproveita a última cópia; reconferência a cada 10 min). O teto do TSE é 100 req/s por IP, contando respostas 304.
 - **Motor Vetorizado:** Motor estatístico em NumPy que executa 10.000 eleições completas em **~0,2 s com 2 candidatos e ~0,8 s com 13 candidatos**, em thread separada para não travar a API/SSE.
@@ -56,29 +56,27 @@ python3 main.py --headless            # sem janela: acesse http://127.0.0.1:4829
 A **tela inicial** pergunta como acompanhar a apuração:
 
 1. **Coleta real** (padrão): baixa os arquivos oficiais do TSE. Ano, turno e código da eleição vêm pré-preenchidos (o código é descoberto pelo `ele-c.json` do TSE); as opções avançadas permitem trocar a URL da CDN, o ambiente e ativar a verificação JWS.
-2. **Simular resultados**: sobe um servidor local que imita a CDN do TSE (candidatos fictícios sobre o eleitorado real de 2026), com velocidade e % inicial. O painel ganha o botão **Controlar simulação** (pausar, avançar, pular para 50%/95%). Cenários prontos:
-   - `1t`: 1º turno com 10 candidatos (um sub judice);
-   - `2t`: 2º turno equilibrado;
-   - `virada`: 2º turno em que o Nordeste (forte para SILVA) apura cedo e Sul/Sudeste/Centro-Oeste (fortes para SANTOS) apuram tarde — a parcial mostra SILVA na frente até ~80% e SANTOS vence.
-   - `vies`: a mesma virada e, além disso, um **viés de ordem**: em cada cidade/interior as primeiras urnas favorecem SILVA e o efeito some até o fim (testa o modelo quando a parcial de cada lugar não representa o que falta).
+2. **Replay de eleição real**: reproduz uma apuração que já aconteceu, na ordem e no horário em que o TSE recebeu cada urna (boletins de urna dos Dados Abertos), servida por um servidor local que imita a CDN do TSE. O painel ganha o botão **Controlar replay** (pausar, avançar, pular para 25%/50%/95%). Replays disponíveis: os que você preparou com `scripts/preparar_replay.py` (veja abaixo), como o 1º turno de 2026 e os dois turnos de 2022.
 
-   Em **Configurar percentuais e velocidade por região**, cada região recebe o **percentual de cada candidato** (soma 100%) e uma **razão de velocidade** da apuração (1 = ritmo médio; 2 = começa no dobro; 0,5 = começa na metade e acelera no fim; toda região chega a 100%) e um **viés de ordem** em pontos (vantagem extra do 1º candidato nas primeiras urnas de cada cidade; some até o fim, sem mudar o resultado final). A tela mostra uma prévia do resultado final e de quanto cada região terá apurado ao longo do tempo.
-
-No painel, **Trocar modo** volta à tela inicial sem reiniciar o app (por exemplo: simular agora e passar para a coleta real quando a apuração começar). Para pular a tela inicial:
+No painel, **Trocar modo** volta à tela inicial sem reiniciar o app (por exemplo: rever um replay e passar para a coleta real quando a apuração começar). Para pular a tela inicial:
 
 ```bash
 python3 main.py --modo real                          # coleta real direto
 python3 main.py --modo real --eleicao 6257 --verificar-jws oficial
-python3 main.py --modo simulado --cenario 1t --velocidade rapida
+python3 main.py --modo replay --fonte 2026_1t --velocidade rapida   # replay do 1º turno de 2026
 python3 main.py --modo real --ano 2022 --eleicao 545 --turno 2 --formato r   # eleição antiga (Dados Simplificados)
 ```
+
+Na coleta real, quando todas as UFs chegam a 100% das seções o SPETR faz mais duas coletas de segurança (relendo também os municípios já concluídos) e **encerra a coleta**: o painel avisa "coleta encerrada" e deixa de baixar dados. No replay a coleta não para, para você poder voltar a 0%.
+
+As cores dos candidatos seguem o partido: **PL sempre azul e PT sempre vermelho**; os demais usam a cor preferida do partido (ex.: Avante e Novo, laranja) quando está livre, ou a primeira cor livre.
 
 Antes do primeiro voto apurado o painel mostra "Aguardando o início da apuração" (os arquivos do TSE já existem, zerados) e nada é projetado.
 
 | Opção | Padrão | Descrição |
 |---|---|---|
-| `--modo` | tela inicial | `real` ou `simulado`: inicia direto, sem a tela inicial |
-| `--cenario` / `--velocidade` | `1t` / `normal` | Opções do modo simulado |
+| `--modo` | tela inicial | `real` ou `replay`: inicia direto, sem a tela inicial |
+| `--fonte` / `--velocidade` | — / `normal` | Replay a iniciar (ex.: `2026_1t`) e o ritmo dele |
 | `--ano` | `2026` | Ciclo eleitoral (`ele{ano}`) |
 | `--eleicao` | descoberta automática | Código da eleição no TSE; obrigatório no formato `r` |
 | `--cargo` | `1` | Código do cargo (1 = Presidente) |
@@ -88,35 +86,22 @@ Antes do primeiro voto apurado o painel mostra "Aguardando o início da apuraç�
 | `--verificar-jws` | desativado | Baixa os pares `.jws` e valida a assinatura Ed25519 com a chave `oficial` ou `desenvolvimento` do manual do TSE |
 | `--db` | `spetr_eleicoes.sqlite` | Banco de histórico (cada pleito e execução ficam identificados) |
 
-### Avaliando o modelo num cenário
-`scripts/avaliar_cenario.py` roda a apuração simulada inteira sem servidor e mostra, instante a instante, a parcial, a projeção com a faixa provável, a chance de vitória e quando o painel anunciaria o resultado, comparando com o resultado verdadeiro:
-```bash
-python3 scripts/avaliar_cenario.py --cenario virada
-python3 scripts/avaliar_cenario.py --cenario 2t --ajustes meu_cenario.json   # mesmo formato da tela de configuração
-```
-
 ### Replay de uma eleição real (boletins de urna)
 O servidor de resultados do TSE não guarda eleições antigas (2022 já saiu do ar). Os **boletins de urna** dos Dados Abertos trazem os votos de cada seção e o horário em que o TSE a recebeu (`DT_BU_RECEBIDO`), o que permite reproduzir a noite da apuração na ordem real. Prepare uma vez (2º turno: ~150 MB de download; 1º turno: alguns GB, pois traz todos os cargos):
 ```bash
 python3 scripts/preparar_replay.py --ano 2022 --turno 2     # gera ~/.local/share/spetr/replay/2022_2t.json.gz (1,5 MB)
 python3 scripts/preparar_replay.py --ano 2022 --turno 1
+python3 scripts/preparar_replay.py --ano 2026 --turno 1     # ~5 GB de boletins; o replay final tem ~2 MB
 ```
-Depois, na tela inicial, escolha **Replay de eleição real**. O relógio começa às 17h (Brasília) e anda alguns minutos da noite real a cada atualização; o painel recebe os arquivos no mesmo formato do TSE. No 2º turno de 2022, o IC 95% conteve o resultado final em 96% dos instantes e a vitória de Lula foi chamada com 88% das seções.
+Depois, na tela inicial, escolha **Replay de eleição real**. O relógio começa às 17h (Brasília) e anda alguns minutos da noite real a cada atualização; o painel recebe os arquivos no mesmo formato do TSE. O replay do 1º turno de 2026 fecha exatamente no resultado do TSE (Flávio Bolsonaro 47,03%, Lula 45,16%). No 2º turno de 2022, o IC 95% conteve o resultado final em 96% dos instantes e a vitória de Lula foi chamada com 88% das seções.
 
 A tela inicial lista as eleições presidenciais por ano, com 2026 como padrão. Para 2022, a opção de dados reais usa o replay local dos boletins, porque os arquivos de resultados não permanecem disponíveis no servidor antigo do TSE.
 
 ### Replay de uma apuração gravada
-`scripts/replay_apuracao.py` reprocessa uma execução gravada no banco e mede erro, cobertura do IC 95% e a primeira chamada, para a projeção principal e a por crescimento. `--dois` ensaia um 2º turno com os dados reais do 1º; `--desloca` aperta a disputa mantendo a ordem de apuração:
+`scripts/replay_apuracao.py` reprocessa uma execução gravada no banco e mede erro, cobertura do IC 95% e a primeira chamada, para a projeção principal e as extras (crescimento, estimador direto e swing; use `--ano` e `--turno` para escolher a referência do swing). `--dois` ensaia um 2º turno com os dados reais do 1º; `--desloca` aperta a disputa mantendo a ordem de apuração:
 ```bash
 python3 scripts/replay_apuracao.py --execucao 74f16c746af0 --dois 22,13 --min-cobertura 0.85
 python3 scripts/replay_apuracao.py --execucao 74f16c746af0 --dois 22,13 --desloca 0.022
-```
-
-### 4. Simulador isolado (opcional)
-O mesmo simulador da tela inicial pode rodar como processo separado, para testar o coletor de rede contra outro servidor:
-```bash
-python3 scripts/mock_tse_server.py --cenario 1t --velocidade normal   # terminal 1 (painel em http://127.0.0.1:8080/)
-python3 main.py --mock                                                 # terminal 2: coleta "real" apontando para :8080
 ```
 
 ### Atualizando os metadados de estratificação
@@ -131,14 +116,6 @@ A subestratificação de MG (`spetr/data/subestratos.json`) vem da API do IBGE e
 ```bash
 python3 scripts/gerar_subestratos.py --validar                     # padrão: MG, Norte = 5 mesorregiões, eleição 6257
 ```
-
-### 5. Executando o Replay Histórico de 2022
-Para ver a projeção estatística convergindo em tempo real com dados da eleição presidencial de 2022:
-```bash
-python3 scripts/simular_apuracao_2022.py
-```
-Acesse `http://127.0.0.1:48291` para assistir à curva de probabilidade e às faixas de incerteza se estreitarem ao vivo.
-
 
 ---
 
@@ -161,7 +138,7 @@ Cobertura dos testes:
 
 ## 📦 Gerando o Executável Standalone
 
-O `spetr.spec` (PyInstaller) gera um executável único com Python, bibliotecas, painel, simulador e metadados embutidos. Quem recebe o arquivo não precisa instalar nada: basta abrir.
+O `spetr.spec` (PyInstaller) gera um executável único com Python, bibliotecas, painel, servidor de replay e metadados embutidos. Quem recebe o arquivo não precisa instalar nada: basta abrir.
 
 ```bash
 uv pip install pyinstaller                                   # dentro do .venv do projeto

@@ -16,7 +16,7 @@
     <div class="topo-acoes">
       <span class="topo-info" id="ultima-atualizacao">Aguardando o primeiro ciclo…</span>
       <span class="conexao" id="conexao" title="Conexão com o servidor local"><span class="ponto" aria-hidden="true"></span><span id="conexao-texto">Conectando…</span></span>
-      <a class="botao" id="link-simulador" href="#" target="_blank" rel="noopener" hidden>Controlar simulação</a>
+      <a class="botao" id="link-simulador" href="#" target="_blank" rel="noopener" hidden>Controlar replay</a>
       <a class="botao" id="link-trocar" href="/inicio">Trocar modo</a>
       <button class="botao" id="botao-tema" type="button" aria-label="Alternar tema claro/escuro">Tema</button>
     </div>
@@ -215,9 +215,10 @@
       <div class="aba grade-2x2" role="tabpanel" id="aba-subestratos" aria-labelledby="tab-subestratos" data-aba="subestratos" hidden>
         <article class="bloco">
           <header>
-            <h3 id="sub-titulo">Normal × subestratificado</h3>
+            <h3 id="sub-titulo">Normal × Meu Modelo</h3>
+            <select id="sub-uf" class="seletor-pequeno" aria-label="UF mostrada nos gráficos e na tabela"></select>
             <div class="segmentado pequeno" role="group" aria-label="Versão que define a projeção principal e a chamada" id="controle-versao">
-              <button type="button" data-versao="subestratificado">Subestratificado</button>
+              <button type="button" data-versao="subestratificado">Meu Modelo</button>
               <button type="button" data-versao="normal">Normal</button>
             </div>
           </header>
@@ -225,18 +226,18 @@
           <div class="grafico preenche" id="g-sub-intervalos"></div>
         </article>
         <article class="bloco">
-          <header><h3>Interior por versão</h3><span class="nota">Normal: um só interior · subestratificado: grupos separados</span></header>
+          <header><h3>Estratos da UF por versão</h3><span class="nota">Normal: cada cidade grande · Meu Modelo: cidades agrupadas por região</span></header>
           <div class="tabela-rolagem">
             <table class="tabela densa" id="tabela-sub"><thead></thead><tbody></tbody></table>
           </div>
           <p class="nota explicacao" id="sub-explicacao"></p>
         </article>
         <article class="bloco">
-          <header><h3 id="sub-hist-titulo">Projeção na UF ao longo da apuração</h3><span class="nota">Linha grossa: subestratificado · fina: normal</span></header>
+          <header><h3 id="sub-hist-titulo">Projeção na UF ao longo da apuração</h3><span class="nota">Linha grossa: Meu Modelo · fina: normal</span></header>
           <div class="grafico preenche" id="g-sub-uf"></div>
         </article>
         <article class="bloco">
-          <header><h3>Efeito no resultado nacional</h3><span class="nota">Linha grossa: subestratificado · fina: normal</span></header>
+          <header><h3>Efeito no resultado nacional</h3><span class="nota">Linha grossa: Meu Modelo · fina: normal</span></header>
           <div class="grafico preenche" id="g-sub-nacional"></div>
         </article>
       </div>
@@ -268,16 +269,25 @@
 
       <!-- Modelos lado a lado -->
       <div class="aba grade-modelos" role="tabpanel" id="aba-modelos" aria-labelledby="tab-modelos" data-aba="modelos" hidden>
-        <div class="cartoes-modelos largo" id="cartoes-modelos"></div>
+        <div class="largo bloco-modelos">
+          <div class="segmentado pequeno" role="group" aria-label="Família de modelos" id="controle-familia">
+            <button type="button" data-familia="todos">Todos</button>
+            <button type="button" data-familia="mc">Monte Carlo</button>
+            <button type="button" data-familia="est">Estimadores</button>
+            <button type="button" data-familia="ref">Referência</button>
+            <button type="button" data-familia="cons">Consenso e limites</button>
+          </div>
+          <div class="cartoes-modelos" id="cartoes-modelos"></div>
+        </div>
         <article class="bloco">
-          <header><h3 id="modelos-hist-titulo">Modelos ao longo da apuração</h3><span class="nota">Linha grossa: Monte Carlo subestratificado (seu modelo)</span></header>
+          <header><h3 id="modelos-hist-titulo">Modelos ao longo da apuração</h3><span class="nota">Linha grossa: Meu Modelo (Monte Carlo subestratificado)</span></header>
           <div class="grafico preenche" id="g-modelos"></div>
         </article>
         <article class="bloco">
           <header>
             <h3>Estados pela razão de crescimento</h3>
             <div class="segmentado pequeno" role="group" aria-label="Estratificação usada na razão de crescimento" id="controle-cresc-versao">
-              <button type="button" data-cresc-versao="subestratificado">Subestratificado</button>
+              <button type="button" data-cresc-versao="subestratificado">Meu Modelo</button>
               <button type="button" data-cresc-versao="normal">Normal</button>
             </div>
           </header>

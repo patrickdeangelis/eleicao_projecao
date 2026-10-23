@@ -77,43 +77,6 @@
           </details>
         </div>
 
-        <div class="opcao-modo" data-modo="simulado">
-          <label class="opcao-cabeca">
-            <input type="radio" name="modo" value="simulado">
-            <strong>Simular resultados</strong>
-            <span class="selo">local</span>
-          </label>
-          <span class="opcao-desc">Gera uma apuração de mentira, com candidatos fictícios sobre o eleitorado real de 2026, para conhecer e testar o painel antes da eleição.</span>
-
-          <span class="campos">
-            <label class="campo largo">
-              <span class="campo-rotulo">Cenário</span>
-              <select name="cenario"></select>
-            </label>
-            <label class="campo">
-              <span class="campo-rotulo">Velocidade</span>
-              <select name="velocidade"></select>
-            </label>
-            <label class="campo">
-              <span class="campo-rotulo">Começar em (% das seções)</span>
-              <input type="number" name="inicio" min="0" max="100" step="1" value="0">
-            </label>
-          </span>
-          <details class="avancado config-sim" id="personalizar">
-            <summary>Configurar percentuais e velocidade por região</summary>
-            <p class="nota">Percentual de cada candidato nos votos de cada região (cada linha soma 100%) e a
-              razão de velocidade da apuração: <strong>1</strong> = ritmo médio, <strong>2</strong> = começa no dobro,
-              <strong>0,5</strong> = começa na metade e acelera no fim. Toda região chega a 100% no final.
-              O <strong>viés de ordem</strong> dá pontos a mais ao 1º candidato nas primeiras urnas de cada cidade
-              (negativo favorece o 2º); o efeito diminui até sumir no fim, sem mudar o resultado final.</p>
-            <div class="config-rolagem">
-              <table class="tabela compacta config" id="tabela-config"><thead></thead><tbody></tbody></table>
-            </div>
-            <label class="config-check"><input type="checkbox" name="cidades_primeiro" checked> Capitais e cidades grandes apuram antes do interior</label>
-            <div class="previa" id="previa" aria-live="polite"></div>
-          </details>
-        </div>
-
         <div class="opcao-modo" data-modo="replay">
           <label class="opcao-cabeca">
             <input type="radio" name="modo" value="replay">
@@ -132,7 +95,7 @@
               <select name="velocidade_replay"></select>
             </label>
           </span>
-          <p class="nota" id="nota-replay">Os replays usam os boletins de urna oficiais de 2022 e passam pelo pipeline normal do app.</p>
+          <p class="nota" id="nota-replay">Os replays usam os boletins de urna oficiais (2022 e 2026) e passam pelo pipeline normal do app.</p>
         </div>
       </div>
 

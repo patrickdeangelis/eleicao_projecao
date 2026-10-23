@@ -6,7 +6,7 @@ antes disso entram todos às 17h. A cada avanço, o relógio anda alguns minutos
 servidor do simulador passa a entregar os arquivos de UF e de município com os votos das seções
 que o TSE já tinha recebido naquele horário, no mesmo formato "dados simplificados" do TSE.
 
-Usa a mesma interface de EstadoSimulacao, então roda no mesmo servidor (criar_app_simulador).
+Roda no servidor local de replay (criar_app_simulador), que espelha os arquivos da CDN do TSE.
 """
 import datetime
 import gzip
@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 
 from spetr.caminhos import pasta_replays
-from spetr.simulador.servidor import EstadoSimulacao, _agora_http
+from spetr.simulador.servidor import EstadoApuracao, _agora_http
 
 # (segundos entre avanços, minutos da noite real por avanço)
 VELOCIDADES_REPLAY = {
@@ -40,11 +40,8 @@ def listar_replays() -> Dict[str, str]:
     return saida
 
 
-class EstadoReplay:
+class EstadoReplay(EstadoApuracao):
     """Estado de um replay: relógio (minutos desde as 17h) e votos recebidos até ali."""
-
-    somar = EstadoSimulacao.somar
-    gerar_payload = EstadoSimulacao.gerar_payload
 
     def __init__(self, fonte: str, velocidade: str = "normal", pasta: Optional[str] = None):
         if velocidade not in VELOCIDADES_REPLAY:
@@ -63,11 +60,10 @@ class EstadoReplay:
         self.velocidade_segundos, self.minutos_por_passo = VELOCIDADES_REPLAY[velocidade]
         self.cenario = f"replay-{fonte}"
         self.descricao = f"Replay real · {self.ano} · {self.turno}º turno · boletins de urna do TSE"
-        self.personalizado = False
         self.pausado = False
         self.versao_ciclo = 1
         self.ultima_modificacao = _agora_http()
-        self.candidatos = [{"n": c["n"], "nm": c["nm"], "cc": c.get("partido", ""), "meta_pct": 0.0, "dvt": "Válido"}
+        self.candidatos = [{"n": c["n"], "nm": c["nm"], "cc": c.get("partido", ""), "dvt": "Válido"}
                            for c in dados["candidatos"]]
 
         t0 = datetime.datetime.strptime(dados["t0"], "%Y-%m-%d %H:%M")

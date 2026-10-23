@@ -9,7 +9,7 @@ import logging
 from spetr.domain.interfaces import IEventBus
 from spetr.domain.entities import ResultadoProjecao
 from spetr.domain.value_objects import CHAVES_RESUMO_ANALISE
-from spetr.services.events import CollectionErrorEvent, ProjectionCalculatedEvent
+from spetr.services.events import CollectionErrorEvent, CollectionFinishedEvent, ProjectionCalculatedEvent
 
 logger = logging.getLogger("spetr.api.sse")
 
@@ -66,6 +66,7 @@ class SSEBroadcaster:
     - "projecao_update": novo resultado da projeção
     - "aviso": falha de coleta (ex.: arquivos do TSE ainda não publicados)
     - "sessao": a sessão foi iniciada, parada ou trocada de modo
+    - "coleta_encerrada": a apuração chegou a 100% e a coleta parou
     """
 
     def __init__(self, event_bus: Optional[IEventBus] = None):
@@ -73,10 +74,12 @@ class SSEBroadcaster:
         self._queues: Set[asyncio.Queue] = set()
         self.ultimo_resultado_json: Optional[str] = None
         self.ultimo_aviso: Optional[Dict[str, Any]] = None
+        self.coleta_encerrada: Optional[Dict[str, Any]] = None
 
         if self.bus is not None:
             self.bus.subscribe(ProjectionCalculatedEvent, self.ao_calcular_projecao)
             self.bus.subscribe(CollectionErrorEvent, self.ao_erro_coleta)
+            self.bus.subscribe(CollectionFinishedEvent, self.ao_coleta_encerrada)
 
     async def ao_calcular_projecao(self, evento: ProjectionCalculatedEvent) -> None:
         self.ultimo_resultado_json = json.dumps(serializar_resultado(evento.resultado), separators=(",", ":"))
@@ -86,10 +89,16 @@ class SSEBroadcaster:
         self.ultimo_aviso = {"timestamp": evento.timestamp, "origem": evento.origem, "mensagem": evento.mensagem}
         await self.broadcast(json.dumps(self.ultimo_aviso), evento_sse="aviso")
 
+    async def ao_coleta_encerrada(self, evento: CollectionFinishedEvent) -> None:
+        self.coleta_encerrada = {"timestamp": evento.timestamp, "ciclo_id": evento.ciclo_id, "mensagem": evento.mensagem}
+        self.ultimo_aviso = None
+        await self.broadcast(json.dumps(self.coleta_encerrada), evento_sse="coleta_encerrada")
+
     async def ao_mudar_sessao(self, sessao: Dict[str, Any]) -> None:
         """Nova sessão: descarta o último resultado (de outro modo/eleição) e avisa os painéis abertos."""
         self.ultimo_resultado_json = None
         self.ultimo_aviso = None
+        self.coleta_encerrada = None
         await self.broadcast(json.dumps({"ativa": sessao.get("ativa"), "modo": sessao.get("modo")}), evento_sse="sessao")
 
     async def connect(self) -> asyncio.Queue:

@@ -38,3 +38,11 @@ class CollectionErrorEvent:
     origem: str
     mensagem: str
     codigo_status: int = 0
+
+
+@dataclass(frozen=True)
+class CollectionFinishedEvent:
+    """A apuração chegou a 100% e a coleta foi encerrada (após as coletas extras de segurança)."""
+    timestamp: str
+    ciclo_id: int
+    mensagem: str

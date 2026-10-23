@@ -51,6 +51,7 @@ def setup_routes(
             "modo": sessao.modo if sessao is not None else None,
             "simulador_url": sessao.simulador.url if sessao is not None and sessao.simulador else None,
             "ultimo_aviso": broadcaster.ultimo_aviso,
+            "coleta_encerrada": broadcaster.coleta_encerrada,
         }
 
     # ---------------------------------------------------------------- sessão
@@ -59,7 +60,7 @@ def setup_routes(
     async def get_sessao():
         if sessao is None:
             return {"ativa": True, "modo": None, "eleicao": info()}
-        return {**sessao.descrever(), "ultimo_aviso": broadcaster.ultimo_aviso}
+        return {**sessao.descrever(), "ultimo_aviso": broadcaster.ultimo_aviso, "coleta_encerrada": broadcaster.coleta_encerrada}
 
     @router.post("/sessao/iniciar")
     async def iniciar_sessao(request: Request, corpo: Dict[str, Any] = Body(...)):
@@ -94,20 +95,6 @@ def setup_routes(
             raise HTTPException(status_code=409, detail="Nenhuma sessão ativa")
         coord.engine.versao_principal = versao
         return {"versao_principal": versao, "aplica_em": "próximo ciclo"}
-
-    @router.post("/simulador/previa")
-    async def previa_simulacao(request: Request, corpo: Dict[str, Any] = Body(...)):
-        """Resultado final esperado e ritmo por região de um cenário (com ajustes), sem iniciar nada."""
-        verificar_origem(request)
-        from spetr.simulador import CENARIOS, EstadoSimulacao
-        cenario = str(corpo.get("cenario") or "1t")
-        if cenario not in CENARIOS:
-            raise HTTPException(status_code=422, detail=f"Cenário inválido: {cenario!r}")
-        try:
-            estado = EstadoSimulacao(cenario, ajustes=corpo.get("ajustes") or None)
-        except ValueError as e:
-            raise HTTPException(status_code=422, detail=str(e))
-        return await asyncio.to_thread(estado.previa)
 
     # -------------------------------------------------------------- projeção
 

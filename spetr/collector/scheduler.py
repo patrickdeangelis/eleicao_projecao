@@ -9,6 +9,8 @@ Coordena o ritmo de requisições:
   a UF, todas as cidades e o grupo no mesmo lote
 - Arquivos de município com 100% das seções apuradas deixam de ser pedidos: o lote reaproveita a
   última cópia e o arquivo só é conferido de novo a cada `intervalo_reconferir` segundos
+- Com todas as UFs em 100% das seções, faz `coletas_extras_apos_100` coletas a mais por segurança (relendo
+  também os municípios já concluídos) e encerra o loop: a apuração terminou e não há por que seguir baixando
 - Arquivo de município que responde 404 fica suspenso por `suspensao_404` segundos: muitos 404
   podem bloquear o IP no TSE (ex.: coleta iniciada antes de os arquivos serem publicados)
 
@@ -27,7 +29,7 @@ import logging
 from spetr.domain.interfaces import ICollector, IEventBus
 from spetr.collector.client import TSEHttpClient
 from spetr.collector.parser import secoes_concluidas
-from spetr.services.events import RawBatchReceivedEvent, CollectionErrorEvent
+from spetr.services.events import RawBatchReceivedEvent, CollectionErrorEvent, CollectionFinishedEvent
 
 logger = logging.getLogger("spetr.collector.scheduler")
 
@@ -56,6 +58,8 @@ class TieredScheduler(ICollector):
         intervalo_subestratos: float = 60.0,
         intervalo_reconferir: float = 600.0,
         suspensao_404: float = 300.0,
+        parar_ao_concluir: bool = True,
+        coletas_extras_apos_100: int = 2,
     ):
         if formato not in FORMATOS_VALIDOS:
             raise ValueError(f"Formato inválido: '{formato}'. Opções: {FORMATOS_VALIDOS}")
@@ -82,6 +86,9 @@ class TieredScheduler(ICollector):
         self.requisicoes_poupadas = 0
         self.suspensao_404 = suspensao_404
         self._suspensos: Dict[str, float] = {}  # chave -> instante até quando não pedir
+        self.parar_ao_concluir = parar_ao_concluir
+        self.coletas_extras_apos_100 = coletas_extras_apos_100
+        self._coletas_em_100 = 0  # coletas seguidas com todas as UFs em 100% (1 = a que viu o 100%)
 
         self.ufs: List[str] = [
             "AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA",
@@ -325,11 +332,39 @@ class TieredScheduler(ICollector):
                             payload_bruto=batch
                         )
                     )
+
+                if self.parar_ao_concluir:
+                    if self._todas_ufs_concluidas(batch, falhas):
+                        self._coletas_em_100 += 1
+                        if self._coletas_em_100 == 1:
+                            # Coletas extras releem tudo, inclusive os municípios que já estavam concluídos
+                            self._concluidos.clear()
+                            logger.info(f"Apuração em 100%: mais {self.coletas_extras_apos_100} coleta(s) de segurança e a coleta encerra.")
+                        if self._coletas_em_100 > self.coletas_extras_apos_100:
+                            await self._publicar_encerramento(ts)
+                            self._rodando = False
+                            break
+                    else:
+                        self._coletas_em_100 = 0
             except Exception as e:
                 logger.error(f"Erro no ciclo de coleta do scheduler: {e}", exc_info=True)
                 await self._publicar_erro(str(e))
 
             await asyncio.sleep(self.intervalo_tier1)
+
+    def _todas_ufs_concluidas(self, batch: Dict[str, Dict[str, Any]], falhas: List[str]) -> bool:
+        """True quando o arquivo de cada UF veio (sem falha neste ciclo) com 100% das seções apuradas."""
+        for uf in self.ufs:
+            chave = f"UF_{uf}"
+            if chave in falhas or not secoes_concluidas(batch.get(chave)):
+                return False
+        return True
+
+    async def _publicar_encerramento(self, ts: str) -> None:
+        mensagem = "Apuração em 100%: coleta encerrada"
+        logger.info(f"{mensagem} (ciclo {self._ciclo_contador}, após {self.coletas_extras_apos_100} coleta(s) extra(s)).")
+        if self.bus is not None:
+            await self.bus.publish(CollectionFinishedEvent(timestamp=ts, ciclo_id=self._ciclo_contador, mensagem=mensagem))
 
     async def _publicar_erro(self, mensagem: str) -> None:
         if self.bus is not None:

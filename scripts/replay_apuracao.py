@@ -4,7 +4,10 @@ Replay de uma apuração gravada no banco do SPETR, para medir a calibração do
 Reprocessa os estratos gravados (snapshots_apuracao) de uma execução, ciclo a ciclo, e compara
 com o resultado final da própria execução:
 - projeção principal: erro, cobertura do IC 95% e primeira chamada de vitória;
-- projeção por crescimento (extra): erro.
+- projeções extras (erro): razão de crescimento, estimador direto e swing sobre a eleição de referência.
+
+O swing usa o replay de referência da eleição (--ano/--turno; ex.: 2026 1º turno → 2022_1t). Não use
+--dois com o 2º turno de 2026 e referência 2026_1t sobre dados do próprio 1º turno: seria vazamento.
 
 Com --dois, reduz a apuração a um confronto entre dois candidatos (ensaio de 2º turno com os
 dados reais do 1º). --desloca transfere uma fração dos votos do 1º para o 2º em todos os
@@ -39,6 +42,9 @@ def main() -> int:
     ap.add_argument("--execucao", required=True, help="execucao_id gravado no banco")
     ap.add_argument("--dois", help="Dois números de candidato (ex.: 22,13) para ensaiar um 2º turno")
     ap.add_argument("--desloca", type=float, default=0.0, help="Fração dos votos do 1º que passa para o 2º (com --dois)")
+    ap.add_argument("--ano", default="2026", help="Ano da eleição gravada (escolhe a referência do swing)")
+    ap.add_argument("--turno", type=int, default=1, help="Turno da eleição gravada (escolhe a referência do swing)")
+    ap.add_argument("--referencia", default="auto", help="Replay de referência do swing (auto, ex.: 2022_1t, ou 'nenhuma')")
     ap.add_argument("--passo", type=int, default=3, help="Avalia 1 a cada N ciclos gravados")
     ap.add_argument("--simulacoes", type=int, default=4000)
     ap.add_argument("--sigma-uf", type=float)
@@ -93,7 +99,8 @@ def main() -> int:
     ordem = sorted(final, key=final.get, reverse=True)
     vencedor, alvo = ordem[0], ordem[0]
 
-    pipe = PipelineCoordinator(db_path=":memory:", num_simulacoes=args.simulacoes)
+    pipe = PipelineCoordinator(db_path=":memory:", num_simulacoes=args.simulacoes, ano_eleicao=args.ano, turno=args.turno,
+                               referencia=None if args.referencia == "nenhuma" else args.referencia)
     eng = pipe.engine
     eng.rng = np.random.default_rng(3)
     if args.sigma_uf is not None:
@@ -105,9 +112,10 @@ def main() -> int:
           f"{f' · desloca {args.desloca:.3f}' if args.desloca else ''} · σ UF {eng.sigma_uf} · σ nacional {eng.sigma_nacional}")
     print("Resultado final: " + " · ".join(f"{n} {final[n]:.2f}%" for n in ordem[:3]))
     if not args.quieto:
-        print(f"\n{'hora':5} {'seções':>7} │ {'apurado':>7} {'projeção [IC 95%]':>24} {'erro':>6} │ {'cresc.':>6} {'erro':>6} │ situação")
+        print(f"\n{'hora':5} {'seções':>7} │ {'apurado':>7} {'projeção [IC 95%]':>24} {'erro':>6} │ {'cresc.':>6} {'erro':>6} │ {'direto':>6} {'erro':>6} │ {'swing':>6} {'erro':>6} │ situação")
 
-    estado, erros, erros_cresc, cobre, n = {}, [], [], 0, 0
+    estado, erros, erros_cresc, erros_direto, erros_swing, cobre, n = {}, [], [], [], [], 0, 0
+    erros_outros: dict = {}  # modelo -> [(% apurado, erro)] dos demais modelos da aba Modelos
     chamada, ultimo = None, -10.0
     for i, (ts, ls) in enumerate(por_ts.items()):
         for l in ls:
@@ -123,6 +131,9 @@ def main() -> int:
         if c is None:
             continue
         cresc = (r.analise.get("crescimento_nacional") or {}).get(alvo)
+        versao = "subestratificado" if "subestratificado" in (r.analise.get("direto_versoes") or {}) else "normal"
+        direto = ((r.analise.get("direto_versoes") or {}).get(versao) or {}).get(alvo)
+        swing = ((r.analise.get("swing_versoes") or {}).get(versao) or {}).get(alvo)
         pct = r.perc_secoes_apuradas
         ok = c.ic_inferior_95 <= final[alvo] <= c.ic_superior_95
         if pct < 99.9:
@@ -131,6 +142,14 @@ def main() -> int:
             erros.append((pct, c.perc_projetado - final[alvo]))
             if cresc is not None:
                 erros_cresc.append((pct, cresc - final[alvo]))
+            if direto is not None:
+                erros_direto.append((pct, direto - final[alvo]))
+            if swing is not None:
+                erros_swing.append((pct, swing - final[alvo]))
+            for nome_m, por_v in (r.analise.get("modelos_resumo") or {}).items():
+                val = (por_v.get(versao) or por_v.get("_") or {}).get(alvo)
+                if val is not None:
+                    erros_outros.setdefault(nome_m, []).append((pct, val - final[alvo]))
         if chamada is None and r.status_call.value in ("VITORIA_PROJETADA", "MATEMATICAMENTE_ELEITO"):
             chamada = (pct, r.vencedor_projetado, ts)
         if not args.quieto and (pct - ultimo >= 5 or i == len(por_ts) - 1):
@@ -138,6 +157,8 @@ def main() -> int:
             print(f"{ts[11:16]} {pct:6.1f}% │ {c.perc_apurado:6.2f}% {c.perc_projetado:7.2f}% [{c.ic_inferior_95:6.2f}–{c.ic_superior_95:6.2f}] "
                   f"{c.perc_projetado - final[alvo]:+6.2f} {'' if ok else '✗'}│ "
                   f"{(f'{cresc:6.2f}' if cresc is not None else '     –')} {(f'{cresc - final[alvo]:+6.2f}' if cresc is not None else '      ')} │ "
+                  f"{(f'{direto:6.2f}' if direto is not None else '     –')} {(f'{direto - final[alvo]:+6.2f}' if direto is not None else '      ')} │ "
+                  f"{(f'{swing:6.2f}' if swing is not None else '     –')} {(f'{swing - final[alvo]:+6.2f}' if swing is not None else '      ')} │ "
                   f"{r.status_call.value}")
 
     def resumo(lista):
@@ -148,6 +169,10 @@ def main() -> int:
     print(f"\nCandidato avaliado: {alvo}")
     print(f"Projeção principal:     {resumo(erros)}")
     print(f"Projeção p/ crescimento: {resumo(erros_cresc)}")
+    print(f"Estimador direto:       {resumo(erros_direto)}")
+    print(f"Swing s/ referência:    {resumo(erros_swing)}")
+    for nome_m, lista in sorted(erros_outros.items()):
+        print(f"{nome_m + ':':24}{resumo(lista)}")
     print(f"Cobertura do IC 95%:    {cobre}/{n} = {cobertura:.0%}")
     if chamada:
         print(f"Primeira chamada: {chamada[1]} com {chamada[0]:.1f}% das seções ({'correta' if chamada[1] == vencedor else 'ERRADA'})")

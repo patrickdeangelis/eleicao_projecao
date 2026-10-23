@@ -12,6 +12,7 @@ from spetr.domain.value_objects import TipoEstrato
 from spetr.services.event_bus import EventBus
 from spetr.services.events import ProjectionCalculatedEvent, RawBatchReceivedEvent, StrataNormalizedEvent
 from spetr.aggregator.vector_subtraction import VectorAggregator
+from spetr.stats_engine.modelos_extras import carregar_referencia
 from spetr.stats_engine.monte_carlo import MonteCarloProjectionEngine
 from spetr.storage.database import SQLiteDatabase
 from spetr.storage.repository import ElectionRepository
@@ -44,6 +45,8 @@ class PipelineCoordinator:
         intervalo_exterior: float = 120.0,
         intervalo_subestratos: float = 60.0,
         rotulo_eleicao: Optional[str] = None,
+        referencia: Optional[str] = None,
+        parar_ao_concluir: bool = True,
     ):
         self.bus = event_bus or EventBus()
         self.db = SQLiteDatabase(db_path)
@@ -61,6 +64,7 @@ class PipelineCoordinator:
             intervalo_tier2=intervalo_tier2,
             intervalo_exterior=intervalo_exterior,
             intervalo_subestratos=intervalo_subestratos,
+            parar_ao_concluir=parar_ao_concluir,
         )
         self.repo = ElectionRepository(
             self.db,
@@ -72,6 +76,15 @@ class PipelineCoordinator:
 
 
         self._carregar_metadados_iniciais()
+        # Eleição de referência do modelo de swing: "auto" escolhe pelo ano e turno; None desliga
+        if referencia:
+            try:
+                self.engine.referencia = carregar_referencia(
+                    ano_eleicao, turno, self.aggregator.cidades_por_uf, self.aggregator.subestratos,
+                    fonte=None if referencia == "auto" else referencia,
+                )
+            except Exception as e:  # a referência é opcional: falha dela não derruba a coleta
+                logger.error(f"Referência eleitoral indisponível: {e}", exc_info=True)
 
     async def desligar(self) -> None:
         """Para a coleta e desconecta os componentes do barramento (troca de modo sem reiniciar)."""
@@ -88,6 +101,8 @@ class PipelineCoordinator:
         Cidades grandes da UF por grupo: as listadas em cada grupo e, no resto, todas as demais.
         Vazio se a configuração não lista cidades (a UF só subestratifica o interior).
         """
+        if cfg.get("cidades_no_resto"):
+            return {cfg["resto"]["chave"]: list(cidades_uf)}
         listadas = {ch: list(g.get("cidades", {})) for ch, g in cfg["grupos"].items()}
         if not any(listadas.values()):
             return {}
@@ -143,6 +158,11 @@ class PipelineCoordinator:
                 subestratos = json.load(f)
         # Só subestratifica UFs que já têm cidades estratificadas (o Interior vem da subtração)
         subestratos = {uf: cfg for uf, cfg in subestratos.items() if cidades_por_uf.get(uf)}
+        # Metodologia subestratificada no país inteiro: as UFs sem divisão regional própria (todas menos
+        # MG) ficam com dois estratos, cidades grandes agrupadas e interior; MG ganha as regiões Norte e Sul
+        for uf, cidades_uf in cidades_por_uf.items():
+            if cidades_uf and uf not in subestratos:
+                subestratos[uf] = {"grupos": {}, "resto": {"chave": "RESTO", "nome": "Interior"}, "cidades_no_resto": True}
 
         # Configura o agregador e o coletor
         self.aggregator.configurar_cidades(cidades_por_uf)
@@ -155,8 +175,8 @@ class PipelineCoordinator:
         })
         self.scheduler.configurar_alvos(
             cidades_por_uf, capitais_por_uf, cidades_exterior=list(exterior),
-            municipios_subestratos={uf: [c for g in cfg["grupos"].values() for c in g["municipios"]]
-                                    for uf, cfg in subestratos.items()},
+            municipios_subestratos={uf: lista for uf, cfg in subestratos.items()
+                                    if (lista := [c for g in cfg["grupos"].values() for c in g["municipios"]])},
         )
 
         # Monta a lista de estratos para o motor estatístico

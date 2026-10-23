@@ -286,7 +286,7 @@ def test_setup_routes_nao_duplica_rotas():
     b = SSEBroadcaster()
     r1 = setup_routes(b)
     r2 = setup_routes(b)
-    assert len(r1.routes) == len(r2.routes) == 10
+    assert len(r1.routes) == len(r2.routes) == 9
 
 
 def test_lote_com_defasagem_entre_uf_e_cidades_e_descartado():
