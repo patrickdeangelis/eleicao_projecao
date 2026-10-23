@@ -107,6 +107,12 @@ CENARIOS = {nome: p["candidatos"] for nome, p in PERFIS.items()}
 DESCRICAO_CENARIOS = {nome: p["descricao"] for nome, p in PERFIS.items()}
 TURNO_CENARIO = {nome: p["turno"] for nome, p in PERFIS.items()}
 
+# Subestratos (spetr/data/subestratos.json): cada município do grupo vira uma unidade com arquivo
+# próprio, tirada do interior remanescente. Como no 1º turno real, o Norte de MG vota mais no
+# 1º candidato e apura mais devagar que o resto do interior.
+INCLINACAO_GRUPO = {"MG_NORTE": 0.20}
+RITMO_GRUPO = {"MG_NORTE": 0.80}
+
 NOMES_REGIAO = {"N": "Norte", "NE": "Nordeste", "CO": "Centro-Oeste", "SE": "Sudeste", "S": "Sul", "EX": "Exterior"}
 VELOCIDADE_TIPO_UNIFORME = {"cidade": 1.0, "interior": 1.0}
 RAZAO_MIN, RAZAO_MAX = 0.2, 5.0
@@ -279,8 +285,11 @@ class EstadoSimulacao:
         self.ufs_data: Dict[str, Any] = {}
         self.cidades_data: Dict[str, List[str]] = {}
         self.municipios_meta: Dict[str, Any] = {}
+        self.exterior: Dict[str, Any] = {}
+        self.subestratos: Dict[str, Any] = {}
         for nome, attr in (("ufs_metadados.json", "ufs_data"), ("cidades_100k.json", "cidades_data"),
-                           ("municipios_meta.json", "municipios_meta")):
+                           ("municipios_meta.json", "municipios_meta"), ("exterior_cidades.json", "exterior"),
+                           ("subestratos.json", "subestratos")):
             path = data_dir / nome
             if path.exists():
                 with open(path, "r", encoding="utf-8") as f:
@@ -306,6 +315,10 @@ class EstadoSimulacao:
 
     def unidades_da_uf(self, uf: str) -> List[Dict[str, Any]]:
         """Cidades estratificadas (eleitorado real) + interior remanescente da UF."""
+        if uf == "ZZ" and self.exterior:
+            # Exterior: cada cidade com seção eleitoral é uma unidade (eleitorado real por cidade)
+            return [{"id": f"ZZ_{cod}", "tipo": "cidade", "secoes": int(m["secoes"]), "eleitores": int(m["eleitores"])}
+                    for cod, m in self.exterior.items()]
         uf_meta = self.ufs_data.get(uf, {"secoes": 5000, "eleitores": 1500000})
         unidades = []
         sec_cid = eleit_cid = 0
@@ -315,6 +328,13 @@ class EstadoSimulacao:
             unidades.append({"id": f"{uf}_{cod}", "tipo": "cidade", "secoes": sec, "eleitores": el})
             sec_cid += sec
             eleit_cid += el
+        for chave, g in self.subestratos.get(uf, {}).get("grupos", {}).items():
+            for cod, m in g["municipios"].items():
+                sec, el = int(m.get("secoes", 20)), int(m.get("eleitores", 6000))
+                unidades.append({"id": f"{uf}_{cod}", "tipo": "interior", "grupo": f"{uf}_{chave}",
+                                 "arquivo": True, "secoes": sec, "eleitores": el})
+                sec_cid += sec
+                eleit_cid += el
         unidades.append({
             "id": f"{uf}_INTERIOR", "tipo": "interior",
             "secoes": max(1, uf_meta.get("secoes", 5000) - sec_cid),
@@ -327,6 +347,7 @@ class EstadoSimulacao:
         regiao = REGIAO.get(uf, "SE")
         # Relógio da unidade: o global, adiantado/atrasado pelo tipo (cidade × interior) e um ruído próprio
         t = self.progresso_global * self.perfil.get("velocidade_tipo", VELOCIDADE_TIPO)[u["tipo"]] * (1.0 + _ruido(u["id"] + "v", 0.08))
+        t *= RITMO_GRUPO.get(u.get("grupo"), 1.0)
         curva = self.perfil["apuracao"].get(regiao, ("linear", 1.0))
         p = progresso_por_curva(t, curva) if self.progresso_global < 1.0 else 1.0
         apuradas = int(round(u["secoes"] * p))
@@ -342,12 +363,13 @@ class EstadoSimulacao:
         if definidos:
             # Percentuais configurados para a região; cidades e interior variam um pouco em torno deles
             pesos = [definidos.get(c["n"], 0.0) for c in self.candidatos]
-            inclinacao = (self.perfil["inclinacao_cidade"] if u["tipo"] == "cidade" else 0.0) + _ruido(u["id"], 0.03)
+            inclinacao = (self.perfil["inclinacao_cidade"] if u["tipo"] == "cidade" else 0.0) + _ruido(u["id"], 0.25 if uf == "ZZ" else 0.03)
         else:
             pesos = [c["meta_pct"] for c in self.candidatos]
             inclinacao = (self.perfil["inclinacao_regiao"].get(regiao, 0.0)
                           + (self.perfil["inclinacao_cidade"] if u["tipo"] == "cidade" else 0.0)
-                          + _ruido(u["id"], 0.05))
+                          + _ruido(u["id"], 0.25 if uf == "ZZ" else 0.05))
+        inclinacao += INCLINACAO_GRUPO.get(u.get("grupo"), 0.0)
         # Viés de ordem: as urnas apuradas até aqui (p) pendem para o 1º candidato; com tudo
         # apurado (p = 1) o efeito é zero e o resultado final não muda
         inclinacao += self.perfil.get("vies_ordem", {}).get(regiao, 0.0) * (1.0 - p)
@@ -431,7 +453,7 @@ class EstadoSimulacao:
             for u in self.unidades_da_uf(uf):
                 apurado = self.apurar_unidade(uf, u)
                 partes.append(apurado)
-                if u["tipo"] == "cidade":
+                if u["tipo"] == "cidade" or u.get("arquivo"):
                     lote[f"MUN_{u['id']}"] = self.gerar_payload(apurado)
             lote[f"UF_{uf}"] = self.gerar_payload(self.somar(partes))
         return lote
@@ -479,12 +501,16 @@ class EstadoSimulacao:
 
 def _painel_html(estado: EstadoSimulacao) -> str:
     e = html.escape
-    p_pct = estado.progresso_global * 100.0
-    ritmo = f"+{estado.passo_progresso * 100:.0f}% a cada {estado.velocidade_segundos:.0f}s"
-    candidatos = "".join(
-        f"<li><strong>Nº {e(c['n'])} · {e(c['nm'])}</strong> ({e(c['cc'])}) · base {c['meta_pct'] * 100:.1f}% · {e(c['dvt'])}</li>"
-        for c in estado.candidatos
-    )
+    resumo = estado.resumo()
+    p_pct = resumo["progresso"]
+    replay = hasattr(estado, "minutos_por_passo")
+    ritmo = (f"+{estado.minutos_por_passo} min da noite real a cada {estado.velocidade_segundos:.0f}s · {resumo['horario']}"
+             if replay else f"+{estado.passo_progresso * 100:.0f}% a cada {estado.velocidade_segundos:.0f}s")
+    descricao = getattr(estado, "descricao", None) or DESCRICAO_CENARIOS[estado.cenario]
+    def item(c):
+        base = "" if replay else f" · base {c['meta_pct'] * 100:.1f}%"
+        return f"<li><strong>Nº {e(c['n'])} · {e(c['nm'])}</strong> ({e(c['cc'])}){base} · {e(c['dvt'])}</li>"
+    candidatos = "".join(item(c) for c in estado.candidatos)
     return f"""<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -510,7 +536,7 @@ def _painel_html(estado: EstadoSimulacao) -> str:
 <body>
   <div class="cartao">
     <h1>Simulador de apuração</h1>
-    <p class="sub">{e(DESCRICAO_CENARIOS[estado.cenario])}{' (personalizado)' if estado.personalizado else ''} · ritmo {e(ritmo)} · {'pausado' if estado.pausado else 'em andamento'}</p>
+    <p class="sub">{e(descricao)}{' (personalizado)' if estado.personalizado else ''} · ritmo {e(ritmo)} · {'pausado' if estado.pausado else 'em andamento'}</p>
     <div class="pct" id="pct">{p_pct:.1f}%</div>
     <div class="barra"><span style="width:{p_pct:.1f}%"></span></div>
     <div class="botoes">

@@ -21,6 +21,7 @@ class StrataNormalizedEvent:
     ciclo_id: int
     snapshots: Dict[str, SnapshotParcial]
     candidatos_meta: Optional[Dict[str, Dict[str, Any]]] = None
+    exterior: Optional[List[Dict[str, Any]]] = None   # resultado por cidade do exterior (com país)
 
 
 

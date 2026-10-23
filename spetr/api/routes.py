@@ -81,6 +81,20 @@ def setup_routes(
             raise HTTPException(status_code=409, detail="Modo fixado na linha de comando")
         return await sessao.parar()
 
+    @router.post("/projecao/versao")
+    async def definir_versao(request: Request, corpo: Dict[str, Any] = Body(...)):
+        """Versão que define os números principais e a chamada: subestratificado ou normal."""
+        verificar_origem(request)
+        from spetr.stats_engine.monte_carlo import VERSOES
+        versao = str(corpo.get("versao", ""))
+        if versao not in VERSOES:
+            raise HTTPException(status_code=422, detail=f"Versão inválida: {versao!r}. Opções: {', '.join(VERSOES)}")
+        coord = getattr(sessao, "coordinator", None) if sessao is not None else None
+        if coord is None:
+            raise HTTPException(status_code=409, detail="Nenhuma sessão ativa")
+        coord.engine.versao_principal = versao
+        return {"versao_principal": versao, "aplica_em": "próximo ciclo"}
+
     @router.post("/simulador/previa")
     async def previa_simulacao(request: Request, corpo: Dict[str, Any] = Body(...)):
         """Resultado final esperado e ritmo por região de um cenário (com ajustes), sem iniciar nada."""

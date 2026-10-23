@@ -3,6 +3,14 @@ Agendador de Coleta Escalonada (Tiered Polling Scheduler).
 Coordena o ritmo de requisições:
 - Tier 1: UFs + Capitais a cada `intervalo_tier1` segundos
 - Tier 2: demais cidades > 100k a cada `intervalo_tier2` segundos (o 1º ciclo sempre inclui o Tier 2)
+- Exterior: as cidades do exterior (resultado por país) a cada `intervalo_exterior` segundos
+- Subestratos: os municípios que dividem o interior de uma UF (ex.: Norte de MG) a cada
+  `intervalo_subestratos` segundos; esse ciclo sempre inclui o Tier 2, para o agregador receber
+  a UF, todas as cidades e o grupo no mesmo lote
+- Arquivos de município com 100% das seções apuradas deixam de ser pedidos: o lote reaproveita a
+  última cópia e o arquivo só é conferido de novo a cada `intervalo_reconferir` segundos
+- Arquivo de município que responde 404 fica suspenso por `suspensao_404` segundos: muitos 404
+  podem bloquear o IP no TSE (ex.: coleta iniciada antes de os arquivos serem publicados)
 
 Formatos de URL suportados:
 - "u" (Eleições 2024+, Resultado Unificado EA20):
@@ -18,6 +26,7 @@ import logging
 
 from spetr.domain.interfaces import ICollector, IEventBus
 from spetr.collector.client import TSEHttpClient
+from spetr.collector.parser import secoes_concluidas
 from spetr.services.events import RawBatchReceivedEvent, CollectionErrorEvent
 
 logger = logging.getLogger("spetr.collector.scheduler")
@@ -43,6 +52,10 @@ class TieredScheduler(ICollector):
         ambiente: str = "oficial",
         intervalo_tier1: float = 15.0,
         intervalo_tier2: float = 30.0,
+        intervalo_exterior: float = 120.0,
+        intervalo_subestratos: float = 60.0,
+        intervalo_reconferir: float = 600.0,
+        suspensao_404: float = 300.0,
     ):
         if formato not in FORMATOS_VALIDOS:
             raise ValueError(f"Formato inválido: '{formato}'. Opções: {FORMATOS_VALIDOS}")
@@ -57,6 +70,18 @@ class TieredScheduler(ICollector):
         self.ambiente = ambiente.strip("/")
         self.intervalo_tier1 = intervalo_tier1
         self.intervalo_tier2 = intervalo_tier2
+        self.intervalo_exterior = intervalo_exterior
+        self.cidades_exterior: List[str] = []
+        self._ultimo_exterior: Optional[float] = None
+        self.intervalo_subestratos = intervalo_subestratos
+        self.municipios_subestratos: Dict[str, List[str]] = {}
+        self._ultimo_subestratos: Optional[float] = None
+        self.intervalo_reconferir = intervalo_reconferir
+        # chave do arquivo -> instante em que foi visto com 100% das seções
+        self._concluidos: Dict[str, float] = {}
+        self.requisicoes_poupadas = 0
+        self.suspensao_404 = suspensao_404
+        self._suspensos: Dict[str, float] = {}  # chave -> instante até quando não pedir
 
         self.ufs: List[str] = [
             "AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA",
@@ -75,10 +100,14 @@ class TieredScheduler(ICollector):
     def configurar_alvos(
         self,
         cidades_por_uf: Dict[str, List[str]],
-        capitais_por_uf: Dict[str, str]
+        capitais_por_uf: Dict[str, str],
+        cidades_exterior: Optional[List[str]] = None,
+        municipios_subestratos: Optional[Dict[str, List[str]]] = None,
     ) -> None:
         self.cidades_por_uf = cidades_por_uf
         self.capitais_por_uf = capitais_por_uf
+        self.cidades_exterior = list(cidades_exterior or [])
+        self.municipios_subestratos = {uf: list(c) for uf, c in (municipios_subestratos or {}).items()}
 
     # ------------------------------------------------------------------ URLs
 
@@ -154,7 +183,7 @@ class TieredScheduler(ICollector):
         batch, _, _ = await self._coletar(incluir_tier2)
         return batch
 
-    async def _coletar(self, incluir_tier2: bool):
+    async def _coletar(self, incluir_tier2: bool, incluir_exterior: bool = False, incluir_subestratos: bool = False):
         urls_tarefas = []
 
         # 1. Tier 1: Todas as UFs (+ exterior)
@@ -173,21 +202,68 @@ class TieredScheduler(ICollector):
                     if cod != cap:
                         urls_tarefas.append((f"MUN_{uf}_{cod}", self.url_municipio(uf, cod)))
 
+        # 4. Cidades do exterior (não entram na projeção; só no detalhamento por país)
+        if incluir_exterior:
+            for cod in self.cidades_exterior:
+                urls_tarefas.append((f"MUN_ZZ_{cod}", self.url_municipio("ZZ", cod)))
+
+        # 5. Municípios que dividem o interior das UFs subestratificadas
+        if incluir_subestratos:
+            for uf, codigos in self.municipios_subestratos.items():
+                for cod in codigos:
+                    urls_tarefas.append((f"MUN_{uf}_{cod}", self.url_municipio(uf, cod)))
+
+        agora = time.monotonic()
+        a_pedir, reaproveitados = [], []
+        for chave, url in urls_tarefas:
+            if self._suspensos.get(chave, 0.0) > agora:
+                payload = self.http_client.payload_em_cache(url)
+                if payload is not None:
+                    reaproveitados.append((chave, payload))
+                continue
+            visto = self._concluidos.get(chave)
+            if visto is not None and agora - visto < self.intervalo_reconferir:
+                payload = self.http_client.payload_em_cache(url)
+                if payload is not None:
+                    reaproveitados.append((chave, payload))
+                    continue
+            a_pedir.append((chave, url))
+        self.requisicoes_poupadas += len(reaproveitados)
+
         async def consultar_item(chave: str, url: str):
             return chave, await self.http_client.fetch_json(url)
 
-        resultados = await asyncio.gather(*[consultar_item(k, u) for k, u in urls_tarefas])
+        resultados = await asyncio.gather(*[consultar_item(k, u) for k, u in a_pedir])
 
         batch: Dict[str, Dict[str, Any]] = {}
         total_modificados = 0
         falhas: List[str] = []
+        suspensos_agora = []
         for chave, res in resultados:
+            if res.falhou and res.status == 404 and chave.startswith("MUN_"):
+                self._suspensos[chave] = time.monotonic() + self.suspensao_404
+                suspensos_agora.append(chave)
             if res.falhou:
                 falhas.append(chave)
             if res.payload is not None:
                 batch[chave] = res.payload
                 if res.modificado:
                     total_modificados += 1
+                # Só arquivos de município param de ser pedidos; UFs são sempre consultadas
+                if chave.startswith("MUN_") and not res.falhou:
+                    if secoes_concluidas(res.payload):
+                        self._concluidos.setdefault(chave, time.monotonic())
+                        if time.monotonic() - self._concluidos[chave] >= self.intervalo_reconferir:
+                            self._concluidos[chave] = time.monotonic()
+                    else:
+                        self._concluidos.pop(chave, None)
+        for chave, payload in reaproveitados:
+            batch[chave] = payload
+        if suspensos_agora:
+            logger.warning(
+                f"{len(suspensos_agora)} arquivo(s) de município com HTTP 404 suspensos por "
+                f"{self.suspensao_404:.0f}s: {', '.join(suspensos_agora[:5])}{'...' if len(suspensos_agora) > 5 else ''}"
+            )
 
         return batch, total_modificados, falhas
 
@@ -209,10 +285,22 @@ class TieredScheduler(ICollector):
                     self._ultimo_tier2 is None
                     or agora - self._ultimo_tier2 >= self.intervalo_tier2 - 0.5
                 )
+                incluir_subestratos = bool(self.municipios_subestratos) and (
+                    self._ultimo_subestratos is None
+                    or agora - self._ultimo_subestratos >= self.intervalo_subestratos - 0.5
+                )
+                if incluir_subestratos:
+                    self._ultimo_subestratos = agora
+                    incluir_tier2 = True
                 if incluir_tier2:
                     self._ultimo_tier2 = agora
+                incluir_exterior = bool(self.cidades_exterior) and (
+                    self._ultimo_exterior is None or agora - self._ultimo_exterior >= self.intervalo_exterior - 0.5
+                )
+                if incluir_exterior:
+                    self._ultimo_exterior = agora
 
-                batch, modificados, falhas = await self._coletar(incluir_tier2)
+                batch, modificados, falhas = await self._coletar(incluir_tier2, incluir_exterior, incluir_subestratos)
                 ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
                 if falhas:

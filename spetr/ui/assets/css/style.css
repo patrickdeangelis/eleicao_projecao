@@ -213,6 +213,23 @@ a.botao { text-decoration: none; display: inline-block; }
 .grade-mapa { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
 .grade-sim { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
 .grade-sim .largo, .grade-ap .largo { grid-column: 1 / -1; }
+.grade-consolidado { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+.grade-exterior { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+.bloco > .tabela-rolagem { flex: 1; min-height: 0; }
+.bloco > .tabela-rolagem.curta-auto { flex: none; }
+.bloco .subtitulo { margin: 0.6rem 0 0.2rem; font-size: 0.8rem; color: var(--texto-2); }
+.tabela tfoot td { font-weight: 700; border-top: 2px solid var(--grade); border-bottom: 0; }
+.tabela .cand-cel strong { display: block; }
+.tabela .cand-cel small { display: block; color: var(--texto-3); font-size: 0.7rem; }
+.tabela .situacao { font-size: 0.72rem; font-weight: 700; padding: 0.1rem 0.45rem; border-radius: 999px; border: 1px solid var(--borda); }
+.tabela .situacao.eleito { border-color: var(--ok); }
+.tabela .situacao.segundo { border-color: var(--alerta); }
+.tabela tr.pais { cursor: pointer; }
+.tabela tr.pais:hover td { background: var(--superficie-2); }
+.tabela tr.pais td:first-child::before { content: "▸ "; color: var(--texto-3); }
+.tabela tr.pais.aberto td:first-child::before { content: "▾ "; }
+.tabela tr.cidade td { color: var(--texto-2); }
+.tabela tr.cidade td:first-child { padding-left: 1.6rem; }
 .grade-ap { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: minmax(0, 1.2fr) minmax(0, 1fr); }
 .bloco {
   display: flex; flex-direction: column; min-height: 0; min-width: 0;
@@ -250,6 +267,9 @@ a.botao { text-decoration: none; display: inline-block; }
 .tabela th[aria-sort="descending"]::after { content: " ▼"; }
 .tabela .num { text-align: right; font-variant-numeric: tabular-nums; }
 .tabela.compacta th, .tabela.compacta td { padding: 0.3rem 0.45rem; }
+.tabela.densa { font-size: 0.76rem; }
+.tabela.densa th, .tabela.densa td { padding: 0.32rem 0.38rem; }
+.tabela.densa th { white-space: normal; line-height: 1.2; }
 .tabela tr.destaque td { background: var(--superficie-2); }
 .mini-medidor { display: inline-block; width: 46px; height: 5px; background: var(--neutro-claro); border-radius: 3px; vertical-align: middle; margin-right: 0.35rem; overflow: hidden; }
 .mini-medidor > span { display: block; height: 100%; background: var(--seq); }
@@ -278,7 +298,7 @@ a.botao { text-decoration: none; display: inline-block; }
   .anel-secoes { justify-self: start; }
   .corpo { grid-template-columns: minmax(0, 1fr); }
   .lista-candidatos { max-height: 360px; }
-  .grade-2x2, .grade-2x1, .grade-mapa, .grade-sim, .grade-ap { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+  .grade-2x2, .grade-2x1, .grade-mapa, .grade-sim, .grade-ap, .grade-consolidado, .grade-exterior { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
   .grade-sim .largo, .grade-ap .largo { grid-column: auto; }
   .grafico.preenche { flex: none; height: 300px; }
   .grafico.curto { flex: none; height: 200px; }
@@ -340,3 +360,6 @@ a.botao { text-decoration: none; display: inline-block; }
 .previa ul { margin: 0.35rem 0 0; padding-left: 1.1rem; }
 .previa li { margin: 0.15rem 0; }
 .previa .erro { color: var(--critico); }
+#tabela-estratos td:first-child, #tabela-exterior td:first-child { white-space: normal; min-width: 6rem; }
+.tabela.densa .mini-medidor { display: none; }
+#tabela-estratos th, #tabela-estratos td { padding-left: 0.3rem; padding-right: 0.3rem; }

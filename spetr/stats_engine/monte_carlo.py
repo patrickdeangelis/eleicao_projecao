@@ -9,6 +9,10 @@ Fontes de incerteza modeladas sobre os votos ainda não apurados:
 2. Choque comum por UF e choque nacional (log-normais, correlacionando estratos), que
    representam vieses sistemáticos de ordem de apuração.
 3. Incerteza no comparecimento/validade dos votos restantes.
+
+Subestratificação: quando o agregador publica subestratos de uma UF (ex.: MG_SUB_NORTE e
+MG_SUB_SUL no lugar de MG_INTERIOR), o motor projeta as duas versões (normal e subestratificada).
+A `versao_principal` define os números e a chamada; a outra vai para a comparação no painel.
 """
 import asyncio
 import time
@@ -26,6 +30,7 @@ from spetr.domain.entities import (
 from spetr.domain.value_objects import REGIAO_POR_UF, StatusCall, TipoEstrato
 from spetr.domain.interfaces import IEventBus
 from spetr.services.events import StrataNormalizedEvent, ProjectionCalculatedEvent
+from spetr.stats_engine.crescimento import ProjecaoCrescimento
 from spetr.stats_engine.bayesian_dirichlet import (
     calcular_parametros_posteriores,
     limitar_concentracao,
@@ -37,6 +42,7 @@ logger = logging.getLogger("spetr.stats_engine.monte_carlo")
 CORES_DEFAULT = ["#38BDF8", "#F43F5E", "#EAB308", "#10B981", "#A855F7", "#F97316"]
 COMPARECIMENTO_PADRAO = 0.795
 VALIDADE_PADRAO = 0.950
+VERSOES = ("subestratificado", "normal")
 
 
 class MonteCarloProjectionEngine:
@@ -52,8 +58,10 @@ class MonteCarloProjectionEngine:
         peso_prior_n0: float = 300.0,  # Equivalente a ~300 votos prévios de inércia por estrato
         seed: Optional[int] = 42,
         concentracao_max: float = 2000.0,   # ~1,1 p.p. de desvio por estrato num 50/50
-        sigma_uf: float = 0.04,             # choque log-proporção comum a cada UF
-        sigma_nacional: float = 0.03,       # choque log-proporção comum ao país
+        # Choques sobre os votos restantes (viés de ordem de apuração). Calibrados no replay do
+        # 1º turno de 2026: com 0,04/0,03 o IC 95% continha o resultado em só ~60% dos instantes.
+        sigma_uf: float = 0.06,             # choque log-proporção comum a cada UF
+        sigma_nacional: float = 0.06,       # choque log-proporção comum ao país
         sigma_comparecimento: float = 0.03, # incerteza relativa nos votos válidos restantes
         exige_maioria: bool = True,         # vitória exige > 50% dos válidos (Presidente/Governador)
         limiar_prob_call: float = 0.995,
@@ -72,6 +80,8 @@ class MonteCarloProjectionEngine:
         self.limiar_prob_call = limiar_prob_call
         self.perc_minimo_call = perc_minimo_call
         self.tamanho_lote_sim = tamanho_lote_sim
+        self.versao_principal = "subestratificado"
+        self.crescimento = ProjecaoCrescimento()
 
         self.estratos: Dict[str, EstratoEleitoral] = {}
         self.ufs_meta: Dict[str, Dict[str, int]] = {}
@@ -114,7 +124,8 @@ class MonteCarloProjectionEngine:
                 snapshots=evento.snapshots,
                 num_simulacoes=self.num_simulacoes,
                 ciclo_id=evento.ciclo_id,
-                candidatos_meta=evento.candidatos_meta
+                candidatos_meta=evento.candidatos_meta,
+                exterior=evento.exterior,
             )
             if self.bus is not None:
                 await self.bus.publish(
@@ -160,15 +171,26 @@ class MonteCarloProjectionEngine:
                 return v / v.sum()
         return media_nacional
 
+    @staticmethod
+    def separar_versoes(snapshots: Dict[str, SnapshotParcial]):
+        """(normal, subestratificado, UFs subestratificadas) a partir dos estratos publicados."""
+        ufs_sub = sorted({eid.split("_")[0] for eid in snapshots if "_SUB_" in eid})
+        normal = {k: v for k, v in snapshots.items() if "_SUB_" not in k}
+        sub = {k: v for k, v in snapshots.items()
+               if not (k.endswith("_INTERIOR") and k.split("_")[0] in ufs_sub)}
+        return normal, sub, ufs_sub
+
     def calcular(
         self,
         snapshots: Dict[str, SnapshotParcial],
         num_simulacoes: int = 10000,
         ciclo_id: int = 1,
-        candidatos_meta: Optional[Dict[str, Dict[str, Any]]] = None
+        candidatos_meta: Optional[Dict[str, Dict[str, Any]]] = None,
+        exterior: Optional[List[Dict[str, Any]]] = None,
     ) -> ResultadoProjecao:
         """
-        Executa a projeção probabilística sobre os estratos fornecidos.
+        Executa a projeção probabilística sobre os estratos fornecidos, na versão principal; com
+        subestratos, também na outra versão (comparação) e, sempre, a projeção por crescimento.
         """
         inicio_t = time.perf_counter()
 
@@ -176,10 +198,95 @@ class MonteCarloProjectionEngine:
         for snap in snapshots.values():
             cand_nums_no_lote.update(snap.votos_candidatos.keys())
         self._atualizar_candidatos(cand_nums_no_lote, candidatos_meta)
+        self.crescimento.registrar(snapshots)
+
+        normal, sub, ufs_sub = self.separar_versoes(snapshots)
+        versoes = {"normal": normal, "subestratificado": sub}
+        principal = self.versao_principal if ufs_sub else "normal"
+        resultado, extras = self._projetar(versoes[principal], num_simulacoes, ciclo_id, ufs_sub)
+        analise = resultado.analise
+        if exterior:
+            analise["exterior"] = exterior
+        if analise.get("aguardando") or not resultado.candidatos:
+            return resultado
+
+        numeros = [c.numero for c in self.candidatos]
+        cresc = self.crescimento.projetar(versoes[principal], numeros)
+        analise["crescimento"] = cresc
+        analise["crescimento_nacional"] = cresc["nacional"]
+
+        if ufs_sub:
+            outra = "normal" if principal == "subestratificado" else "subestratificado"
+            res_outra, extras_outra = self._projetar(versoes[outra], num_simulacoes, ciclo_id, ufs_sub, analise_completa=False)
+            cresc_outra = self.crescimento.projetar({k: v for k, v in versoes[outra].items() if k.split("_")[0] in ufs_sub}, numeros)
+            comparacao = {
+                principal: self._resumo_versao(resultado, extras, versoes[principal], ufs_sub, cresc),
+                outra: self._resumo_versao(res_outra, extras_outra, versoes[outra], ufs_sub, cresc_outra),
+            }
+            analise["subestratificacao"] = {"versao_principal": principal, "ufs": ufs_sub, "versoes": comparacao}
+            analise["versoes_resumo"] = {
+                v: {"nacional": {n: d["pct"] for n, d in c["nacional"].items()},
+                    **{uf: {n: d["pct"] for n, d in c["ufs"][uf].items()} for uf in ufs_sub}}
+                for v, c in comparacao.items()
+            }
+
+        tempo_ms = (time.perf_counter() - inicio_t) * 1000.0
+        object.__setattr__(resultado, "tempo_computacao_ms", round(tempo_ms, 2))
+        return resultado
+
+    def _resumo_versao(self, res: ResultadoProjecao, extras: Dict[str, Any], snaps: Dict[str, SnapshotParcial],
+                       ufs_sub: List[str], cresc: Dict[str, Any]) -> Dict[str, Any]:
+        """Números de uma versão para a comparação normal × subestratificado."""
+        nums = [c.numero for c in self.candidatos]
+        ufs = {}
+        for uf in ufs_sub:
+            am = extras["uf_amostras"].get(uf)
+            if am is None:
+                continue
+            ufs[uf] = {
+                n: {"pct": round(float(am[:, k].mean()), 3),
+                    "ic": [round(float(np.percentile(am[:, k], 2.5)), 3), round(float(np.percentile(am[:, k], 97.5)), 3)],
+                    "prob_lider": round(float((am.argmax(axis=1) == k).mean()), 4),
+                    "crescimento": cresc["ufs"].get(uf, {}).get(n)}
+                for k, n in enumerate(nums)
+            }
+        estratos = []
+        for eid, snap in sorted(snaps.items()):
+            uf = eid.split("_")[0]
+            if uf not in ufs_sub:
+                continue
+            tot = sum(snap.votos_candidatos.get(n, 0) for n in nums)
+            estratos.append({
+                "id": eid, "nome": self._nome_estrato(eid), "tipo": self._tipo_estrato(eid),
+                "secoes_total": snap.secoes_total, "secoes_apuradas": snap.secoes_apuradas,
+                "eleitores_aptos": snap.eleitores_aptos,
+                "pct_apurado": {n: round(snap.votos_candidatos.get(n, 0) / tot * 100.0, 3) if tot else 0.0 for n in nums},
+                "crescimento": cresc["estratos"].get(eid, {}).get("pct"),
+            })
+        return {
+            "nacional": {c.numero: {"pct": c.perc_projetado, "ic": [c.ic_inferior_95, c.ic_superior_95],
+                                    "prob_vitoria": c.prob_vitoria} for c in res.candidatos},
+            "ufs": ufs,
+            "estratos": estratos,
+            "status_call": res.status_call.value,
+            "vencedor_projetado": res.vencedor_projetado,
+        }
+
+    def _projetar(
+        self,
+        snapshots: Dict[str, SnapshotParcial],
+        num_simulacoes: int,
+        ciclo_id: int,
+        ufs_detalhe: List[str],
+        analise_completa: bool = True,
+    ):
+        """Monte Carlo sobre um conjunto de estratos. Retorna (resultado, extras)."""
+        inicio_t = time.perf_counter()
+        extras: Dict[str, Any] = {"uf_amostras": {}}
 
         if not snapshots or not self.candidatos:
             # Sem dados ainda (nenhum candidato com voto conhecido)
-            return self._resultado_vazio(ciclo_id)
+            return self._resultado_vazio(ciclo_id), extras
 
         # UFs do universo que ainda não têm nenhum dado: estrato sem apuração
         snapshots = dict(snapshots)
@@ -265,7 +372,7 @@ class MonteCarloProjectionEngine:
         # Antes do primeiro voto apurado não há o que projetar (o resultado seria só o prior):
         # publica os candidatos já cadastrados nos arquivos do TSE, zerados e sem projeção
         if obs_nacional.sum() <= 0:
-            return self._resultado_aguardando(ciclo_id, snapshots, total_secoes, total_eleitores, ufs_sem_dados)
+            return self._resultado_aguardando(ciclo_id, snapshots, total_secoes, total_eleitores, ufs_sem_dados), extras
 
         # 4. Atualização Bayesiana + limite de concentração (sobredispersão)
         alphas_post = limitar_concentracao(
@@ -285,6 +392,8 @@ class MonteCarloProjectionEngine:
         soma_pct_uf = np.zeros((U, K))
         soma_votos_uf = np.zeros((U, K))
         lideranca_uf = np.zeros((U, K))
+        idx_detalhe = {uf: int(np.where(ufs_unicas == uf)[0][0]) for uf in ufs_detalhe if uf in ufs_unicas}
+        amostras_uf = {uf: np.empty((num_simulacoes, K)) for uf in idx_detalhe}
         for ini in range(0, num_simulacoes, self.tamanho_lote_sim):
             m = min(self.tamanho_lote_sim, num_simulacoes - ini)
             props = amostrar_proporcoes_monte_carlo(alphas_post, num_simulacoes=m, rng=self.rng)  # (m, H, K)
@@ -311,6 +420,8 @@ class MonteCarloProjectionEngine:
             pct_uf = votos_uf / np.where(tot_uf == 0, 1.0, tot_uf)
             soma_pct_uf += pct_uf.sum(axis=0).T
             soma_votos_uf += votos_uf.sum(axis=0).T
+            for uf, u in idx_detalhe.items():
+                amostras_uf[uf][ini:ini + m] = pct_uf[:, :, u] * 100.0
             lider_sim = pct_uf.argmax(axis=1)                               # (m, U)
             for k in range(K):
                 lideranca_uf[:, k] += (lider_sim == k).sum(axis=0)
@@ -353,11 +464,11 @@ class MonteCarloProjectionEngine:
                     partido=cand.sigla_partido,
                     cor_hex=cand.cor_hex,
                     votos_apurados=v_obs_cand,
-                    perc_apurado=round(perc_obs_cand, 2),
+                    perc_apurado=round(perc_obs_cand, 3),
                     media_projetada=int(np.mean(votos_nacionais_simulados[:, k])),
-                    perc_projetado=round(float(np.mean(cand_samples)), 2),
-                    ic_inferior_95=round(float(np.percentile(cand_samples, 2.5)), 2),
-                    ic_superior_95=round(float(np.percentile(cand_samples, 97.5)), 2),
+                    perc_projetado=round(float(np.mean(cand_samples)), 3),
+                    ic_inferior_95=round(float(np.percentile(cand_samples, 2.5)), 3),
+                    ic_superior_95=round(float(np.percentile(cand_samples, 97.5)), 3),
                     prob_vitoria=round(prob_maioria if self.exige_maioria else prob_lider, 4),
                     prob_lideranca=round(prob_lider, 4),
                     **self._dados_cadastrais(cand),
@@ -401,7 +512,8 @@ class MonteCarloProjectionEngine:
         elif pode_projetar and self.exige_maioria and prob_segundo_turno >= self.limiar_prob_call:
             status_call = StatusCall.SEGUNDO_TURNO_PROJETADO
 
-        analise = self._montar_analise(
+        extras["uf_amostras"] = amostras_uf
+        analise = {} if not analise_completa else self._montar_analise(
             snapshots=snapshots,
             estrato_ids=estrato_ids,
             votos_obs=votos_obs,
@@ -437,13 +549,15 @@ class MonteCarloProjectionEngine:
             prob_segundo_turno=round(prob_segundo_turno, 4),
             ufs_sem_dados=ufs_sem_dados,
             analise=analise,
-        )
+        ), extras
 
     # ------------------------------------------------------------------ painel
 
     def _tipo_estrato(self, eid: str) -> str:
         if eid.endswith("_INTERIOR"):
             return "INTERIOR"
+        if "_SUB_" in eid:
+            return "SUBESTRATO"
         if eid.endswith("_TOTAL"):
             return "UF_INTEIRA"
         if eid.endswith("_SEM_DADOS"):
@@ -461,6 +575,8 @@ class MonteCarloProjectionEngine:
             return f"Interior {uf}"
         if resto in ("TOTAL", "SEM_DADOS"):
             return uf
+        if resto.startswith("SUB_"):
+            return f"Interior {resto[4:].title()} ({uf})"
         return f"{uf} {resto}"
 
     @staticmethod

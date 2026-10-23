@@ -60,11 +60,15 @@
       <div class="barra-abas">
         <div class="abas" role="tablist" aria-label="Seções do painel">
           <button type="button" role="tab" data-aba="geral" id="tab-geral" aria-controls="aba-geral">Visão geral</button>
+          <button type="button" role="tab" data-aba="consolidado" id="tab-consolidado" aria-controls="aba-consolidado">Consolidado</button>
           <button type="button" role="tab" data-aba="mapa" id="tab-mapa" aria-controls="aba-mapa">Mapa</button>
           <button type="button" role="tab" data-aba="simulacao" id="tab-simulacao" aria-controls="aba-simulacao">Cenários</button>
           <button type="button" role="tab" data-aba="apuracao" id="tab-apuracao" aria-controls="aba-apuracao">Apuração</button>
-          <button type="button" role="tab" data-aba="estratos" id="tab-estratos" aria-controls="aba-estratos">Regiões e cidades</button>
+          <button type="button" role="tab" data-aba="estratos" id="tab-estratos" aria-controls="aba-estratos">Regiões</button>
           <button type="button" role="tab" data-aba="ufs" id="tab-ufs" aria-controls="aba-ufs">UFs</button>
+          <button type="button" role="tab" data-aba="exterior" id="tab-exterior" aria-controls="aba-exterior">Exterior</button>
+          <button type="button" role="tab" data-aba="subestratos" id="tab-subestratos" aria-controls="aba-subestratos">Subestratos</button>
+          <button type="button" role="tab" data-aba="crescimento" id="tab-crescimento" aria-controls="aba-crescimento">Crescimento</button>
         </div>
         <div class="segmentado" role="group" aria-label="Eixo horizontal das curvas" id="controle-eixo">
           <span class="filtro-rotulo">Eixo</span>
@@ -99,6 +103,24 @@
         </article>
       </div>
 
+      <!-- Consolidado -->
+      <div class="aba grade-consolidado" role="tabpanel" id="aba-consolidado" aria-labelledby="tab-consolidado" data-aba="consolidado" hidden>
+        <article class="bloco">
+          <header><h3>Resultado por candidato</h3><span class="nota" id="nota-consolidado">Votos apurados e projeção final</span></header>
+          <div class="tabela-rolagem">
+            <table class="tabela densa" id="tabela-consolidado"><thead></thead><tbody></tbody><tfoot></tfoot></table>
+          </div>
+        </article>
+        <article class="bloco">
+          <header><h3>Totais da eleição</h3><span class="nota">Apurado até agora</span></header>
+          <div class="tabela-rolagem curta-auto">
+            <table class="tabela densa" id="tabela-totais"><tbody></tbody></table>
+          </div>
+          <h3 class="subtitulo">Composição do eleitorado e dos votos</h3>
+          <div class="grafico preenche" id="g-composicao"></div>
+        </article>
+      </div>
+
       <!-- Mapa -->
       <div class="aba grade-mapa" role="tabpanel" id="aba-mapa" aria-labelledby="tab-mapa" data-aba="mapa" hidden>
         <article class="bloco">
@@ -118,7 +140,7 @@
           <div class="mini-kpis" id="uf-kpis"></div>
           <div class="grafico preenche curto" id="g-uf-barras"></div>
           <div class="tabela-rolagem">
-            <table class="tabela compacta" id="tabela-estratos"><thead></thead><tbody></tbody></table>
+            <table class="tabela densa" id="tabela-estratos"><thead></thead><tbody></tbody></table>
           </div>
         </article>
       </div>
@@ -169,6 +191,76 @@
           <header><h3>Capitais, cidades grandes e interior</h3><span class="nota">Votos apurados em cada tipo de lugar</span></header>
           <div class="grafico preenche" id="g-tipos"></div>
           <p class="nota explicacao">Cada UF é dividida em capital, cidades com mais de 100 mil eleitores e o restante do interior. Cada parte é projetada com a própria tendência, porque as urnas não chegam todas ao mesmo tempo: capitais costumam ser apuradas antes do interior, e isso distorce o resultado parcial.</p>
+        </article>
+      </div>
+
+      <!-- Exterior -->
+      <div class="aba grade-exterior" role="tabpanel" id="aba-exterior" aria-labelledby="tab-exterior" data-aba="exterior" hidden>
+        <article class="bloco">
+          <header><h3>Exterior por país</h3><span class="nota" id="nota-exterior">Países com mais votos apurados</span></header>
+          <div class="mini-kpis" id="exterior-kpis"></div>
+          <div class="grafico preenche" id="g-exterior"></div>
+        </article>
+        <article class="bloco">
+          <header><h3>Países e cidades</h3><span class="nota">Clique num país para ver as cidades</span></header>
+          <div class="tabela-rolagem">
+            <table class="tabela densa" id="tabela-exterior"><thead></thead><tbody></tbody></table>
+          </div>
+        </article>
+      </div>
+
+      <!-- Subestratos (ex.: MG Norte × Sul) -->
+      <div class="aba grade-2x2" role="tabpanel" id="aba-subestratos" aria-labelledby="tab-subestratos" data-aba="subestratos" hidden>
+        <article class="bloco">
+          <header>
+            <h3 id="sub-titulo">Normal × subestratificado</h3>
+            <div class="segmentado pequeno" role="group" aria-label="Versão que define a projeção principal e a chamada" id="controle-versao">
+              <button type="button" data-versao="subestratificado">Subestratificado</button>
+              <button type="button" data-versao="normal">Normal</button>
+            </div>
+          </header>
+          <div class="mini-kpis" id="sub-kpis"></div>
+          <div class="grafico preenche" id="g-sub-intervalos"></div>
+        </article>
+        <article class="bloco">
+          <header><h3>Interior por versão</h3><span class="nota">Normal: um só interior · subestratificado: grupos separados</span></header>
+          <div class="tabela-rolagem">
+            <table class="tabela densa" id="tabela-sub"><thead></thead><tbody></tbody></table>
+          </div>
+          <p class="nota explicacao" id="sub-explicacao"></p>
+        </article>
+        <article class="bloco">
+          <header><h3 id="sub-hist-titulo">Projeção na UF ao longo da apuração</h3><span class="nota">Linha grossa: subestratificado · fina: normal</span></header>
+          <div class="grafico preenche" id="g-sub-uf"></div>
+        </article>
+        <article class="bloco">
+          <header><h3>Efeito no resultado nacional</h3><span class="nota">Linha grossa: subestratificado · fina: normal</span></header>
+          <div class="grafico preenche" id="g-sub-nacional"></div>
+        </article>
+      </div>
+
+      <!-- Crescimento (projeção extra) -->
+      <div class="aba grade-2x2" role="tabpanel" id="aba-crescimento" aria-labelledby="tab-crescimento" data-aba="crescimento" hidden>
+        <article class="bloco">
+          <header><h3>Principal × crescimento</h3><span class="nota">Linha grossa: projeção principal · fina: por razão de crescimento</span></header>
+          <div class="grafico preenche" id="g-cresc"></div>
+        </article>
+        <article class="bloco">
+          <header><h3>Diferença entre as projeções</h3><span class="nota">Crescimento − principal, em pontos percentuais</span></header>
+          <div class="grafico preenche" id="g-cresc-dif"></div>
+        </article>
+        <article class="bloco">
+          <header><h3>Por UF</h3><span class="nota">Projeção principal e por crescimento</span></header>
+          <div class="tabela-rolagem">
+            <table class="tabela densa" id="tabela-cresc-uf"><thead></thead><tbody></tbody></table>
+          </div>
+        </article>
+        <article class="bloco">
+          <header><h3>Por estrato</h3><span class="nota">Votos por eleitor na janela recente × eleitores que faltam</span></header>
+          <div class="tabela-rolagem">
+            <table class="tabela densa" id="tabela-cresc-estratos"><thead></thead><tbody></tbody></table>
+          </div>
+          <p class="nota explicacao">Leitura extra: não entra na projeção principal nem na chamada. Em cada estrato, mede quantos votos cada candidato ganhou por eleitor nas seções apuradas recentemente (últimos 15% das seções) e aplica essa razão aos eleitores que ainda faltam. Com poucas seções novas, usa a razão acumulada.</p>
         </article>
       </div>
 

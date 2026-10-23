@@ -1,5 +1,6 @@
 """
-Sessão de execução do SPETR: escolhe entre coleta real na CDN do TSE e simulação local,
+Sessão de execução do SPETR: escolhe entre coleta real na CDN do TSE, simulação local e replay
+de uma apuração real (boletins de urna),
 inicia o pipeline correspondente e permite trocar de modo sem reiniciar o aplicativo.
 """
 import asyncio
@@ -24,15 +25,26 @@ from spetr.simulador import (
     EstadoSimulacao,
     SimuladorLocal,
 )
+from spetr.simulador.replay import VELOCIDADES_REPLAY, EstadoReplay, listar_replays
 
 logger = logging.getLogger("spetr.services.sessao")
 
-MODOS = ("real", "simulado")
+MODOS = ("real", "simulado", "replay")
 TSE_PADRAO = "https://resultados.tse.jus.br"
 
 
 class ErroSessao(ValueError):
     """Opções inválidas para iniciar uma sessão."""
+
+
+# Eleições exibidas no combobox da tela inicial. Para 2022, a coleta usa o replay local dos boletins;
+# para 2026, o código vazio é descoberto pelo ele-c.json.
+ELEICOES_PRONTAS = [
+    {"id": "2026-2t", "rotulo": "2026 · 2º turno · Presidente (código automático)", "ano": "2026", "turno": 2, "eleicao": ""},
+    {"id": "2026-1t", "rotulo": "2026 · 1º turno · Presidente (6257)", "ano": "2026", "turno": 1, "eleicao": "6257"},
+    {"id": "2022-1t", "rotulo": "2022 · 1º turno · Presidente (544)", "ano": "2022", "turno": 1, "eleicao": "544"},
+    {"id": "2022-2t", "rotulo": "2022 · 2º turno · Presidente (545)", "ano": "2022", "turno": 2, "eleicao": "545"},
+]
 
 
 class SessaoSPETR:
@@ -85,6 +97,9 @@ class SessaoSPETR:
                 "regioes": NOMES_REGIAO,
                 "velocidades": {k: f"+{p * 100:.0f}% a cada {s:.0f}s" for k, (s, p) in VELOCIDADES.items()},
                 "jws": list(CHAVES_TSE),
+                "eleicoes_prontas": ELEICOES_PRONTAS,
+                "replays": listar_replays(),
+                "velocidades_replay": {k: f"+{m} min da noite real a cada {s:.0f}s" for k, (s, m) in VELOCIDADES_REPLAY.items()},
             },
         }
 
@@ -93,11 +108,20 @@ class SessaoSPETR:
     async def iniciar(self, modo: str, opcoes: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         opcoes = opcoes or {}
         if modo not in MODOS:
-            raise ErroSessao(f"Modo inválido: {modo!r}. Use 'real' ou 'simulado'.")
+            raise ErroSessao(f"Modo inválido: {modo!r}. Use 'real', 'simulado' ou 'replay'.")
         async with self._lock:
             await self._parar_sem_lock(notificar=False)
             if modo == "simulado":
                 await self._iniciar_simulado(opcoes)
+            elif modo == "replay":
+                await self._iniciar_replay(opcoes)
+            elif str(opcoes.get("ano") or self.padroes_reais.get("ano")) == "2022":
+                try:
+                    turno = int(opcoes.get("turno") or self.padroes_reais.get("turno") or 1)
+                except (TypeError, ValueError):
+                    raise ErroSessao("Turno inválido")
+                await self._iniciar_replay({"fonte": f"2022_{turno}t", "velocidade": "normal"})
+                modo = "replay"
             else:
                 self._iniciar_real(opcoes)
             self.modo = modo
@@ -164,7 +188,8 @@ class SessaoSPETR:
             event_bus=self.bus, db_path=self.db_path, num_simulacoes=self.num_simulacoes,
             tse_base_url=url, ano_eleicao=ANO_SIMULADO, codigo_eleicao=ELEICAO_SIMULADA,
             codigo_cargo="1", turno=TURNO_CENARIO[cenario], formato="r", ambiente="oficial",
-            http_client=cliente, intervalo_tier1=4.0, intervalo_tier2=4.0,
+            http_client=cliente, intervalo_tier1=4.0, intervalo_tier2=4.0, intervalo_exterior=8.0,
+            intervalo_subestratos=8.0,
             rotulo_eleicao=f"simulado/{cenario}{'-personalizado' if ajustes else ''}",
         )
         self.info = {
@@ -172,6 +197,31 @@ class SessaoSPETR:
             "descricao": DESCRICAO_CENARIOS[cenario] + (" (personalizado)" if ajustes else ""),
             "personalizado": bool(ajustes),
             "velocidade": velocidade, "turno": TURNO_CENARIO[cenario], "cargo": "1",
+            "fonte": url, "simulacoes": self.num_simulacoes,
+        }
+
+    async def _iniciar_replay(self, opcoes: Dict[str, Any]) -> None:
+        fonte = str(opcoes.get("fonte") or "")
+        velocidade = str(opcoes.get("velocidade") or "normal")
+        if fonte not in listar_replays():
+            raise ErroSessao(f"Replay não preparado: {fonte!r}. Use scripts/preparar_replay.py")
+        try:
+            estado = EstadoReplay(fonte, velocidade)
+        except ValueError as e:
+            raise ErroSessao(str(e))
+        self.simulador = SimuladorLocal(estado)
+        url = await self.simulador.iniciar()
+        cliente = TSEHttpClient(pacing=PacingManager(max_concurrent=32, max_rate_per_sec=400.0))
+        self.coordinator = PipelineCoordinator(
+            event_bus=self.bus, db_path=self.db_path, num_simulacoes=self.num_simulacoes,
+            tse_base_url=url, ano_eleicao=estado.ano, codigo_eleicao=estado.eleicao,
+            codigo_cargo="1", turno=estado.turno, formato="r", ambiente="oficial",
+            http_client=cliente, intervalo_tier1=3.0, intervalo_tier2=3.0, intervalo_exterior=6.0,
+            intervalo_subestratos=6.0, rotulo_eleicao=f"replay/{fonte}",
+        )
+        self.info = {
+            "mock": True, "simulado": True, "replay": True, "cenario": f"replay-{fonte}", "ano": estado.ano,
+            "descricao": estado.descricao, "velocidade": velocidade, "turno": estado.turno, "cargo": "1",
             "fonte": url, "simulacoes": self.num_simulacoes,
         }
 

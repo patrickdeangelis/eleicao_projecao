@@ -16,6 +16,7 @@ class ResultadoFetch(NamedTuple):
     payload: Optional[Dict[str, Any]]
     modificado: bool
     falhou: bool  # True quando o payload (se houver) é cópia antiga do cache por falha na consulta
+    status: int = 0  # último status HTTP (0 = falha de rede)
 
 
 class TSEHttpClient:
@@ -68,6 +69,14 @@ class TSEHttpClient:
             return self.verificador_jws.verificar(resp.text)
         return resp.json()
 
+    def _url_requisicao(self, url: str, verificar_assinatura: bool) -> str:
+        assinado = verificar_assinatura and self.verificador_jws is not None and url.endswith(".json")
+        return url[: -len(".json")] + ".jws" if assinado else url
+
+    def payload_em_cache(self, url: str, verificar_assinatura: bool = True) -> Optional[Dict[str, Any]]:
+        """Último payload recebido da URL, sem fazer requisição."""
+        return self._cache_payloads.get(self._url_requisicao(url, verificar_assinatura))
+
     async def fetch_json(self, url: str, verificar_assinatura: bool = True) -> ResultadoFetch:
         """
         Executa GET condicional na URL.
@@ -77,7 +86,7 @@ class TSEHttpClient:
         Com verificação JWS ativa, baixa o par '.jws' do arquivo '.json' e valida a assinatura.
         """
         assinado = verificar_assinatura and self.verificador_jws is not None and url.endswith(".json")
-        url_req = url[: -len(".json")] + ".jws" if assinado else url
+        url_req = self._url_requisicao(url, verificar_assinatura)
 
         client = await self.get_client()
 
@@ -89,6 +98,7 @@ class TSEHttpClient:
             if "etag" in cache_info:
                 headers["If-None-Match"] = cache_info["etag"]
 
+        status = 0
         for tentativa in range(3):
             # Cada tentativa (inclusive retentativas) passa pelo controle de taxa
             await self.pacing.acquire()
@@ -108,6 +118,7 @@ class TSEHttpClient:
                 break
             finally:
                 self.pacing.release()
+            status = resp.status_code
 
             if resp.status_code == 304:
                 # Conteúdo idêntico ao último ciclo
@@ -142,4 +153,4 @@ class TSEHttpClient:
             logger.debug(f"HTTP {resp.status_code} em {url_req}")
             break
 
-        return ResultadoFetch(self._cache_payloads.get(url_req), False, True)
+        return ResultadoFetch(self._cache_payloads.get(url_req), False, True, status)

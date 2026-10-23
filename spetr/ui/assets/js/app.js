@@ -26,7 +26,16 @@ const PRINCIPAIS = 4;
 const fmtInt = new Intl.NumberFormat('pt-BR');
 const fmt1 = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const fmt2 = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const pct = (v, casas = 2) => (v === null || v === undefined || Number.isNaN(v)) ? '—' : `${(casas === 1 ? fmt1 : fmt2).format(v)}%`;
+const fmt3 = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+/** Percentual com casas adaptativas: valores pequenos (candidatos nanicos) ganham mais casas. */
+const pct = (v, casas = 2) => {
+  if (v === null || v === undefined || Number.isNaN(v)) return '—';
+  const a = Math.abs(v);
+  let f = casas === 1 ? fmt1 : fmt2;
+  if (a > 0 && a < 0.1) f = fmt3;
+  else if (a > 0 && a < 1) f = fmt2;
+  return `${f.format(v)}%`;
+};
 const prob = (p) => {
   if (p === null || p === undefined) return '—';
   const v = p * 100;
@@ -53,12 +62,15 @@ const ROTULO_TIPO = {
   CAPITAL: 'Capitais',
   GRANDE_CIDADE: 'Cidades com 100 mil+ eleitores',
   INTERIOR: 'Interior',
+  SUBESTRATO: 'Parte do interior',
   UF_INTEIRA: 'Exterior / UF inteira',
   SEM_DADOS: 'Sem dados',
 };
-const ORDEM_TIPO = { CAPITAL: 0, GRANDE_CIDADE: 1, INTERIOR: 2, UF_INTEIRA: 3, SEM_DADOS: 4 };
+const ORDEM_TIPO = { CAPITAL: 0, GRANDE_CIDADE: 1, INTERIOR: 2, SUBESTRATO: 3, UF_INTEIRA: 4, SEM_DADOS: 5 };
 const GRAFICOS = ['g-corrida', 'g-intervalos', 'g-projecao', 'g-prob', 'g-mapa', 'g-uf-barras', 'g-dist', 'g-margem',
-  'g-restantes', 'g-apurado', 'g-ritmo', 'g-apuracao-uf', 'g-regioes', 'g-tipos'];
+  'g-restantes', 'g-apurado', 'g-ritmo', 'g-apuracao-uf', 'g-regioes', 'g-tipos', 'g-composicao', 'g-exterior',
+  'g-sub-intervalos', 'g-sub-uf', 'g-sub-nacional', 'g-cresc', 'g-cresc-dif'];
+const ROTULO_VERSAO = { subestratificado: 'subestratificado', normal: 'normal' };
 
 // ------------------------------------------------------------------ utilidades
 
@@ -189,8 +201,8 @@ function renderCabecalho(info) {
   const selo = document.getElementById('selo-modo');
   if (info.modo) {
     selo.hidden = false;
-    selo.textContent = info.modo === 'simulado' ? 'SIMULAÇÃO' : 'COLETA REAL';
-    selo.classList.toggle('simulado', info.modo === 'simulado');
+    selo.textContent = { simulado: 'SIMULAÇÃO', replay: 'REPLAY' }[info.modo] || 'COLETA REAL';
+    selo.classList.toggle('simulado', info.modo !== 'real');
   }
   const linkSim = document.getElementById('link-simulador');
   if (info.simulador_url) { linkSim.hidden = false; linkSim.href = info.simulador_url; }
@@ -199,7 +211,7 @@ function renderCabecalho(info) {
   let texto;
   if (e.simulado) {
     const ritmos = { lenta: 'lento', normal: 'normal', rapida: 'rápido' };
-    texto = `Dados fictícios · ${e.descricao || ''} · ritmo ${ritmos[e.velocidade] || e.velocidade || ''}`;
+    texto = `${e.replay ? '' : 'Dados fictícios · '}${e.descricao || ''} · ritmo ${ritmos[e.velocidade] || e.velocidade || ''}`;
     state.chave = `spetr:sim:${e.cenario || ''}`;
   } else {
     const partes = [];
@@ -396,7 +408,7 @@ function candidatosDosGraficos() {
   return segundoTurno() ? ordemCandidatos().slice(0, 2) : marcadosEmOrdem();
 }
 
-const fmtPctEixo = (v) => `${fmt1.format(v)}%`;
+const fmtPctEixo = (v) => pct(v, 1);
 const SEM_SELECAO = 'Marque candidatos na lista à esquerda para exibir aqui';
 
 // ----------------------------------------------------------------- abas
@@ -585,7 +597,7 @@ function renderDetalheUf(d) {
   ]));
   const corpo = document.querySelector('#tabela-estratos tbody');
   corpo.textContent = '';
-  const estratos = (a.estratos || []).filter((e) => e.uf === u.uf)
+  const estratos = consolidarInterior((a.estratos || []).filter((e) => e.uf === u.uf))
     .sort((x, y) => (ORDEM_TIPO[x.tipo] - ORDEM_TIPO[y.tipo]) || (y.eleitores_aptos - x.eleitores_aptos));
   for (const e of estratos) {
     const apur = e.secoes_apuradas / Math.max(1, e.secoes_total) * 100;
@@ -598,6 +610,23 @@ function renderDetalheUf(d) {
       el('td', { classe: 'num', texto: compacto(e.restantes_esperados) }),
     ]));
   }
+}
+
+function consolidarInterior(estratos) {
+  const partes = estratos.filter((e) => e.tipo === 'SUBESTRATO');
+  if (!partes.length || estratos.some((e) => e.tipo === 'INTERIOR')) return estratos;
+  const campos = ['secoes_total', 'secoes_apuradas', 'eleitores_aptos', 'comparecimento', 'abstencao',
+    'votos_validos', 'votos_brancos', 'votos_nulos', 'votos_anulados', 'restantes_esperados'];
+  const soma = (campo) => partes.reduce((total, e) => total + (Number(e[campo]) || 0), 0);
+  const votos = {};
+  for (const e of partes) {
+    for (const [numero, quantidade] of Object.entries(e.votos || {})) votos[numero] = (votos[numero] || 0) + (Number(quantidade) || 0);
+  }
+  const interior = Object.fromEntries(campos.map((campo) => [campo, soma(campo)]));
+  return [...estratos, {
+    id: `${partes[0].uf}_INTERIOR_CONSOLIDADO`, uf: partes[0].uf, tipo: 'INTERIOR',
+    nome: 'Interior (consolidado)', ...interior, votos,
+  }];
 }
 
 function renderCenarios(d) {
@@ -785,9 +814,386 @@ function renderUfs(d) {
   }
 }
 
+function situacaoCandidato(d, c, posicao) {
+  const status = d.status_call;
+  if (d.vencedor_projetado === c.numero) {
+    return status === 'MATEMATICAMENTE_ELEITO' ? ['Eleito', 'eleito'] : ['Vitória projetada', 'eleito'];
+  }
+  if (status === 'SEGUNDO_TURNO_PROJETADO' && posicao < 2) {
+    return [d.perc_secoes_apuradas >= 100 ? '2º turno' : '2º turno (projeção)', 'segundo'];
+  }
+  return null;
+}
+
+function renderConsolidado(d) {
+  const thead = document.querySelector('#tabela-consolidado thead');
+  thead.textContent = '';
+  thead.appendChild(el('tr', {}, [
+    el('th', { texto: '#' }), el('th', { texto: 'Candidato' }),
+    el('th', { classe: 'num', texto: 'Votos' }), el('th', { classe: 'num', texto: '% válidos' }),
+    el('th', { classe: 'num', texto: '% proj.' }), el('th', { classe: 'num', texto: 'Faixa provável (%)' }),
+    el('th', { texto: 'Situação' }),
+  ]));
+  const corpo = document.querySelector('#tabela-consolidado tbody');
+  corpo.textContent = '';
+  // ordem pelo apurado (como no TSE); a projeção fica ao lado
+  const ordem = [...d.candidatos].sort((a, b) => b.votos_apurados - a.votos_apurados);
+  const porProjecao = d.candidatos.map((c) => c.numero);
+  ordem.forEach((c, i) => {
+    const sit = situacaoCandidato(d, c, porProjecao.indexOf(c.numero));
+    corpo.appendChild(el('tr', {}, [
+      el('td', { classe: 'num', texto: `${i + 1}º` }),
+      el('td', { classe: 'cand-cel', title: descricaoChapa(c) }, [
+        el('strong', {}, [el('span', { classe: 'chave-tab', estilo: { background: cor(c.numero) } }), c.nome]),
+        el('small', { texto: `${c.partido || '—'} · ${c.numero}${c.vice ? ` · vice ${tituloProprio(c.vice)}` : ''}` }),
+      ]),
+      el('td', { classe: 'num', texto: fmtInt.format(c.votos_apurados) }),
+      el('td', { classe: 'num' }, [el('strong', { texto: pct(c.perc_apurado) })]),
+      el('td', { classe: 'num', texto: pct(c.perc_projetado) }),
+      el('td', { classe: 'num', texto: `${pct(c.ic_inferior_95).replace('%', '')}–${pct(c.ic_superior_95).replace('%', '')}` }),
+      el('td', {}, [sit ? el('span', { classe: `situacao ${sit[1]}`, texto: sit[0] }) : '—']),
+    ]));
+  });
+  const pe = document.querySelector('#tabela-consolidado tfoot');
+  pe.textContent = '';
+  pe.appendChild(el('tr', {}, [
+    el('td', {}), el('td', { texto: 'Total de votos válidos' }),
+    el('td', { classe: 'num', texto: fmtInt.format(d.total_validos_apurados) }),
+    el('td', { classe: 'num', texto: '100%' }), el('td', {}), el('td', {}), el('td', {}),
+  ]));
+  document.getElementById('nota-consolidado').textContent =
+    `${pct(d.perc_secoes_apuradas)} das seções apuradas · ordenado pelos votos apurados`;
+
+  const n = (d.analise && d.analise.nacional) || {};
+  const f = (d.analise && d.analise.faltam) || {};
+  const eleitApur = (n.comparecimento || 0) + (n.abstencao || 0);
+  const linhas = [
+    ['Eleitorado', fmtInt.format(d.total_eleitores), ''],
+    ['Seções apuradas', `${fmtInt.format(d.secoes_apuradas)} / ${fmtInt.format(d.total_secoes)}`, pct(d.perc_secoes_apuradas)],
+    ['Comparecimento', fmtInt.format(n.comparecimento || 0), pct(n.pct_comparecimento)],
+    ['Abstenção', fmtInt.format(n.abstencao || 0), pct(n.pct_abstencao)],
+    ['Votos válidos', fmtInt.format(n.votos_validos || 0), pct(n.pct_validos)],
+    ['Brancos', fmtInt.format(n.votos_brancos || 0), pct(n.pct_brancos)],
+    ['Nulos', fmtInt.format(n.votos_nulos || 0), pct(n.pct_nulos)],
+  ];
+  if ((n.votos_anulados || 0) > 0) linhas.push(['Anulados (sub judice)', fmtInt.format(n.votos_anulados), pct(n.pct_anulados)]);
+  if (d.perc_secoes_apuradas < 100) linhas.push(['Válidos no final (proj.)', fmtInt.format(f.validos_finais_esperados || 0), '']);
+  const corpoT = document.querySelector('#tabela-totais tbody');
+  corpoT.textContent = '';
+  for (const [r, v, p] of linhas) {
+    corpoT.appendChild(el('tr', {}, [el('td', { texto: r }), el('td', { classe: 'num', texto: v }), el('td', { classe: 'num', texto: p })]));
+  }
+
+  const comp = n.comparecimento || 0;
+  const parte = (x, t) => (t ? x / t * 100 : 0);
+  G.barrasEmpilhadas(document.getElementById('g-composicao'), {
+    margemRotulo: 92, alturaBarra: 22, gap: 18,
+    linhas: [
+      { rotulo: 'Eleitores', segmentos: [
+        { rotulo: 'Compareceram', cor: G.token('--seq'), valor: parte(comp, eleitApur) },
+        { rotulo: 'Abstenção', cor: G.token('--neutro'), valor: parte(n.abstencao || 0, eleitApur) },
+      ] },
+      { rotulo: 'Votos', segmentos: [
+        { rotulo: 'Válidos', cor: G.token('--seq'), valor: parte(n.votos_validos || 0, comp) },
+        { rotulo: 'Brancos', cor: G.token('--seq-2'), valor: parte(n.votos_brancos || 0, comp) },
+        { rotulo: 'Nulos', cor: G.token('--neutro'), valor: parte(n.votos_nulos || 0, comp) },
+        ...((n.votos_anulados || 0) > 0 ? [{ rotulo: 'Anulados (sub judice)', cor: G.token('--neutro-claro'), valor: parte(n.votos_anulados, comp) }] : []),
+      ] },
+    ],
+  });
+}
+
+function somarExterior(cidades) {
+  const t = { secoes_total: 0, secoes_apuradas: 0, eleitores: 0, comparecimento: 0, abstencao: 0, votos_validos: 0, votos: {} };
+  for (const c of cidades) {
+    for (const k of ['secoes_total', 'secoes_apuradas', 'eleitores', 'comparecimento', 'abstencao', 'votos_validos']) t[k] += c[k] || 0;
+    for (const [n, v] of Object.entries(c.votos || {})) t.votos[n] = (t.votos[n] || 0) + v;
+  }
+  return t;
+}
+
+function liderVotos(votos) {
+  const total = Object.values(votos).reduce((s, v) => s + v, 0);
+  if (!total) return null;
+  const [n, v] = Object.entries(votos).sort((a, b) => b[1] - a[1])[0];
+  return [n, v / total * 100];
+}
+
+function renderExterior(d) {
+  const cidades = (d.analise && d.analise.exterior) || [];
+  const kpis = document.getElementById('exterior-kpis');
+  kpis.textContent = '';
+  const tbody = document.querySelector('#tabela-exterior tbody');
+  const thead = document.querySelector('#tabela-exterior thead');
+  if (!cidades.length) {
+    G.vazio(document.getElementById('g-exterior'), 'Aguardando o resultado das cidades do exterior (baixado a cada 2 minutos)');
+    thead.textContent = '';
+    tbody.textContent = '';
+    return;
+  }
+  // Agrupa por país
+  const paises = {};
+  for (const c of cidades) (paises[c.pais] = paises[c.pais] || { pais: c.pais, continente: c.continente, cidades: [] }).cidades.push(c);
+  const lista = Object.values(paises).map((p) => ({ ...p, ...somarExterior(p.cidades) }))
+    .sort((a, b) => (b.votos_validos - a.votos_validos) || (b.eleitores - a.eleitores));
+
+  const total = somarExterior(cidades);
+  const lider = liderVotos(total.votos);
+  const mini = (r, v) => el('div', { classe: 'mini-kpi' }, [el('div', { classe: 'kpi-rotulo', texto: r }), el('div', { classe: 'kpi-valor', texto: v })]);
+  kpis.append(
+    mini('Eleitores no exterior', compacto(total.eleitores)),
+    mini('Seções apuradas', pct(total.secoes_apuradas / Math.max(1, total.secoes_total) * 100, 1)),
+    mini('Comparecimento', pct(total.comparecimento / Math.max(1, total.comparecimento + total.abstencao) * 100, 1)),
+    mini('Votos válidos', compacto(total.votos_validos)),
+    mini('Líder no exterior', lider ? `${nomeCurto(lider[0])} ${pct(lider[1], 1)}` : '—'),
+    mini('Países', `${lista.length} · ${cidades.length} cidades`),
+  );
+
+  // Gráfico: países com mais votos (partes dos candidatos marcados + demais)
+  const comVotos = lista.filter((p) => p.votos_validos > 0).slice(0, 18);
+  document.getElementById('nota-exterior').textContent = comVotos.length
+    ? `${comVotos.length} países com mais votos válidos apurados` : 'Nenhum voto apurado no exterior ainda';
+  G.barrasEmpilhadas(document.getElementById('g-exterior'), {
+    margemRotulo: 190, alturaBarra: 14, gap: 6, vazio: 'Nenhum voto apurado no exterior ainda',
+    linhas: comVotos.map((p) => ({
+      rotulo: `${p.pais} · ${compacto(p.votos_validos)}`,
+      segmentos: segmentos(partes(p.votos)),
+    })),
+  });
+
+  // Tabela: países (clique abre as cidades)
+  const destaques = candidatosDosGraficos().slice(0, 2);
+  thead.textContent = '';
+  thead.appendChild(el('tr', {}, [
+    el('th', { texto: 'País / cidade' }), el('th', { classe: 'num', texto: 'Apur.' }),
+    el('th', { classe: 'num', texto: 'Válidos' }),
+    ...destaques.map((n) => el('th', { classe: 'num' }, [el('span', { classe: 'chave-tab', estilo: { background: cor(n) } }), nomeCurto(n)])),
+  ]));
+  tbody.textContent = '';
+  state.paisesAbertos = state.paisesAbertos || new Set();
+  const linha = (rotulo, x, classe, continente) => {
+    const fr = partes(x.votos);
+    const l = liderVotos(x.votos);
+    return el('tr', { classe, title: continente || '' }, [
+      el('td', { texto: rotulo }),
+      el('td', { classe: 'num', texto: pct(x.secoes_apuradas / Math.max(1, x.secoes_total) * 100, 1) }),
+      el('td', { classe: 'num', texto: fmtInt.format(x.votos_validos) }),
+      ...destaques.map((n) => el('td', { classe: 'num', texto: x.votos_validos ? pct(fr[n], 1) : '—',
+        estilo: l && l[0] === n ? { fontWeight: '700' } : {} })),
+    ]);
+  };
+  for (const p of lista) {
+    const aberto = state.paisesAbertos.has(p.pais);
+    const tr = linha(`${p.pais} (${p.cidades.length})`, p, `pais${aberto ? ' aberto' : ''}`, p.continente);
+    tr.tabIndex = 0;
+    const alternar = () => {
+      if (state.paisesAbertos.has(p.pais)) state.paisesAbertos.delete(p.pais); else state.paisesAbertos.add(p.pais);
+      renderExterior(state.atual);
+    };
+    tr.addEventListener('click', alternar);
+    tr.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); alternar(); } });
+    tbody.appendChild(tr);
+    if (aberto) {
+      for (const c of [...p.cidades].sort((a, b) => b.votos_validos - a.votos_validos)) {
+        tbody.appendChild(linha(tituloProprio(c.cidade), c, 'cidade', ''));
+      }
+    }
+  }
+}
+
+// --------------------------------------------- subestratos (normal × subestratificado)
+
+function cabecalhoTabela(seletor, colunas) {
+  const thead = document.querySelector(`${seletor} thead`);
+  thead.textContent = '';
+  thead.appendChild(el('tr', {}, colunas));
+  const corpo = document.querySelector(`${seletor} tbody`);
+  corpo.textContent = '';
+  return corpo;
+}
+function thCandidato(n, sufixo = '') {
+  return el('th', { classe: 'num' }, [el('span', { classe: 'chave-tab', estilo: { background: cor(n) } }), nomeCurto(n) + sufixo]);
+}
+const fmtDif = (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${fmt2.format(Math.abs(v))}`;
+
+function renderSubestratos(d) {
+  const sub = (d.analise || {}).subestratificacao;
+  const ids = ['g-sub-intervalos', 'g-sub-uf', 'g-sub-nacional'];
+  const controle = document.getElementById('controle-versao');
+  if (!sub) {
+    controle.hidden = true;
+    document.getElementById('sub-kpis').textContent = '';
+    for (const id of ids) G.vazio(document.getElementById(id), 'Sem subestratos nesta apuração (ou ainda sem os arquivos dos municípios do grupo)');
+    cabecalhoTabela('#tabela-sub', []);
+    document.getElementById('sub-explicacao').textContent = '';
+    return;
+  }
+  controle.hidden = false;
+  for (const b of controle.querySelectorAll('[data-versao]')) {
+    const ativo = b.dataset.versao === sub.versao_principal;
+    b.classList.toggle('ativo', ativo);
+    b.setAttribute('aria-pressed', String(ativo));
+  }
+  const uf = sub.ufs[0];
+  const nomeUf = NOMES_UF[uf] || uf;
+  document.getElementById('sub-titulo').textContent = `${nomeUf}: normal × subestratificado`;
+  document.getElementById('sub-hist-titulo').textContent = `${nomeUf} ao longo da apuração`;
+  const versoes = ['subestratificado', 'normal'];
+  const v = sub.versoes;
+  const nums = candidatosDosGraficos().slice(0, 4);
+
+  // KPIs: líder em cada versão e status nacional de cada versão
+  const mini = (r, val, det) => el('div', { classe: 'mini-kpi' }, [
+    el('div', { classe: 'kpi-rotulo', texto: r }), el('div', { classe: 'kpi-valor', texto: val }),
+    det ? el('div', { classe: 'kpi-detalhe', texto: det }) : null]);
+  const caixa = document.getElementById('sub-kpis');
+  caixa.textContent = '';
+  for (const ver of versoes) {
+    const dados = (v[ver].ufs || {})[uf] || {};
+    const lider = Object.entries(dados).sort((a, b) => b[1].pct - a[1].pct)[0];
+    caixa.append(mini(
+      `${nomeUf} · ${ROTULO_VERSAO[ver]}${ver === sub.versao_principal ? ' (principal)' : ''}`,
+      lider ? `${nomeCurto(lider[0])} ${pct(lider[1].pct, 1)}` : '—',
+      lider ? `chance de liderar ${prob(lider[1].prob_lider)}` : '',
+    ));
+  }
+  if (nums.length) {
+    const n = nums[0];
+    const dif = (v.subestratificado.nacional[n] || {}).pct - (v.normal.nacional[n] || {}).pct;
+    caixa.append(mini(`Efeito no Brasil (${nomeCurto(n)})`, `${fmtDif(dif)} p.p.`, 'subestratificado − normal'));
+  }
+
+  // Intervalos de cada candidato nas duas versões
+  G.intervalos(document.getElementById('g-sub-intervalos'), {
+    vazio: SEM_SELECAO, fmt: (x) => pct(x, 1), refs: [{ x: 50, rotulo: '50%' }],
+    itens: nums.flatMap((n) => versoes.map((ver) => {
+      const c = ((v[ver].ufs || {})[uf] || {})[n];
+      return c ? { rotulo: `${nomeCurto(n)} · ${ROTULO_VERSAO[ver]}`, cor: cor(n), lo: c.ic[0], hi: c.ic[1], media: c.pct } : null;
+    }).filter(Boolean)),
+  });
+
+  // Tabela: o interior em cada versão
+  const top = nums.slice(0, 2);
+  const corpo = cabecalhoTabela('#tabela-sub', [
+    el('th', { texto: 'Parte' }), el('th', { texto: 'Versão' }), el('th', { texto: '% apurado' }),
+    ...top.map((n) => thCandidato(n, ' apurado')), ...top.map((n) => thCandidato(n, ' cresc.')),
+  ]);
+  for (const ver of versoes) {
+    for (const e of v[ver].estratos.filter((x) => x.tipo === 'INTERIOR' || x.tipo === 'SUBESTRATO')) {
+      const apur = e.secoes_apuradas / Math.max(1, e.secoes_total) * 100;
+      corpo.appendChild(el('tr', { classe: ver === sub.versao_principal ? 'destaque' : '' }, [
+        el('td', { texto: e.nome }), el('td', { texto: ROTULO_VERSAO[ver] }),
+        el('td', {}, [el('span', { classe: 'mini-medidor' }, [el('span', { estilo: { width: `${apur}%` } })]), pct(apur, 1)]),
+        ...top.map((n) => el('td', { classe: 'num', texto: e.secoes_apuradas ? pct(e.pct_apurado[n], 1) : '—' })),
+        ...top.map((n) => el('td', { classe: 'num', texto: e.crescimento ? pct(e.crescimento[n], 1) : '—' })),
+      ]));
+    }
+  }
+  document.getElementById('sub-explicacao').textContent =
+    `As duas versões usam as mesmas cidades grandes; muda só o interior de ${nomeUf}. A versão subestratificada ` +
+    'projeta cada grupo do interior com a própria tendência, o que corrige o viés quando um grupo é apurado mais devagar. ' +
+    'A versão principal define os números do painel e a chamada da disputa.';
+
+  // Histórico: UF e Brasil nas duas versões
+  const serieVersao = (n, ver, onde) => {
+    const s = serieHistorico(n, (r) => {
+      const vr = r.analise && r.analise.versoes_resumo && r.analise.versoes_resumo[ver];
+      const val = vr && vr[onde] ? vr[onde][n] : undefined;
+      return val === undefined ? null : { x: valorX(r), y: val };
+    });
+    return { ...s, id: `${n}-${ver}`, rotulo: `${s.rotulo} · ${ROTULO_VERSAO[ver]}`,
+      rotuloCurto: `${s.rotuloCurto} ${ver === 'normal' ? 'norm.' : 'sub.'}`, espessura: ver === 'normal' ? 1 : 2.5 };
+  };
+  for (const [id, onde] of [['g-sub-uf', uf], ['g-sub-nacional', 'nacional']]) {
+    G.linhas(document.getElementById(id), {
+      vazio: SEM_SELECAO, ...cfgEixoX(), yFmt: fmtPctEixo, refs: [{ y: 50, rotulo: '50%' }],
+      series: nums.slice(0, 2).flatMap((n) => versoes.map((ver) => serieVersao(n, ver, onde))),
+    });
+  }
+}
+
+async function definirVersao(versao) {
+  try {
+    const r = await fetch('/api/v1/projecao/versao', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ versao }),
+    });
+    const corpo = await r.json();
+    if (!r.ok) throw new Error(corpo.detail || r.statusText);
+    document.getElementById('sub-explicacao').textContent =
+      `Versão principal: ${ROTULO_VERSAO[versao]}. Os números do painel mudam na próxima atualização.`;
+  } catch (e) {
+    document.getElementById('sub-explicacao').textContent = `Não foi possível trocar a versão: ${e.message}`;
+  }
+}
+
+// ------------------------------------------------- projeção por crescimento (extra)
+
+function renderCrescimento(d) {
+  const a = d.analise || {};
+  const cresc = a.crescimento;
+  const nums = candidatosDosGraficos();
+  if (!cresc) {
+    for (const id of ['g-cresc', 'g-cresc-dif']) G.vazio(document.getElementById(id), 'Aguardando votos apurados');
+    return;
+  }
+  const serieCresc = (n, fn) => serieHistorico(n, (r, c) => {
+    const v = r.analise && r.analise.crescimento_nacional ? r.analise.crescimento_nacional[n] : undefined;
+    return v === undefined ? null : fn(r, c, v);
+  });
+  G.linhas(document.getElementById('g-cresc'), {
+    vazio: SEM_SELECAO, ...cfgEixoX(), yFmt: fmtPctEixo, refs: [{ y: 50, rotulo: '50%' }],
+    series: nums.flatMap((n) => {
+      const principal = serieHistorico(n, (r, c) => ({ x: valorX(r), y: c.perc_projetado }));
+      const s = serieCresc(n, (r, c, v) => ({ x: valorX(r), y: v }));
+      return [{ ...principal, id: `${n}-p`, rotuloCurto: `${principal.rotuloCurto} princ.`, espessura: 2.5 },
+        { ...s, id: `${n}-c`, rotulo: `${s.rotulo} · crescimento`, rotuloCurto: `${s.rotuloCurto} cresc.`, espessura: 1 }];
+    }),
+  });
+  G.linhas(document.getElementById('g-cresc-dif'), {
+    vazio: SEM_SELECAO, ...cfgEixoX(), yFmt: (v) => `${fmtDif(v)} p.p.`, refs: [{ y: 0, rotulo: 'iguais' }],
+    series: nums.map((n) => serieCresc(n, (r, c, v) => ({ x: valorX(r), y: v - c.perc_projetado }))),
+  });
+
+  const top = nums.slice(0, 2);
+  const corpoUf = cabecalhoTabela('#tabela-cresc-uf', [
+    el('th', { texto: 'UF' }), el('th', { classe: 'num', texto: '% apurado' }),
+    ...top.flatMap((n) => [thCandidato(n, ' princ.'), thCandidato(n, ' cresc.')]),
+    el('th', { classe: 'num', texto: 'Diferença' }),
+  ]);
+  const ufs = [...(a.ufs || [])].sort((x, y) => y.restantes_esperados - x.restantes_esperados);
+  for (const u of ufs) {
+    const c = cresc.ufs[u.uf];
+    const n0 = top[0];
+    const dif = c && n0 ? c[n0] - (u.proj_pct[n0] || 0) : null;
+    corpoUf.appendChild(el('tr', {}, [
+      el('td', { texto: u.uf }), el('td', { classe: 'num', texto: pct(pctApurado(u), 1) }),
+      ...top.flatMap((n) => [el('td', { classe: 'num', texto: pct(u.proj_pct[n] || 0, 1) }),
+        el('td', { classe: 'num', texto: c ? pct(c[n], 1) : '—' })]),
+      el('td', { classe: 'num', texto: dif === null ? '—' : `${fmtDif(dif)} p.p.`, title: n0 ? `${nome(n0)}: crescimento − principal` : '' }),
+    ]));
+  }
+
+  const corpoEst = cabecalhoTabela('#tabela-cresc-estratos', [
+    el('th', { texto: 'Estrato' }), el('th', { classe: 'num', texto: 'Eleitores a computar' }),
+    ...top.flatMap((n) => [thCandidato(n, ' apur.'), thCandidato(n, ' cresc.')]),
+    el('th', { texto: 'Base' }),
+  ]);
+  const nomes = Object.fromEntries((a.estratos || []).map((e) => [e.id, e.nome]));
+  const linhasEst = Object.entries(cresc.estratos).sort((x, y) => y[1].eleitores_faltantes - x[1].eleitores_faltantes);
+  for (const [id, e] of linhasEst) {
+    corpoEst.appendChild(el('tr', {}, [
+      el('td', { texto: nomes[id] || id }), el('td', { classe: 'num', texto: compacto(e.eleitores_faltantes) }),
+      ...top.flatMap((n) => [el('td', { classe: 'num', texto: pct(e.pct_apurado[n], 1) }), el('td', { classe: 'num', texto: pct(e.pct[n], 1) })]),
+      el('td', { texto: e.base === 'recente' ? `recente (${fmtInt.format(e.secoes_janela)} seções)` : 'acumulada',
+        title: 'Recente: seções apuradas nos últimos 15% do estrato · acumulada: desde o início' }),
+    ]));
+  }
+}
+
 const RENDER_ABA = {
-  geral: renderGeral, mapa: renderMapa, simulacao: renderCenarios,
-  apuracao: renderApuracao, estratos: renderEstratos, ufs: renderUfs,
+  geral: renderGeral, consolidado: renderConsolidado, mapa: renderMapa, simulacao: renderCenarios,
+  apuracao: renderApuracao, estratos: renderEstratos, ufs: renderUfs, exterior: renderExterior,
+  subestratos: renderSubestratos, crescimento: renderCrescimento,
 };
 
 // --------------------------------------------------------------- orquestração
@@ -997,6 +1403,10 @@ function iniciarControles() {
       }
       if (state.atual && !emEspera(state.atual)) renderGeral(state.atual);
     });
+  }
+
+  for (const b of document.querySelectorAll('[data-versao]')) {
+    b.addEventListener('click', () => definirVersao(b.dataset.versao));
   }
 
   for (const b of document.querySelectorAll('[data-selecao]')) {

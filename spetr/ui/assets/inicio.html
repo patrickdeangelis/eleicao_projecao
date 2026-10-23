@@ -29,12 +29,20 @@
             <strong>Coleta real</strong>
             <span class="selo">TSE</span>
           </label>
-          <span class="opcao-desc">Baixa os arquivos oficiais de resultado do TSE e projeta o resultado a cada atualização.</span>
+          <span class="opcao-desc">Coleta a eleição escolhida no TSE; para 2022, usa os boletins de urna oficiais preparados localmente.</span>
 
           <span class="campos">
+            <label class="campo largo">
+              <span class="campo-rotulo">Eleição</span>
+              <select name="pronta">
+                <option value="">Personalizada (preencha abaixo)</option>
+              </select>
+            </label>
             <label class="campo">
               <span class="campo-rotulo">Ano</span>
-              <input type="text" name="ano" inputmode="numeric" maxlength="4">
+              <select name="ano">
+                <option value="">Carregando…</option>
+              </select>
             </label>
             <label class="campo">
               <span class="campo-rotulo">Turno</span>
@@ -104,6 +112,27 @@
             <label class="config-check"><input type="checkbox" name="cidades_primeiro" checked> Capitais e cidades grandes apuram antes do interior</label>
             <div class="previa" id="previa" aria-live="polite"></div>
           </details>
+        </div>
+
+        <div class="opcao-modo" data-modo="replay">
+          <label class="opcao-cabeca">
+            <input type="radio" name="modo" value="replay">
+            <strong>Replay de eleição real</strong>
+            <span class="selo">local</span>
+          </label>
+          <span class="opcao-desc">Reproduz uma apuração que já aconteceu, na ordem e no horário em que o TSE recebeu cada urna (boletins de urna dos Dados Abertos). Bom para avaliar o modelo com dados reais.</span>
+
+          <span class="campos">
+            <label class="campo largo">
+              <span class="campo-rotulo">Eleição</span>
+              <select name="fonte"></select>
+            </label>
+            <label class="campo">
+              <span class="campo-rotulo">Velocidade</span>
+              <select name="velocidade_replay"></select>
+            </label>
+          </span>
+          <p class="nota" id="nota-replay">Os replays usam os boletins de urna oficiais de 2022 e passam pelo pipeline normal do app.</p>
         </div>
       </div>
 

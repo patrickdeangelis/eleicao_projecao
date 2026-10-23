@@ -41,6 +41,8 @@ class PipelineCoordinator:
         http_client: Optional[TSEHttpClient] = None,
         intervalo_tier1: float = 15.0,
         intervalo_tier2: float = 30.0,
+        intervalo_exterior: float = 120.0,
+        intervalo_subestratos: float = 60.0,
         rotulo_eleicao: Optional[str] = None,
     ):
         self.bus = event_bus or EventBus()
@@ -57,6 +59,8 @@ class PipelineCoordinator:
             ambiente=ambiente,
             intervalo_tier1=intervalo_tier1,
             intervalo_tier2=intervalo_tier2,
+            intervalo_exterior=intervalo_exterior,
+            intervalo_subestratos=intervalo_subestratos,
         )
         self.repo = ElectionRepository(
             self.db,
@@ -84,6 +88,8 @@ class PipelineCoordinator:
         cidades_file = DATA_DIR / "cidades_100k.json"
         priors_file = DATA_DIR / "priors_eleicao.json"
         municipios_file = DATA_DIR / "municipios_meta.json"
+        exterior_file = DATA_DIR / "exterior_cidades.json"
+        subestratos_file = DATA_DIR / "subestratos.json"
 
         cidades_por_uf: Dict[str, List[str]] = {}
         capitais_por_uf: Dict[str, str] = {}
@@ -110,9 +116,30 @@ class PipelineCoordinator:
             with open(priors_file, "r", encoding="utf-8") as f:
                 priors_data = json.load(f)
 
+        exterior: Dict[str, Dict] = {}
+        if exterior_file.exists():
+            with open(exterior_file, "r", encoding="utf-8") as f:
+                exterior = json.load(f)
+
+        subestratos: Dict[str, Dict] = {}
+        if subestratos_file.exists():
+            with open(subestratos_file, "r", encoding="utf-8") as f:
+                subestratos = json.load(f)
+        # Só subestratifica UFs que já têm cidades estratificadas (o Interior vem da subtração)
+        subestratos = {uf: cfg for uf, cfg in subestratos.items() if cidades_por_uf.get(uf)}
+
         # Configura o agregador e o coletor
         self.aggregator.configurar_cidades(cidades_por_uf)
-        self.scheduler.configurar_alvos(cidades_por_uf, capitais_por_uf)
+        self.aggregator.configurar_exterior(exterior)
+        self.aggregator.configurar_subestratos({
+            uf: {"grupos": {ch: list(g["municipios"]) for ch, g in cfg["grupos"].items()}, "resto": cfg["resto"]["chave"]}
+            for uf, cfg in subestratos.items()
+        })
+        self.scheduler.configurar_alvos(
+            cidades_por_uf, capitais_por_uf, cidades_exterior=list(exterior),
+            municipios_subestratos={uf: [c for g in cfg["grupos"].values() for c in g["municipios"]]
+                                    for uf, cfg in subestratos.items()},
+        )
 
         # Monta a lista de estratos para o motor estatístico
 
@@ -178,6 +205,27 @@ class PipelineCoordinator:
                         prior_alpha=prior_int
                     )
                 )
+
+                # Subestratos do interior (grupos listados + resto = Interior - grupos)
+                cfg_sub = subestratos.get(uf)
+                if cfg_sub:
+                    eleit_grupos = sec_grupos = 0
+                    partes = []
+                    for chave, g in cfg_sub["grupos"].items():
+                        el = sum(int(m.get("eleitores", 0)) for m in g["municipios"].values())
+                        sc = sum(int(m.get("secoes", 0)) for m in g["municipios"].values())
+                        eleit_grupos += el
+                        sec_grupos += sc
+                        partes.append((chave, g["nome"], el, sc))
+                    resto = cfg_sub["resto"]
+                    partes.append((resto["chave"], resto["nome"], max(1000, eleit_int - eleit_grupos), max(10, sec_int - sec_grupos)))
+                    for chave, nome, el, sc in partes:
+                        eid_sub = VectorAggregator.id_subestrato(uf, chave)
+                        self.engine.nomes_estratos[eid_sub] = f"{nome} ({uf})"
+                        estratos.append(EstratoEleitoral(
+                            id=eid_sub, uf=uf, nome=f"{uf} - {nome}", eleitores_aptos=max(1000, el),
+                            secoes_totais=max(10, sc), tipo=TipoEstrato.SUBESTRATO_INTERIOR, prior_alpha=prior_int,
+                        ))
             else:
                 eid_tot = f"{uf}_TOTAL"
                 estratos.append(

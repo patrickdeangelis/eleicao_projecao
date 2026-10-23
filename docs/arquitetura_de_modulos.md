@@ -96,7 +96,7 @@ eleicao_projecao/
 │   └── data/                              # DADOS ESTÁTICOS PRÉ-CARREGADOS
 │       ├── cidades_100k.json              # Mapeamento oficial dos 154 municípios
 │       ├── ufs_metadados.json             # Eleitorado e histórico das 27 UFs
-│       └── priors_eleicao.json            # Pesquisas de véspera e 1º turno
+│       └── priors_eleicao.json            # Priors opcionais (vazio: média nacional observada)
 │
 ├── tests/                                 # TESTES ISOLADOS POR MÓDULO
 │   ├── unit/

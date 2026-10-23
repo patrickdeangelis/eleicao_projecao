@@ -59,6 +59,18 @@ def voto_e_valido(destinacao: Any) -> bool:
     return not d.startswith("anulado")
 
 
+def secoes_concluidas(raw: Any) -> bool:
+    """True quando o arquivo já traz 100% das seções apuradas (total > 0)."""
+    if not isinstance(raw, dict):
+        return False
+    s_raw = raw.get("s", 0)
+    if isinstance(s_raw, dict):
+        total, apuradas = parse_int_br(s_raw.get("ts", s_raw.get("s", 0))), parse_int_br(s_raw.get("st", 0))
+    else:
+        total, apuradas = parse_int_br(s_raw), parse_int_br(raw.get("st", 0))
+    return total > 0 and apuradas >= total
+
+
 def parse_tse_json(raw: Dict[str, Any], uf: str, cod_mun: Optional[str] = None) -> Dict[str, Any]:
     """
     Normaliza qualquer formato JSON oficial do TSE (Dados Simplificados ou EA20 Unificado).

@@ -2,6 +2,11 @@
 Módulo de Decomposição Vetorial e Agregação Estratificada.
 Implementa a regra algébrica:
 Interior Remanescente(UF) = Total(UF) - Σ Cidades > 100k(UF)
+
+Subestratificação opcional do interior (ex.: MG):
+Grupo listado (UF_SUB_NORTE) = Σ municípios do grupo
+Resto (UF_SUB_SUL)           = Interior Remanescente(UF) - Σ grupos listados
+Os subestratos são publicados junto com o Interior; o motor escolhe qual versão usar.
 """
 from typing import Dict, List, Any, Optional, Set
 import datetime
@@ -36,6 +41,12 @@ class VectorAggregator:
         self._snapshots_por_uf: Dict[str, Dict[str, SnapshotParcial]] = {}
         self._cidades_vistas: Dict[str, Set[str]] = {}
         self._candidatos_meta: Dict[str, Dict[str, Any]] = {}
+        # Cidades do exterior: só para exibição por país (não entram na decomposição)
+        self.cidades_exterior: Dict[str, Dict[str, Any]] = {}
+        self._exterior: Dict[str, Dict[str, Any]] = {}
+        # Subestratos: {uf: {"grupos": {chave: [cod, ...]}, "resto": chave}}
+        self.subestratos: Dict[str, Dict[str, Any]] = {}
+        self._sub_por_uf: Dict[str, Dict[str, SnapshotParcial]] = {}
         self.subtracoes_negativas = 0
         self._rejeicoes_seguidas: Dict[str, int] = {}
         # Após N lotes inconsistentes seguidos, aceita truncado para a UF não ficar congelada
@@ -47,6 +58,35 @@ class VectorAggregator:
     def configurar_cidades(self, cidades_por_uf: Dict[str, List[str]]) -> None:
         self.cidades_por_uf = cidades_por_uf
 
+    def configurar_subestratos(self, subestratos: Dict[str, Dict[str, Any]]) -> None:
+        """{uf: {"grupos": {chave: [cod_mun, ...]}, "resto": chave_do_resto}}."""
+        self.subestratos = subestratos
+
+    @staticmethod
+    def id_subestrato(uf: str, chave: str) -> str:
+        return f"{uf}_SUB_{chave}"
+
+    def configurar_exterior(self, cidades_exterior: Dict[str, Dict[str, Any]]) -> None:
+        """{cod: {cidade, pais, continente, eleitores, secoes}} das cidades do exterior (UF ZZ)."""
+        self.cidades_exterior = cidades_exterior
+
+    def exterior_detalhado(self) -> Optional[List[Dict[str, Any]]]:
+        """Último resultado de cada cidade do exterior já recebida, com país e continente."""
+        if not self._exterior:
+            return None
+        saida = []
+        for cod, d in sorted(self._exterior.items()):
+            info = self.cidades_exterior.get(cod, {})
+            saida.append({
+                "cod": cod, "cidade": info.get("cidade", cod), "pais": info.get("pais", "Não identificado"),
+                "continente": info.get("continente", "Outros"),
+                "secoes_total": d["secoes_total"], "secoes_apuradas": d["secoes_apuradas"],
+                "eleitores": d["eleitores"], "comparecimento": d["comparecimento"], "abstencao": d["abstencao"],
+                "votos_validos": d["votos_validos"], "votos_brancos": d["votos_brancos"], "votos_nulos": d["votos_nulos"],
+                "votos": dict(d["candidatos_votos"]),
+            })
+        return saida
+
     async def ao_receber_lote_bruto(self, evento: RawBatchReceivedEvent) -> None:
         """Handler do EventBus para processamento automático de novo lote."""
         try:
@@ -57,7 +97,8 @@ class VectorAggregator:
                         timestamp=evento.timestamp,
                         ciclo_id=evento.ciclo_id,
                         snapshots=snapshots,
-                        candidatos_meta=dict(self._candidatos_meta)
+                        candidatos_meta=dict(self._candidatos_meta),
+                        exterior=self.exterior_detalhado(),
                     )
                 )
         except Exception as e:
@@ -100,6 +141,8 @@ class VectorAggregator:
                     parsed = parse_tse_json(payload, uf=uf, cod_mun=cod_mun)
                     parsed["votos_anulados"] = sum(parsed.get("candidatos_anulados", {}).values())
                     muns_lote[f"{uf}_{cod_mun}"] = parsed
+                    if uf == "ZZ":
+                        self._exterior[cod_mun] = parsed
                     self._candidatos_meta.update(parsed.get("candidatos_meta", {}))
 
         # 2. Decomposição para cada UF presente no lote
@@ -190,6 +233,8 @@ class VectorAggregator:
 
             self._cidades_vistas[uf] = ja_vistas | set(cidades_lote)
             self._registrar_snapshots(uf, novos)
+            if uf in self.subestratos:
+                self._subestratificar(uf, novos[eid_int], muns_lote, ts)
 
         if ufs_negativas:
             logger.warning(
@@ -200,7 +245,53 @@ class VectorAggregator:
         snapshots: Dict[str, SnapshotParcial] = {}
         for por_uf in self._snapshots_por_uf.values():
             snapshots.update(por_uf)
+        for por_uf in self._sub_por_uf.values():
+            snapshots.update(por_uf)
         return snapshots
+
+    def _subestratificar(self, uf: str, interior: SnapshotParcial, muns_lote: Dict[str, Dict[str, Any]], ts: str) -> None:
+        """
+        Divide o Interior recém-calculado em grupos. Só atualiza quando o lote traz todos os
+        municípios dos grupos (mesmo momento do arquivo da UF); senão mantém a última divisão
+        coerente, para o avanço de um grupo não ser atribuído ao resto.
+        """
+        cfg = self.subestratos[uf]
+        grupos: Dict[str, List[str]] = cfg.get("grupos", {})
+        if any(f"{uf}_{c}" not in muns_lote for cods in grupos.values() for c in cods):
+            return
+        campos = ("secoes_total", "secoes_apuradas", "eleitores", "comparecimento",
+                  "abstencao", "votos_validos", "votos_brancos", "votos_nulos", "votos_anulados")
+        novos: Dict[str, SnapshotParcial] = {}
+        resto = {
+            "secoes_total": interior.secoes_total, "secoes_apuradas": interior.secoes_apuradas,
+            "eleitores": interior.eleitores_aptos, "comparecimento": interior.comparecimento,
+            "abstencao": interior.abstencao, "votos_validos": interior.votos_validos,
+            "votos_brancos": interior.votos_brancos, "votos_nulos": interior.votos_nulos,
+            "votos_anulados": interior.votos_anulados,
+        }
+        resto_cands = dict(interior.votos_candidatos)
+        for chave, cods in grupos.items():
+            soma = {c: 0 for c in campos}
+            cands: Dict[str, int] = {}
+            for cod in cods:
+                d = muns_lote[f"{uf}_{cod}"]
+                for c in campos:
+                    soma[c] += d.get(c, 0)
+                for n, v in d["candidatos_votos"].items():
+                    cands[n] = cands.get(n, 0) + v
+            eid = self.id_subestrato(uf, chave)
+            novos[eid] = self._snapshot(eid, ts, {**soma, "candidatos_votos": cands})
+            for c in campos:
+                resto[c] -= soma[c]
+            for n, v in cands.items():
+                resto_cands[n] = resto_cands.get(n, 0) - v
+        negativos = [c for c, v in list(resto.items()) + list(resto_cands.items()) if v < 0]
+        if negativos:
+            logger.warning(f"{uf}: subtração Interior - grupos negativa ({', '.join(negativos[:3])}); mantendo a divisão anterior.")
+            return
+        eid_resto = self.id_subestrato(uf, cfg["resto"])
+        novos[eid_resto] = self._snapshot(eid_resto, ts, {**resto, "candidatos_votos": resto_cands})
+        self._sub_por_uf[uf] = novos
 
     def _registrar_snapshots(self, uf: str, novos: Dict[str, SnapshotParcial]) -> None:
         # Substitui todos os estratos da UF de uma vez (o conjunto de cidades pode ter mudado)

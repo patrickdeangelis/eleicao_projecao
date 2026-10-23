@@ -1,0 +1,1304 @@
+{
+ "29173": {
+  "cidade": "KATMANDU",
+  "pais": "Nepal",
+  "continente": "Ásia",
+  "eleitores": 32,
+  "secoes": 1
+ },
+ "29254": {
+  "cidade": "ABIDJÃ",
+  "pais": "Costa do Marfim",
+  "continente": "África",
+  "eleitores": 91,
+  "secoes": 1
+ },
+ "29262": {
+  "cidade": "ABU DHABI",
+  "pais": "Emirados Árabes Unidos",
+  "continente": "Oriente Médio",
+  "eleitores": 2988,
+  "secoes": 5
+ },
+ "29270": {
+  "cidade": "ACCRA",
+  "pais": "Gana",
+  "continente": "África",
+  "eleitores": 43,
+  "secoes": 1
+ },
+ "29289": {
+  "cidade": "AMÃ",
+  "pais": "Jordânia",
+  "continente": "Oriente Médio",
+  "eleitores": 1489,
+  "secoes": 2
+ },
+ "29297": {
+  "cidade": "ANCARA",
+  "pais": "Turquia",
+  "continente": "Europa",
+  "eleitores": 77,
+  "secoes": 1
+ },
+ "29300": {
+  "cidade": "ARGEL",
+  "pais": "Argélia",
+  "continente": "África",
+  "eleitores": 48,
+  "secoes": 1
+ },
+ "29319": {
+  "cidade": "ARTIGAS",
+  "pais": "Uruguai",
+  "continente": "América do Sul",
+  "eleitores": 611,
+  "secoes": 1
+ },
+ "29327": {
+  "cidade": "ASSUNÇÃO",
+  "pais": "Paraguai",
+  "continente": "América do Sul",
+  "eleitores": 2205,
+  "secoes": 4
+ },
+ "29335": {
+  "cidade": "ATENAS",
+  "pais": "Grécia",
+  "continente": "Europa",
+  "eleitores": 1211,
+  "secoes": 2
+ },
+ "29343": {
+  "cidade": "BANGKOK",
+  "pais": "Tailândia",
+  "continente": "Ásia",
+  "eleitores": 310,
+  "secoes": 1
+ },
+ "29351": {
+  "cidade": "BARCELONA",
+  "pais": "Espanha",
+  "continente": "Europa",
+  "eleitores": 17254,
+  "secoes": 22
+ },
+ "29360": {
+  "cidade": "BEIRUTE",
+  "pais": "Líbano",
+  "continente": "Oriente Médio",
+  "eleitores": 8919,
+  "secoes": 13
+ },
+ "29378": {
+  "cidade": "BELGRADO",
+  "pais": "Sérvia",
+  "continente": "Europa",
+  "eleitores": 115,
+  "secoes": 1
+ },
+ "29386": {
+  "cidade": "BERLIM",
+  "pais": "Alemanha",
+  "continente": "Europa",
+  "eleitores": 15066,
+  "secoes": 20
+ },
+ "29394": {
+  "cidade": "BISSAU",
+  "pais": "Guiné-Bissau",
+  "continente": "África",
+  "eleitores": 88,
+  "secoes": 1
+ },
+ "29408": {
+  "cidade": "BOGOTÁ",
+  "pais": "Colômbia",
+  "continente": "América do Sul",
+  "eleitores": 1499,
+  "secoes": 2
+ },
+ "29416": {
+  "cidade": "BOSTON",
+  "pais": "Estados Unidos",
+  "continente": "América do Norte",
+  "eleitores": 53358,
+  "secoes": 69
+ },
+ "29424": {
+  "cidade": "BRIDGETOWN",
+  "pais": "Barbados",
+  "continente": "América Central e Caribe",
+  "eleitores": 22,
+  "secoes": 1
+ },
+ "29432": {
+  "cidade": "BRUXELAS",
+  "pais": "Bélgica",
+  "continente": "Europa",
+  "eleitores": 10073,
+  "secoes": 14
+ },
+ "29440": {
+  "cidade": "BUCARESTE",
+  "pais": "Romênia",
+  "continente": "Europa",
+  "eleitores": 130,
+  "secoes": 1
+ },
+ "29459": {
+  "cidade": "BUDAPESTE",
+  "pais": "Hungria",
+  "continente": "Europa",
+  "eleitores": 810,
+  "secoes": 2
+ },
+ "29467": {
+  "cidade": "BUENOS AIRES",
+  "pais": "Argentina",
+  "continente": "América do Sul",
+  "eleitores": 11748,
+  "secoes": 15
+ },
+ "29475": {
+  "cidade": "CAIENA",
+  "pais": "Guiana Francesa",
+  "continente": "América do Sul",
+  "eleitores": 3117,
+  "secoes": 5
+ },
+ "29483": {
+  "cidade": "CAIRO",
+  "pais": "Egito",
+  "continente": "África",
+  "eleitores": 203,
+  "secoes": 1
+ },
+ "29491": {
+  "cidade": "CAMBERRA",
+  "pais": "Austrália",
+  "continente": "Oceania",
+  "eleitores": 6243,
+  "secoes": 10
+ },
+ "29505": {
+  "cidade": "CARACAS",
+  "pais": "Venezuela",
+  "continente": "América do Sul",
+  "eleitores": 994,
+  "secoes": 3
+ },
+ "29513": {
+  "cidade": "CHICAGO",
+  "pais": "Estados Unidos",
+  "continente": "América do Norte",
+  "eleitores": 12452,
+  "secoes": 18
+ },
+ "29521": {
+  "cidade": "CHUY",
+  "pais": "Uruguai",
+  "continente": "América do Sul",
+  "eleitores": 27,
+  "secoes": 1
+ },
+ "29530": {
+  "cidade": "CIDADE DO CABO",
+  "pais": "África do Sul",
+  "continente": "África",
+  "eleitores": 355,
+  "secoes": 1
+ },
+ "29548": {
+  "cidade": "SINGAPURA",
+  "pais": "Singapura",
+  "continente": "Ásia",
+  "eleitores": 864,
+  "secoes": 2
+ },
+ "29556": {
+  "cidade": "CIUDAD DEL ESTE",
+  "pais": "Paraguai",
+  "continente": "América do Sul",
+  "eleitores": 5094,
+  "secoes": 7
+ },
+ "29564": {
+  "cidade": "CIUDAD GUAYANA",
+  "pais": "Venezuela",
+  "continente": "América do Sul",
+  "eleitores": 72,
+  "secoes": 1
+ },
+ "29572": {
+  "cidade": "COCHABAMBA",
+  "pais": "Bolívia",
+  "continente": "América do Sul",
+  "eleitores": 412,
+  "secoes": 1
+ },
+ "29580": {
+  "cidade": "CONCEPCIÓN",
+  "pais": "Paraguai",
+  "continente": "América do Sul",
+  "eleitores": 78,
+  "secoes": 1
+ },
+ "29599": {
+  "cidade": "COPENHAGUE",
+  "pais": "Dinamarca",
+  "continente": "Europa",
+  "eleitores": 2856,
+  "secoes": 4
+ },
+ "29602": {
+  "cidade": "CÓRDOBA",
+  "pais": "Argentina",
+  "continente": "América do Sul",
+  "eleitores": 918,
+  "secoes": 2
+ },
+ "29610": {
+  "cidade": "DACAR",
+  "pais": "Senegal",
+  "continente": "África",
+  "eleitores": 132,
+  "secoes": 1
+ },
+ "29629": {
+  "cidade": "DACCA",
+  "pais": "Bangladesh",
+  "continente": "Ásia",
+  "eleitores": 1,
+  "secoes": 1
+ },
+ "29637": {
+  "cidade": "DAMASCO",
+  "pais": "Síria",
+  "continente": "Oriente Médio",
+  "eleitores": 775,
+  "secoes": 1
+ },
+ "29645": {
+  "cidade": "DÍLI",
+  "pais": "Timor-Leste",
+  "continente": "Ásia",
+  "eleitores": 89,
+  "secoes": 1
+ },
+ "29653": {
+  "cidade": "DOHA",
+  "pais": "Catar",
+  "continente": "Oriente Médio",
+  "eleitores": 758,
+  "secoes": 1
+ },
+ "29661": {
+  "cidade": "DUBLIN",
+  "pais": "Irlanda",
+  "continente": "Europa",
+  "eleitores": 16720,
+  "secoes": 28
+ },
+ "29670": {
+  "cidade": "ENCARNACIÓN",
+  "pais": "Paraguai",
+  "continente": "América do Sul",
+  "eleitores": 281,
+  "secoes": 1
+ },
+ "29688": {
+  "cidade": "ESTOCOLMO",
+  "pais": "Suécia",
+  "continente": "Europa",
+  "eleitores": 4866,
+  "secoes": 7
+ },
+ "29696": {
+  "cidade": "FRANKFURT",
+  "pais": "Alemanha",
+  "continente": "Europa",
+  "eleitores": 12961,
+  "secoes": 21
+ },
+ "29700": {
+  "cidade": "GENEBRA",
+  "pais": "Suíça",
+  "continente": "Europa",
+  "eleitores": 11883,
+  "secoes": 15
+ },
+ "29718": {
+  "cidade": "GEORGETOWN",
+  "pais": "Guiana",
+  "continente": "América do Sul",
+  "eleitores": 178,
+  "secoes": 1
+ },
+ "29742": {
+  "cidade": "HAMAMATSU",
+  "pais": "Japão",
+  "continente": "Ásia",
+  "eleitores": 13729,
+  "secoes": 18
+ },
+ "29750": {
+  "cidade": "HANÓI",
+  "pais": "Vietnã",
+  "continente": "Ásia",
+  "eleitores": 82,
+  "secoes": 1
+ },
+ "29769": {
+  "cidade": "HARARE",
+  "pais": "Zimbábue",
+  "continente": "África",
+  "eleitores": 7,
+  "secoes": 1
+ },
+ "29777": {
+  "cidade": "HAVANA",
+  "pais": "Cuba",
+  "continente": "América Central e Caribe",
+  "eleitores": 92,
+  "secoes": 1
+ },
+ "29785": {
+  "cidade": "HELSINQUE",
+  "pais": "Finlândia",
+  "continente": "Europa",
+  "eleitores": 1278,
+  "secoes": 2
+ },
+ "29793": {
+  "cidade": "HONG KONG",
+  "pais": "China",
+  "continente": "Ásia",
+  "eleitores": 668,
+  "secoes": 1
+ },
+ "29807": {
+  "cidade": "HOUSTON",
+  "pais": "Estados Unidos",
+  "continente": "América do Norte",
+  "eleitores": 16438,
+  "secoes": 23
+ },
+ "29815": {
+  "cidade": "IAUNDÊ",
+  "pais": "Camarões",
+  "continente": "África",
+  "eleitores": 14,
+  "secoes": 1
+ },
+ "29823": {
+  "cidade": "IQUITOS",
+  "pais": "Peru",
+  "continente": "América do Sul",
+  "eleitores": 17,
+  "secoes": 1
+ },
+ "29831": {
+  "cidade": "ISLAMABADE",
+  "pais": "Paquistão",
+  "continente": "Ásia",
+  "eleitores": 18,
+  "secoes": 1
+ },
+ "29840": {
+  "cidade": "JACARTA",
+  "pais": "Indonésia",
+  "continente": "Ásia",
+  "eleitores": 172,
+  "secoes": 1
+ },
+ "29858": {
+  "cidade": "KIEV",
+  "pais": "Ucrânia",
+  "continente": "Europa",
+  "eleitores": 65,
+  "secoes": 1
+ },
+ "29874": {
+  "cidade": "KINSHASA",
+  "pais": "República Democrática do Congo",
+  "continente": "África",
+  "eleitores": 27,
+  "secoes": 1
+ },
+ "29882": {
+  "cidade": "KUAITE",
+  "pais": "Kuwait",
+  "continente": "Oriente Médio",
+  "eleitores": 138,
+  "secoes": 1
+ },
+ "29890": {
+  "cidade": "KUALA LUMPUR",
+  "pais": "Malásia",
+  "continente": "Ásia",
+  "eleitores": 170,
+  "secoes": 1
+ },
+ "29904": {
+  "cidade": "LA PAZ",
+  "pais": "Bolívia",
+  "continente": "América do Sul",
+  "eleitores": 418,
+  "secoes": 1
+ },
+ "29912": {
+  "cidade": "LAGOS",
+  "pais": "Nigéria",
+  "continente": "África",
+  "eleitores": 82,
+  "secoes": 1
+ },
+ "29939": {
+  "cidade": "LIBREVILLE",
+  "pais": "Gabão",
+  "continente": "África",
+  "eleitores": 18,
+  "secoes": 1
+ },
+ "29947": {
+  "cidade": "LIMA",
+  "pais": "Peru",
+  "continente": "América do Sul",
+  "eleitores": 1616,
+  "secoes": 3
+ },
+ "29955": {
+  "cidade": "LISBOA",
+  "pais": "Portugal",
+  "continente": "Europa",
+  "eleitores": 78607,
+  "secoes": 103
+ },
+ "29963": {
+  "cidade": "LOMÉ",
+  "pais": "Togo",
+  "continente": "África",
+  "eleitores": 7,
+  "secoes": 1
+ },
+ "29971": {
+  "cidade": "LONDRES",
+  "pais": "Reino Unido",
+  "continente": "Europa",
+  "eleitores": 37448,
+  "secoes": 48
+ },
+ "29980": {
+  "cidade": "LOS ANGELES",
+  "pais": "Estados Unidos",
+  "continente": "América do Norte",
+  "eleitores": 18262,
+  "secoes": 25
+ },
+ "29998": {
+  "cidade": "LUANDA",
+  "pais": "Angola",
+  "continente": "África",
+  "eleitores": 716,
+  "secoes": 1
+ },
+ "30066": {
+  "cidade": "MADRI",
+  "pais": "Espanha",
+  "continente": "Europa",
+  "eleitores": 23464,
+  "secoes": 30
+ },
+ "30074": {
+  "cidade": "MANÁGUA",
+  "pais": "Nicarágua",
+  "continente": "América Central e Caribe",
+  "eleitores": 134,
+  "secoes": 1
+ },
+ "30082": {
+  "cidade": "MANILA",
+  "pais": "Filipinas",
+  "continente": "Ásia",
+  "eleitores": 229,
+  "secoes": 1
+ },
+ "30090": {
+  "cidade": "MAPUTO",
+  "pais": "Moçambique",
+  "continente": "África",
+  "eleitores": 557,
+  "secoes": 1
+ },
+ "30104": {
+  "cidade": "MEXICO",
+  "pais": "México",
+  "continente": "América do Norte",
+  "eleitores": 3958,
+  "secoes": 6
+ },
+ "30112": {
+  "cidade": "MIAMI",
+  "pais": "Estados Unidos",
+  "continente": "América do Norte",
+  "eleitores": 40053,
+  "secoes": 51
+ },
+ "30120": {
+  "cidade": "MILÃO",
+  "pais": "Itália",
+  "continente": "Europa",
+  "eleitores": 24594,
+  "secoes": 37
+ },
+ "30147": {
+  "cidade": "MONTEVIDÉU",
+  "pais": "Uruguai",
+  "continente": "América do Sul",
+  "eleitores": 2448,
+  "secoes": 4
+ },
+ "30155": {
+  "cidade": "MONTREAL",
+  "pais": "Canadá",
+  "continente": "América do Norte",
+  "eleitores": 10953,
+  "secoes": 15
+ },
+ "30163": {
+  "cidade": "MOSCOU",
+  "pais": "Rússia",
+  "continente": "Europa",
+  "eleitores": 252,
+  "secoes": 1
+ },
+ "30171": {
+  "cidade": "MUMBAI",
+  "pais": "Índia",
+  "continente": "Ásia",
+  "eleitores": 55,
+  "secoes": 1
+ },
+ "30180": {
+  "cidade": "MUNIQUE",
+  "pais": "Alemanha",
+  "continente": "Europa",
+  "eleitores": 13374,
+  "secoes": 21
+ },
+ "30198": {
+  "cidade": "NAGÓIA",
+  "pais": "Japão",
+  "continente": "Ásia",
+  "eleitores": 44536,
+  "secoes": 58
+ },
+ "30201": {
+  "cidade": "NAIRÓBI",
+  "pais": "Quênia",
+  "continente": "África",
+  "eleitores": 112,
+  "secoes": 1
+ },
+ "30210": {
+  "cidade": "NOVA DELHI",
+  "pais": "Índia",
+  "continente": "Ásia",
+  "eleitores": 141,
+  "secoes": 1
+ },
+ "30228": {
+  "cidade": "NOVA YORK",
+  "pais": "Estados Unidos",
+  "continente": "América do Norte",
+  "eleitores": 38953,
+  "secoes": 53
+ },
+ "30244": {
+  "cidade": "OSLO",
+  "pais": "Noruega",
+  "continente": "Europa",
+  "eleitores": 2185,
+  "secoes": 3
+ },
+ "30252": {
+  "cidade": "OTTAWA",
+  "pais": "Canadá",
+  "continente": "América do Norte",
+  "eleitores": 2357,
+  "secoes": 4
+ },
+ "30260": {
+  "cidade": "PANAMA",
+  "pais": "Panamá",
+  "continente": "América Central e Caribe",
+  "eleitores": 1399,
+  "secoes": 2
+ },
+ "30279": {
+  "cidade": "PARAMARIBO",
+  "pais": "Suriname",
+  "continente": "América do Sul",
+  "eleitores": 1430,
+  "secoes": 3
+ },
+ "30287": {
+  "cidade": "PARIS",
+  "pais": "França",
+  "continente": "Europa",
+  "eleitores": 26957,
+  "secoes": 34
+ },
+ "30295": {
+  "cidade": "PASO LOS LIBRES",
+  "pais": "Argentina",
+  "continente": "América do Sul",
+  "eleitores": 41,
+  "secoes": 1
+ },
+ "30309": {
+  "cidade": "PEDRO JUAN CABALLERO",
+  "pais": "Paraguai",
+  "continente": "América do Sul",
+  "eleitores": 650,
+  "secoes": 1
+ },
+ "30317": {
+  "cidade": "PEQUIM",
+  "pais": "China",
+  "continente": "Ásia",
+  "eleitores": 342,
+  "secoes": 1
+ },
+ "30325": {
+  "cidade": "PORT OF SPAIN",
+  "pais": "Trinidad e Tobago",
+  "continente": "América Central e Caribe",
+  "eleitores": 87,
+  "secoes": 1
+ },
+ "30333": {
+  "cidade": "PORTO PRÍNCIPE",
+  "pais": "Haiti",
+  "continente": "América Central e Caribe",
+  "eleitores": 33,
+  "secoes": 1
+ },
+ "30341": {
+  "cidade": "PORTO",
+  "pais": "Portugal",
+  "continente": "Europa",
+  "eleitores": 47496,
+  "secoes": 62
+ },
+ "30350": {
+  "cidade": "PRAGA",
+  "pais": "República Tcheca",
+  "continente": "Europa",
+  "eleitores": 690,
+  "secoes": 1
+ },
+ "30368": {
+  "cidade": "PRAIA",
+  "pais": "Cabo Verde",
+  "continente": "África",
+  "eleitores": 146,
+  "secoes": 1
+ },
+ "30376": {
+  "cidade": "PRETÓRIA",
+  "pais": "África do Sul",
+  "continente": "África",
+  "eleitores": 657,
+  "secoes": 1
+ },
+ "30392": {
+  "cidade": "QUITO",
+  "pais": "Equador",
+  "continente": "América do Sul",
+  "eleitores": 993,
+  "secoes": 2
+ },
+ "30406": {
+  "cidade": "RABAT",
+  "pais": "Marrocos",
+  "continente": "África",
+  "eleitores": 117,
+  "secoes": 1
+ },
+ "30414": {
+  "cidade": "RAMALLAH",
+  "pais": "Palestina",
+  "continente": "Oriente Médio",
+  "eleitores": 2135,
+  "secoes": 3
+ },
+ "30422": {
+  "cidade": "RIADE",
+  "pais": "Arábia Saudita",
+  "continente": "Oriente Médio",
+  "eleitores": 311,
+  "secoes": 1
+ },
+ "30430": {
+  "cidade": "RIO BRANCO",
+  "pais": "Uruguai",
+  "continente": "América do Sul",
+  "eleitores": 58,
+  "secoes": 1
+ },
+ "30449": {
+  "cidade": "ROMA",
+  "pais": "Itália",
+  "continente": "Europa",
+  "eleitores": 14153,
+  "secoes": 22
+ },
+ "30457": {
+  "cidade": "AMSTERDÃ",
+  "pais": "Países Baixos",
+  "continente": "Europa",
+  "eleitores": 12752,
+  "secoes": 17
+ },
+ "30465": {
+  "cidade": "SALTO DEL GUAIRÁ",
+  "pais": "Paraguai",
+  "continente": "América do Sul",
+  "eleitores": 899,
+  "secoes": 2
+ },
+ "30473": {
+  "cidade": "SANTA CRUZ DE LA SIERRA",
+  "pais": "Bolívia",
+  "continente": "América do Sul",
+  "eleitores": 2765,
+  "secoes": 5
+ },
+ "30481": {
+  "cidade": "SANTIAGO",
+  "pais": "Chile",
+  "continente": "América do Sul",
+  "eleitores": 3551,
+  "secoes": 5
+ },
+ "30490": {
+  "cidade": "SÃO DOMINGOS",
+  "pais": "República Dominicana",
+  "continente": "América Central e Caribe",
+  "eleitores": 415,
+  "secoes": 1
+ },
+ "30503": {
+  "cidade": "SÃO FRANCISCO",
+  "pais": "Estados Unidos",
+  "continente": "América do Norte",
+  "eleitores": 15492,
+  "secoes": 20
+ },
+ "30511": {
+  "cidade": "SÃO JOSÉ",
+  "pais": "Costa Rica",
+  "continente": "América Central e Caribe",
+  "eleitores": 714,
+  "secoes": 1
+ },
+ "30520": {
+  "cidade": "SÃO SALVADOR",
+  "pais": "El Salvador",
+  "continente": "América Central e Caribe",
+  "eleitores": 161,
+  "secoes": 1
+ },
+ "30538": {
+  "cidade": "SEUL",
+  "pais": "Coreia do Sul",
+  "continente": "Ásia",
+  "eleitores": 485,
+  "secoes": 1
+ },
+ "30546": {
+  "cidade": "SÓFIA",
+  "pais": "Bulgária",
+  "continente": "Europa",
+  "eleitores": 98,
+  "secoes": 1
+ },
+ "30562": {
+  "cidade": "SYDNEY",
+  "pais": "Austrália",
+  "continente": "Oceania",
+  "eleitores": 14031,
+  "secoes": 19
+ },
+ "30570": {
+  "cidade": "TAIPÉ",
+  "pais": "Taiwan",
+  "continente": "Ásia",
+  "eleitores": 622,
+  "secoes": 1
+ },
+ "30597": {
+  "cidade": "TEERÃ",
+  "pais": "Irã",
+  "continente": "Oriente Médio",
+  "eleitores": 45,
+  "secoes": 1
+ },
+ "30600": {
+  "cidade": "TEGUCIGALPA",
+  "pais": "Honduras",
+  "continente": "América Central e Caribe",
+  "eleitores": 152,
+  "secoes": 1
+ },
+ "30619": {
+  "cidade": "TEL AVIV",
+  "pais": "Israel",
+  "continente": "Oriente Médio",
+  "eleitores": 3442,
+  "secoes": 5
+ },
+ "30627": {
+  "cidade": "TÓQUIO",
+  "pais": "Japão",
+  "continente": "Ásia",
+  "eleitores": 30028,
+  "secoes": 43
+ },
+ "30635": {
+  "cidade": "TORONTO",
+  "pais": "Canadá",
+  "continente": "América do Norte",
+  "eleitores": 20953,
+  "secoes": 28
+ },
+ "30651": {
+  "cidade": "CANTÃO",
+  "pais": "China",
+  "continente": "Ásia",
+  "eleitores": 419,
+  "secoes": 1
+ },
+ "30669": {
+  "cidade": "GABORONE",
+  "pais": "Botsuana",
+  "continente": "África",
+  "eleitores": 10,
+  "secoes": 1
+ },
+ "30686": {
+  "cidade": "TRÍPOLI",
+  "pais": "Líbia",
+  "continente": "África",
+  "eleitores": 30,
+  "secoes": 1
+ },
+ "30708": {
+  "cidade": "TUNIS",
+  "pais": "Tunísia",
+  "continente": "África",
+  "eleitores": 47,
+  "secoes": 1
+ },
+ "30740": {
+  "cidade": "VARSÓVIA",
+  "pais": "Polônia",
+  "continente": "Europa",
+  "eleitores": 748,
+  "secoes": 1
+ },
+ "30767": {
+  "cidade": "VIENA",
+  "pais": "Áustria",
+  "continente": "Europa",
+  "eleitores": 3134,
+  "secoes": 5
+ },
+ "30783": {
+  "cidade": "WASHINGTON",
+  "pais": "Estados Unidos",
+  "continente": "América do Norte",
+  "eleitores": 18146,
+  "secoes": 31
+ },
+ "30805": {
+  "cidade": "WELLINGTON",
+  "pais": "Nova Zelândia",
+  "continente": "Oceania",
+  "eleitores": 3118,
+  "secoes": 5
+ },
+ "30821": {
+  "cidade": "WINDHOEK",
+  "pais": "Namíbia",
+  "continente": "África",
+  "eleitores": 37,
+  "secoes": 1
+ },
+ "30848": {
+  "cidade": "XANGAI",
+  "pais": "China",
+  "continente": "Ásia",
+  "eleitores": 739,
+  "secoes": 1
+ },
+ "30864": {
+  "cidade": "ZURIQUE",
+  "pais": "Suíça",
+  "continente": "Europa",
+  "eleitores": 15099,
+  "secoes": 19
+ },
+ "30902": {
+  "cidade": "HARTFORD",
+  "pais": "Estados Unidos",
+  "continente": "América do Norte",
+  "eleitores": 9181,
+  "secoes": 12
+ },
+ "30929": {
+  "cidade": "COLOMBO",
+  "pais": "Sri Lanka",
+  "continente": "Ásia",
+  "eleitores": 12,
+  "secoes": 1
+ },
+ "30961": {
+  "cidade": "FARO",
+  "pais": "Portugal",
+  "continente": "Europa",
+  "eleitores": 8271,
+  "secoes": 11
+ },
+ "30988": {
+  "cidade": "SARAJEVO",
+  "pais": "Bósnia e Herzegovina",
+  "continente": "Europa",
+  "eleitores": 11,
+  "secoes": 2
+ },
+ "38881": {
+  "cidade": "BELMOPAN",
+  "pais": "Belize",
+  "continente": "América Central e Caribe",
+  "eleitores": 13,
+  "secoes": 1
+ },
+ "38903": {
+  "cidade": "CONACRI",
+  "pais": "Guiné",
+  "continente": "África",
+  "eleitores": 5,
+  "secoes": 1
+ },
+ "38920": {
+  "cidade": "COTONOU",
+  "pais": "Benin",
+  "continente": "África",
+  "eleitores": 8,
+  "secoes": 1
+ },
+ "38962": {
+  "cidade": "DAR ES SALAAM",
+  "pais": "Tanzânia",
+  "continente": "África",
+  "eleitores": 34,
+  "secoes": 1
+ },
+ "38989": {
+  "cidade": "IEREVAN",
+  "pais": "Armênia",
+  "continente": "Europa",
+  "eleitores": 13,
+  "secoes": 1
+ },
+ "39004": {
+  "cidade": "MENDOZA",
+  "pais": "Argentina",
+  "continente": "América do Sul",
+  "eleitores": 235,
+  "secoes": 1
+ },
+ "39020": {
+  "cidade": "ZAGREB",
+  "pais": "Croácia",
+  "continente": "Europa",
+  "eleitores": 136,
+  "secoes": 1
+ },
+ "39063": {
+  "cidade": "VANCOUVER",
+  "pais": "Canadá",
+  "continente": "América do Norte",
+  "eleitores": 12082,
+  "secoes": 16
+ },
+ "39080": {
+  "cidade": "ATLANTA",
+  "pais": "Estados Unidos",
+  "continente": "América do Norte",
+  "eleitores": 16301,
+  "secoes": 22
+ },
+ "39102": {
+  "cidade": "MASCATE",
+  "pais": "Omã",
+  "continente": "Oriente Médio",
+  "eleitores": 97,
+  "secoes": 1
+ },
+ "39128": {
+  "cidade": "BAKU",
+  "pais": "Azerbaijão",
+  "continente": "Europa",
+  "eleitores": 5,
+  "secoes": 1
+ },
+ "39160": {
+  "cidade": "LIUBLIANA",
+  "pais": "Eslovênia",
+  "continente": "Europa",
+  "eleitores": 162,
+  "secoes": 1
+ },
+ "39187": {
+  "cidade": "BRAZZAVILLE",
+  "pais": "República do Congo",
+  "continente": "África",
+  "eleitores": 2,
+  "secoes": 1
+ },
+ "39209": {
+  "cidade": "BRATISLAVA",
+  "pais": "Eslováquia",
+  "continente": "Europa",
+  "eleitores": 129,
+  "secoes": 1
+ },
+ "39225": {
+  "cidade": "SÃO TOMÉ",
+  "pais": "São Tomé e Príncipe",
+  "continente": "África",
+  "eleitores": 18,
+  "secoes": 1
+ },
+ "39241": {
+  "cidade": "ASTANA",
+  "pais": "Cazaquistão",
+  "continente": "Ásia",
+  "eleitores": 13,
+  "secoes": 1
+ },
+ "39263": {
+  "cidade": "MALABO",
+  "pais": "Guiné Equatorial",
+  "continente": "África",
+  "eleitores": 5,
+  "secoes": 1
+ },
+ "39284": {
+  "cidade": "UAGADUGU",
+  "pais": "Burkina Faso",
+  "continente": "África",
+  "eleitores": 6,
+  "secoes": 1
+ },
+ "39306": {
+  "cidade": "ISTAMBUL",
+  "pais": "Turquia",
+  "continente": "Europa",
+  "eleitores": 327,
+  "secoes": 1
+ },
+ "39322": {
+  "cidade": "NICOSIA",
+  "pais": "Chipre",
+  "continente": "Europa",
+  "eleitores": 137,
+  "secoes": 1
+ },
+ "98000": {
+  "cidade": "GUATEMALA",
+  "pais": "Guatemala",
+  "continente": "América Central e Caribe",
+  "eleitores": 284,
+  "secoes": 1
+ },
+ "99104": {
+  "cidade": "TBILISI",
+  "pais": "Geórgia",
+  "continente": "Europa",
+  "eleitores": 29,
+  "secoes": 1
+ },
+ "99139": {
+  "cidade": "TIRANA",
+  "pais": "Albânia",
+  "continente": "Europa",
+  "eleitores": 9,
+  "secoes": 1
+ },
+ "99147": {
+  "cidade": "SAINT JOHNS",
+  "pais": "Antígua e Barbuda",
+  "continente": "América Central e Caribe",
+  "eleitores": 1,
+  "secoes": 1
+ },
+ "99155": {
+  "cidade": "PUERTO IGUAZÚ",
+  "pais": "Argentina",
+  "continente": "América do Sul",
+  "eleitores": 62,
+  "secoes": 1
+ },
+ "99171": {
+  "cidade": "BAGDÁ",
+  "pais": "Iraque",
+  "continente": "Oriente Médio",
+  "eleitores": 10,
+  "secoes": 1
+ },
+ "99180": {
+  "cidade": "NASSAU",
+  "pais": "Bahamas",
+  "continente": "América Central e Caribe",
+  "eleitores": 69,
+  "secoes": 1
+ },
+ "99198": {
+  "cidade": "ABUJA",
+  "pais": "Nigéria",
+  "continente": "África",
+  "eleitores": 3,
+  "secoes": 1
+ },
+ "99210": {
+  "cidade": "COBIJA",
+  "pais": "Bolívia",
+  "continente": "América do Sul",
+  "eleitores": 1,
+  "secoes": 1
+ },
+ "99236": {
+  "cidade": "PUERTO QUIJARRO",
+  "pais": "Bolívia",
+  "continente": "América do Sul",
+  "eleitores": 8,
+  "secoes": 1
+ },
+ "99244": {
+  "cidade": "RIVERA",
+  "pais": "Uruguai",
+  "continente": "América do Sul",
+  "eleitores": 19,
+  "secoes": 1
+ },
+ "99279": {
+  "cidade": "SANTA ELENA DE UAIRÉN",
+  "pais": "Venezuela",
+  "continente": "América do Sul",
+  "eleitores": 1,
+  "secoes": 1
+ },
+ "99287": {
+  "cidade": "LUSACA",
+  "pais": "Zâmbia",
+  "continente": "África",
+  "eleitores": 25,
+  "secoes": 1
+ },
+ "99295": {
+  "cidade": "PYONGYANG",
+  "pais": "Coreia do Norte",
+  "continente": "Ásia",
+  "eleitores": 1,
+  "secoes": 1
+ },
+ "99317": {
+  "cidade": "TALIN",
+  "pais": "Estônia",
+  "continente": "Europa",
+  "eleitores": 320,
+  "secoes": 1
+ },
+ "99325": {
+  "cidade": "ADIS ABEBA",
+  "pais": "Etiópia",
+  "continente": "África",
+  "eleitores": 3,
+  "secoes": 1
+ },
+ "99333": {
+  "cidade": "ST GEORGES DE LOYAPOCK",
+  "pais": "Guiana Francesa",
+  "continente": "América do Sul",
+  "eleitores": 10,
+  "secoes": 1
+ },
+ "99341": {
+  "cidade": "LILONGUE",
+  "pais": "Malaui",
+  "continente": "África",
+  "eleitores": 6,
+  "secoes": 1
+ },
+ "99350": {
+  "cidade": "BAMAKO",
+  "pais": "Mali",
+  "continente": "África",
+  "eleitores": 5,
+  "secoes": 1
+ },
+ "99376": {
+  "cidade": "YANGON",
+  "pais": "Mianmar",
+  "continente": "Ásia",
+  "eleitores": 6,
+  "secoes": 1
+ },
+ "99384": {
+  "cidade": "CASTRIES",
+  "pais": "Santa Lúcia",
+  "continente": "América Central e Caribe",
+  "eleitores": 7,
+  "secoes": 1
+ },
+ "99430": {
+  "cidade": "KINGSTON-JAMAICA",
+  "pais": "Jamaica",
+  "continente": "América Central e Caribe",
+  "eleitores": 103,
+  "secoes": 1
+ },
+ "99473": {
+  "cidade": "BAREIN",
+  "pais": "Bahrein",
+  "continente": "Oriente Médio",
+  "eleitores": 69,
+  "secoes": 1
+ },
+ "99490": {
+  "cidade": "ORLANDO",
+  "pais": "Estados Unidos",
+  "continente": "América do Norte",
+  "eleitores": 26386,
+  "secoes": 34
+ },
+ "99503": {
+  "cidade": "EDIMBURGO",
+  "pais": "Reino Unido",
+  "continente": "Europa",
+  "eleitores": 4447,
+  "secoes": 6
+ },
+ "99511": {
+  "cidade": "MARSELHA",
+  "pais": "França",
+  "continente": "Europa",
+  "eleitores": 2660,
+  "secoes": 4
+ }
+}

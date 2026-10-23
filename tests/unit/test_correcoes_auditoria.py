@@ -70,10 +70,12 @@ def test_urls_formato_2026_unificado():
     assert s.url_municipio("AC", "01120").endswith("/dados/ac/ac01120-c0001-e021270-u.json")
 
 
-def test_urls_formato_2022_simplificado_inalterado():
-    s = TieredScheduler(ano_eleicao="2022", codigo_eleicao="545", codigo_cargo="0001", formato="r")
+@pytest.mark.parametrize("eleicao", ["544", "545"])
+def test_urls_formato_2022_simplificado_inalterado(eleicao):
+    s = TieredScheduler(ano_eleicao="2022", codigo_eleicao=eleicao, codigo_cargo="0001", formato="r")
     assert s.url_uf("PB") == (
-        "https://resultados.tse.jus.br/oficial/ele2022/545/dados-simplificados/pb/pb-c0001-e000545-r.json"
+        f"https://resultados.tse.jus.br/oficial/ele2022/{eleicao}/dados-simplificados/pb/"
+        f"pb-c0001-e{eleicao.zfill(6)}-r.json"
     )
 
 
@@ -283,7 +285,7 @@ def test_setup_routes_nao_duplica_rotas():
     b = SSEBroadcaster()
     r1 = setup_routes(b)
     r2 = setup_routes(b)
-    assert len(r1.routes) == len(r2.routes) == 9
+    assert len(r1.routes) == len(r2.routes) == 10
 
 
 def test_lote_com_defasagem_entre_uf_e_cidades_e_descartado():

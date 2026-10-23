@@ -158,7 +158,9 @@ class ElectionRepository(IRepository):
                 'nacional', json(json_extract(analise_json, '$.nacional')),
                 'faltam', json(json_extract(analise_json, '$.faltam')),
                 'prob_top2', json(json_extract(analise_json, '$.prob_top2')),
-                'aguardando', json(json_extract(analise_json, '$.aguardando'))
+                'aguardando', json(json_extract(analise_json, '$.aguardando')),
+                'crescimento_nacional', json(json_extract(analise_json, '$.crescimento_nacional')),
+                'versoes_resumo', json(json_extract(analise_json, '$.versoes_resumo'))
             ) AS analise_resumo
             FROM projecoes_historico
             WHERE execucao_id = ?

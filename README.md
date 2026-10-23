@@ -14,13 +14,15 @@ Diferente de placares tradicionais que apenas exibem a soma das urnas que já ch
 
 ### Destaques e Diferenciais
 - **Estratificação por Cidades > 100k + Subtração Vetorial:** Isola os 221 municípios com ≥ 100 mil eleitores e as capitais (gerados do eleitorado oficial de 2026 por `scripts/gerar_metadados_eleitorado.py`) e calcula o "Interior Remanescente" por álgebra vetorial ($\text{Interior} = \text{Total}_{\text{UF}} - \sum \text{Cidades}_{>100\text{k}}$). Isso elimina distorções intrarregionais (como o caso paraibano: João Pessoa ~54% x Campina Grande ~48.5% x Sertão ~75%).
-- **Proteção Total contra WAF do TSE:** Limite contínuo de 9 a 12 requisições por segundo com semáforo de concorrência (`asyncio.Semaphore(15)`) e cache condicional (`HTTP 304 / If-Modified-Since`), reduzindo o consumo de banda em mais de 85% e blindando o IP contra banimentos.
+- **Subestratificação do interior (MG Norte × Sul):** os 280 municípios do Norte de Minas (mesorregiões Noroeste, Norte de Minas, Jequitinhonha, Vale do Mucuri e Vale do Rio Doce, sem as cidades com mais de 100 mil eleitores) são baixados a cada 60 s; o Interior Sul sai da subtração ($\text{Sul} = \text{Interior} - \sum \text{Norte}$), só com arquivos do mesmo lote. O motor projeta as duas versões (normal e subestratificada) e o painel compara; a versão principal (padrão: subestratificada) define os números e a chamada e pode ser trocada na aba *Subestratos*. Lista gerada e validada no TSE por `scripts/gerar_subestratos.py`.
+- **Projeção extra por razão de crescimento:** para cada estrato e subestrato, votos ganhos por eleitor nas seções apuradas recentemente × eleitores que faltam. É só uma leitura à parte (aba *Crescimento*): não entra no Monte Carlo nem na chamada.
+- **Proteção Total contra WAF do TSE:** Limite contínuo de 9 a 12 requisições por segundo com semáforo de concorrência (`asyncio.Semaphore(15)`) e cache condicional (`HTTP 304 / If-Modified-Since`), reduzindo o consumo de banda em mais de 85% e blindando o IP contra banimentos. Arquivos de município com 100% das seções apuradas deixam de ser pedidos (o lote reaproveita a última cópia; reconferência a cada 10 min). O teto do TSE é 100 req/s por IP, contando respostas 304.
 - **Motor Vetorizado:** Motor estatístico em NumPy que executa 10.000 eleições completas em **~0,2 s com 2 candidatos e ~0,8 s com 13 candidatos**, em thread separada para não travar a API/SSE.
-- **Incerteza Realista:** além da posterior Dirichlet (com concentração limitada), o modelo aplica choques correlacionados por UF e nacionais e incerteza de comparecimento sobre os votos restantes — um empate técnico com 10% apurado não é anunciado.
+- **Incerteza Realista:** além da posterior Dirichlet (com concentração limitada), o modelo aplica choques correlacionados por UF e nacionais (σ = 0,06, calibrado no replay do 1º turno de 2026: o IC 95% passou a conter o resultado em 92% dos instantes, contra ~60% com os valores antigos) e incerteza de comparecimento sobre os votos restantes — um empate técnico com 10% apurado não é anunciado. Sem priors de pesquisa: cada estrato parte da média nacional observada.
 - **Regra de Maioria Absoluta:** "vitória" significa > 50% dos votos válidos. No 1º turno o painel projeta *Segundo Turno* quando ninguém deve alcançar a maioria.
 - **Arquitetura Desacoplada (Clean Architecture + Hexagonal):** O motor de cálculo não depende de banco ou rede; a comunicação é orquestrada por um barramento de eventos em memória (`EventBus`).
 - **Persistência WAL & Time-Travel:** Banco de dados SQLite nativo configurado em modo WAL (*Write-Ahead Logging*), permitindo auditar qualquer ciclo passado sem travar o coletor.
-- **Painel de apuração em tela única, com abas:** coluna fixa de candidatos (nome de urna, vice, coligação, apurado × projetado) com **seleção de quais aparecem nos gráficos**; faixa de status (situação, anel de seções apuradas, chance de 2º turno/vitória e **chance de virada**); abas *Visão geral* (corrida até 100% com projeção pontilhada, intervalos de projeção, curva de projeção, probabilidades), *Mapa* (Brasil por UF: líder, % apurado ou vantagem, com detalhe de cidades e interior da UF clicada), *Cenários*, *Apuração*, *Regiões e cidades* e *UFs*. No 2º turno o painel mostra só o confronto direto. Gráficos em **Apache ECharts 6** embutido (`spetr/ui/assets/js/vendor/`, sem CDN), mapa com a malha oficial do IBGE (`spetr/ui/assets/geo/`), temas claro e escuro. `?estatico=1` desenha sem atualização ao vivo, `?tema=claro|escuro` força o tema e `?aba=mapa` abre uma aba.
+- **Painel de apuração em tela única, com abas:** coluna fixa de candidatos (nome de urna, vice, coligação, apurado × projetado) com **seleção de quais aparecem nos gráficos**; faixa de status (situação, anel de seções apuradas, chance de 2º turno/vitória e **chance de virada**); abas *Visão geral* (corrida até 100% com projeção pontilhada, intervalos de projeção, curva de projeção, probabilidades), *Consolidado* (todos os candidatos com votos, % válidos, projeção, faixa provável e situação, mais os totais: eleitorado, comparecimento, abstenção, válidos, brancos, nulos e anulados), *Mapa* (Brasil por UF: líder, % apurado ou vantagem, com detalhe de cidades e interior da UF clicada), *Cenários*, *Apuração*, *Regiões*, *UFs* e *Exterior* (votos do exterior por país, com as cidades de cada país; as 186 cidades são baixadas a cada 2 minutos e não entram na projeção). Percentuais pequenos ganham mais casas decimais, para os candidatos nanicos não aparecerem como 0,0%. No 2º turno o painel mostra só o confronto direto. Gráficos em **Apache ECharts 6** embutido (`spetr/ui/assets/js/vendor/`, sem CDN), mapa com a malha oficial do IBGE (`spetr/ui/assets/geo/`), temas claro e escuro. `?estatico=1` desenha sem atualização ao vivo, `?tema=claro|escuro` força o tema e `?aba=mapa` abre uma aba.
 - **Interface Desktop de Transmissão:** Dashboard estilo *Decision Desk* com animações a 60 FPS, Server-Sent Events (SSE), faixas visuais de incerteza (IC 95%), e *call decisions* automáticas (*Vitória Projetada*, *Segundo Turno Projetado* e *Matematicamente Eleito*). Chamadas estatísticas exigem ≥ 10% das seções e todas as UFs com dados.
 
 ---
@@ -92,6 +94,23 @@ python3 scripts/avaliar_cenario.py --cenario virada
 python3 scripts/avaliar_cenario.py --cenario 2t --ajustes meu_cenario.json   # mesmo formato da tela de configuração
 ```
 
+### Replay de uma eleição real (boletins de urna)
+O servidor de resultados do TSE não guarda eleições antigas (2022 já saiu do ar). Os **boletins de urna** dos Dados Abertos trazem os votos de cada seção e o horário em que o TSE a recebeu (`DT_BU_RECEBIDO`), o que permite reproduzir a noite da apuração na ordem real. Prepare uma vez (2º turno: ~150 MB de download; 1º turno: alguns GB, pois traz todos os cargos):
+```bash
+python3 scripts/preparar_replay.py --ano 2022 --turno 2     # gera ~/.local/share/spetr/replay/2022_2t.json.gz (1,5 MB)
+python3 scripts/preparar_replay.py --ano 2022 --turno 1
+```
+Depois, na tela inicial, escolha **Replay de eleição real**. O relógio começa às 17h (Brasília) e anda alguns minutos da noite real a cada atualização; o painel recebe os arquivos no mesmo formato do TSE. No 2º turno de 2022, o IC 95% conteve o resultado final em 96% dos instantes e a vitória de Lula foi chamada com 88% das seções.
+
+A tela inicial lista as eleições presidenciais por ano, com 2026 como padrão. Para 2022, a opção de dados reais usa o replay local dos boletins, porque os arquivos de resultados não permanecem disponíveis no servidor antigo do TSE.
+
+### Replay de uma apuração gravada
+`scripts/replay_apuracao.py` reprocessa uma execução gravada no banco e mede erro, cobertura do IC 95% e a primeira chamada, para a projeção principal e a por crescimento. `--dois` ensaia um 2º turno com os dados reais do 1º; `--desloca` aperta a disputa mantendo a ordem de apuração:
+```bash
+python3 scripts/replay_apuracao.py --execucao 74f16c746af0 --dois 22,13 --min-cobertura 0.85
+python3 scripts/replay_apuracao.py --execucao 74f16c746af0 --dois 22,13 --desloca 0.022
+```
+
 ### 4. Simulador isolado (opcional)
 O mesmo simulador da tela inicial pode rodar como processo separado, para testar o coletor de rede contra outro servidor:
 ```bash
@@ -100,11 +119,16 @@ python3 main.py --mock                                                 # termina
 ```
 
 ### Atualizando os metadados de estratificação
-Os arquivos `spetr/data/ufs_metadados.json`, `cidades_100k.json` e `municipios_meta.json` são gerados a partir do eleitorado oficial do TSE:
+Os arquivos `spetr/data/ufs_metadados.json`, `cidades_100k.json`, `municipios_meta.json` e `exterior_cidades.json` (cidades do exterior com país e continente) são gerados a partir do eleitorado oficial do TSE (use `--turno 1`; depois do 1º turno o arquivo do TSE traz os dois turnos):
 ```bash
 curl -LO https://cdn.tse.jus.br/estatistica/sead/odsele/eleitorado_locais_votacao/eleitorado_local_votacao_2026.zip
 unzip eleitorado_local_votacao_2026.zip -d eleitorado
 python3 scripts/gerar_metadados_eleitorado.py eleitorado --config-mun docs/tse_oficial/mun-e021270-cm.json
+```
+
+A subestratificação de MG (`spetr/data/subestratos.json`) vem da API do IBGE e do arquivo de municípios do TSE (que traz o código IBGE). `--validar` confere cada URL numa eleição já publicada (≤ 5 req/s) e aborta se alguma não responder 200, porque muitos 404 podem bloquear o IP:
+```bash
+python3 scripts/gerar_subestratos.py --validar                     # padrão: MG, Norte = 5 mesorregiões, eleição 6257
 ```
 
 ### 5. Executando o Replay Histórico de 2022

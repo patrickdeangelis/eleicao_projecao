@@ -1,0 +1,2002 @@
+{
+ "MG": {
+  "grupos": {
+   "NORTE": {
+    "nome": "Interior Norte",
+    "municipios": {
+     "40096": {
+      "nome": "AÇUCENA",
+      "ibge": "3100500",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 8227,
+      "secoes": 34
+     },
+     "40118": {
+      "nome": "ÁGUA BOA",
+      "ibge": "3100609",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 11836,
+      "secoes": 38
+     },
+     "40177": {
+      "nome": "ÁGUAS FORMOSAS",
+      "ibge": "3100906",
+      "mesorregiao": "Vale do Mucuri",
+      "eleitores": 14491,
+      "secoes": 49
+     },
+     "40193": {
+      "nome": "ÁGUAS VERMELHAS",
+      "ibge": "3101003",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 10868,
+      "secoes": 31
+     },
+     "40215": {
+      "nome": "AIMORÉS",
+      "ibge": "3101102",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 19149,
+      "secoes": 64
+     },
+     "40339": {
+      "nome": "ALMENARA",
+      "ibge": "3101706",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 31120,
+      "secoes": 108
+     },
+     "40355": {
+      "nome": "ALPERCATA",
+      "ibge": "3101805",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 6064,
+      "secoes": 23
+     },
+     "40436": {
+      "nome": "ALVARENGA",
+      "ibge": "3102209",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 4518,
+      "secoes": 19
+     },
+     "40533": {
+      "nome": "CACHOEIRA DE PAJEÚ",
+      "ibge": "3102704",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 6975,
+      "secoes": 30
+     },
+     "41688": {
+      "nome": "ANGELÂNDIA",
+      "ibge": "3102852",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 6879,
+      "secoes": 21
+     },
+     "40592": {
+      "nome": "ANTÔNIO DIAS",
+      "ibge": "3103009",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 9101,
+      "secoes": 35
+     },
+     "40673": {
+      "nome": "ARAÇUAÍ",
+      "ibge": "3103405",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 28297,
+      "secoes": 90
+     },
+     "41700": {
+      "nome": "ARICANDUVA",
+      "ibge": "3104452",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 5172,
+      "secoes": 15
+     },
+     "40894": {
+      "nome": "ARINOS",
+      "ibge": "3104502",
+      "mesorregiao": "Noroeste de Minas",
+      "eleitores": 14460,
+      "secoes": 48
+     },
+     "40932": {
+      "nome": "ATALÉIA",
+      "ibge": "3104700",
+      "mesorregiao": "Vale do Mucuri",
+      "eleitores": 11033,
+      "secoes": 38
+     },
+     "41033": {
+      "nome": "BANDEIRA",
+      "ibge": "3105202",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 4576,
+      "secoes": 16
+     },
+     "41254": {
+      "nome": "BELO ORIENTE",
+      "ibge": "3106309",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 20697,
+      "secoes": 70
+     },
+     "41297": {
+      "nome": "BERILO",
+      "ibge": "3106507",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 8995,
+      "secoes": 38
+     },
+     "41319": {
+      "nome": "BERTÓPOLIS",
+      "ibge": "3106606",
+      "mesorregiao": "Vale do Mucuri",
+      "eleitores": 4066,
+      "secoes": 17
+     },
+     "41726": {
+      "nome": "BERIZAL",
+      "ibge": "3106655",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 4307,
+      "secoes": 13
+     },
+     "41459": {
+      "nome": "BOCAIÚVA",
+      "ibge": "3107307",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 35646,
+      "secoes": 116
+     },
+     "41556": {
+      "nome": "BOM JESUS DO GALHO",
+      "ibge": "3107802",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 12062,
+      "secoes": 41
+     },
+     "41637": {
+      "nome": "BONFINÓPOLIS DE MINAS",
+      "ibge": "3108206",
+      "mesorregiao": "Noroeste de Minas",
+      "eleitores": 5046,
+      "secoes": 22
+     },
+     "41742": {
+      "nome": "BONITO DE MINAS",
+      "ibge": "3108255",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 8624,
+      "secoes": 38
+     },
+     "41696": {
+      "nome": "BOTUMIRIM",
+      "ibge": "3108503",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 5656,
+      "secoes": 19
+     },
+     "40045": {
+      "nome": "BRASILÂNDIA DE MINAS",
+      "ibge": "3108552",
+      "mesorregiao": "Noroeste de Minas",
+      "eleitores": 12436,
+      "secoes": 38
+     },
+     "41718": {
+      "nome": "BRASÍLIA DE MINAS",
+      "ibge": "3108602",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 27089,
+      "secoes": 95
+     },
+     "41750": {
+      "nome": "BRAÚNAS",
+      "ibge": "3108800",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 4386,
+      "secoes": 20
+     },
+     "41769": {
+      "nome": "BUGRE",
+      "ibge": "3109253",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 4366,
+      "secoes": 16
+     },
+     "41858": {
+      "nome": "BURITIS",
+      "ibge": "3109303",
+      "mesorregiao": "Noroeste de Minas",
+      "eleitores": 20584,
+      "secoes": 66
+     },
+     "41874": {
+      "nome": "BURITIZEIRO",
+      "ibge": "3109402",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 20491,
+      "secoes": 75
+     },
+     "41785": {
+      "nome": "CABECEIRA GRANDE",
+      "ibge": "3109451",
+      "mesorregiao": "Noroeste de Minas",
+      "eleitores": 5891,
+      "secoes": 18
+     },
+     "42153": {
+      "nome": "CAMPANÁRIO",
+      "ibge": "3110806",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 3378,
+      "secoes": 14
+     },
+     "41807": {
+      "nome": "CAMPO AZUL",
+      "ibge": "3111150",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 4494,
+      "secoes": 17
+     },
+     "41823": {
+      "nome": "CANTAGALO",
+      "ibge": "3112059",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 3858,
+      "secoes": 11
+     },
+     "42455": {
+      "nome": "CAPELINHA",
+      "ibge": "3112307",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 31072,
+      "secoes": 94
+     },
+     "40061": {
+      "nome": "CAPITÃO ANDRADE",
+      "ibge": "3112653",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 4057,
+      "secoes": 14
+     },
+     "42536": {
+      "nome": "CAPITÃO ENÉAS",
+      "ibge": "3112703",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 13076,
+      "secoes": 46
+     },
+     "42595": {
+      "nome": "CARAÍ",
+      "ibge": "3113008",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 15521,
+      "secoes": 47
+     },
+     "42676": {
+      "nome": "CARATINGA",
+      "ibge": "3113404",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 60397,
+      "secoes": 210
+     },
+     "42692": {
+      "nome": "CARBONITA",
+      "ibge": "3113503",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 8159,
+      "secoes": 29
+     },
+     "42730": {
+      "nome": "CARLOS CHAGAS",
+      "ibge": "3113701",
+      "mesorregiao": "Vale do Mucuri",
+      "eleitores": 16296,
+      "secoes": 54
+     },
+     "42757": {
+      "nome": "CARMÉSIA",
+      "ibge": "3113800",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 2716,
+      "secoes": 10
+     },
+     "40100": {
+      "nome": "CATUJI",
+      "ibge": "3115458",
+      "mesorregiao": "Vale do Mucuri",
+      "eleitores": 8492,
+      "secoes": 27
+     },
+     "41866": {
+      "nome": "CATUTI",
+      "ibge": "3115474",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 4594,
+      "secoes": 17
+     },
+     "43133": {
+      "nome": "CENTRAL DE MINAS",
+      "ibge": "3115706",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 5637,
+      "secoes": 21
+     },
+     "43214": {
+      "nome": "CHAPADA DO NORTE",
+      "ibge": "3116100",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 9254,
+      "secoes": 38
+     },
+     "41882": {
+      "nome": "CHAPADA GAÚCHA",
+      "ibge": "3116159",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 9589,
+      "secoes": 34
+     },
+     "43290": {
+      "nome": "CLARO DOS POÇÕES",
+      "ibge": "3116506",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 7507,
+      "secoes": 32
+     },
+     "43354": {
+      "nome": "COLUNA",
+      "ibge": "3116803",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 6936,
+      "secoes": 25
+     },
+     "43397": {
+      "nome": "COMERCINHO",
+      "ibge": "3117009",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 6685,
+      "secoes": 26
+     },
+     "43478": {
+      "nome": "CONCEIÇÃO DE IPANEMA",
+      "ibge": "3117405",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 4497,
+      "secoes": 16
+     },
+     "41904": {
+      "nome": "CÔNEGO MARINHO",
+      "ibge": "3117836",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 6340,
+      "secoes": 28
+     },
+     "43672": {
+      "nome": "CONSELHEIRO PENA",
+      "ibge": "3118403",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 15714,
+      "secoes": 63
+     },
+     "43753": {
+      "nome": "CORAÇÃO DE JESUS",
+      "ibge": "3118809",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 21928,
+      "secoes": 81
+     },
+     "43834": {
+      "nome": "COROACI",
+      "ibge": "3119203",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 7969,
+      "secoes": 30
+     },
+     "43877": {
+      "nome": "CORONEL FABRICIANO",
+      "ibge": "3119401",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 79951,
+      "secoes": 262
+     },
+     "43893": {
+      "nome": "CORONEL MURTA",
+      "ibge": "3119500",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 7295,
+      "secoes": 23
+     },
+     "43990": {
+      "nome": "CÓRREGO NOVO",
+      "ibge": "3120003",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 3921,
+      "secoes": 16
+     },
+     "44016": {
+      "nome": "COUTO DE MAGALHÃES DE MINAS",
+      "ibge": "3120102",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 3916,
+      "secoes": 14
+     },
+     "41963": {
+      "nome": "CRISÓLITA",
+      "ibge": "3120151",
+      "mesorregiao": "Vale do Mucuri",
+      "eleitores": 4714,
+      "secoes": 19
+     },
+     "44059": {
+      "nome": "CRISTÁLIA",
+      "ibge": "3120300",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 5202,
+      "secoes": 18
+     },
+     "41980": {
+      "nome": "CUPARAQUE",
+      "ibge": "3120839",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 3950,
+      "secoes": 16
+     },
+     "42005": {
+      "nome": "CURRAL DE DENTRO",
+      "ibge": "3120870",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 6816,
+      "secoes": 19
+     },
+     "44199": {
+      "nome": "DATAS",
+      "ibge": "3121001",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 5139,
+      "secoes": 18
+     },
+     "44318": {
+      "nome": "DIAMANTINA",
+      "ibge": "3121605",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 38586,
+      "secoes": 132
+     },
+     "44415": {
+      "nome": "DIVINO DAS LARANJEIRAS",
+      "ibge": "3122108",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 4710,
+      "secoes": 16
+     },
+     "44431": {
+      "nome": "DIVINOLÂNDIA DE MINAS",
+      "ibge": "3122207",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 6375,
+      "secoes": 19
+     },
+     "40126": {
+      "nome": "DIVISA ALEGRE",
+      "ibge": "3122355",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 5228,
+      "secoes": 15
+     },
+     "40142": {
+      "nome": "DIVISÓPOLIS",
+      "ibge": "3122454",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 7088,
+      "secoes": 19
+     },
+     "42048": {
+      "nome": "DOM BOSCO",
+      "ibge": "3122470",
+      "mesorregiao": "Noroeste de Minas",
+      "eleitores": 3779,
+      "secoes": 13
+     },
+     "44490": {
+      "nome": "DOM CAVATI",
+      "ibge": "3122504",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 4341,
+      "secoes": 20
+     },
+     "44610": {
+      "nome": "DORES DE GUANHÃES",
+      "ibge": "3123106",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 5278,
+      "secoes": 20
+     },
+     "44733": {
+      "nome": "ENGENHEIRO CALDAS",
+      "ibge": "3123700",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 7790,
+      "secoes": 30
+     },
+     "44750": {
+      "nome": "ENGENHEIRO NAVARRO",
+      "ibge": "3123809",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 6173,
+      "secoes": 19
+     },
+     "40185": {
+      "nome": "ENTRE FOLHAS",
+      "ibge": "3123858",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 5891,
+      "secoes": 20
+     },
+     "44857": {
+      "nome": "ESPINOSA",
+      "ibge": "3124302",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 23564,
+      "secoes": 103
+     },
+     "45071": {
+      "nome": "FELÍCIO DOS SANTOS",
+      "ibge": "3125408",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 5047,
+      "secoes": 16
+     },
+     "45098": {
+      "nome": "SÃO GONÇALO DO RIO PRETO",
+      "ibge": "3125507",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 3128,
+      "secoes": 12
+     },
+     "45110": {
+      "nome": "FELISBURGO",
+      "ibge": "3125606",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 5960,
+      "secoes": 17
+     },
+     "45152": {
+      "nome": "FERNANDES TOURINHO",
+      "ibge": "3125804",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 2576,
+      "secoes": 11
+     },
+     "45233": {
+      "nome": "FORMOSO",
+      "ibge": "3126208",
+      "mesorregiao": "Noroeste de Minas",
+      "eleitores": 6282,
+      "secoes": 23
+     },
+     "45292": {
+      "nome": "FRANCISCO BADARÓ",
+      "ibge": "3126505",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 7239,
+      "secoes": 30
+     },
+     "45314": {
+      "nome": "FRANCISCO DUMONT",
+      "ibge": "3126604",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 4726,
+      "secoes": 17
+     },
+     "45330": {
+      "nome": "FRANCISCO SÁ",
+      "ibge": "3126703",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 19570,
+      "secoes": 86
+     },
+     "40223": {
+      "nome": "FRANCISCÓPOLIS",
+      "ibge": "3126752",
+      "mesorregiao": "Vale do Mucuri",
+      "eleitores": 5005,
+      "secoes": 16
+     },
+     "45357": {
+      "nome": "FREI GASPAR",
+      "ibge": "3126802",
+      "mesorregiao": "Vale do Mucuri",
+      "eleitores": 5965,
+      "secoes": 19
+     },
+     "45373": {
+      "nome": "FREI INOCÊNCIO",
+      "ibge": "3126901",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 6787,
+      "secoes": 28
+     },
+     "42064": {
+      "nome": "FREI LAGONEGRO",
+      "ibge": "3126950",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 3669,
+      "secoes": 12
+     },
+     "49352": {
+      "nome": "FRONTEIRA DOS VALES",
+      "ibge": "3127057",
+      "mesorregiao": "Vale do Mucuri",
+      "eleitores": 4372,
+      "secoes": 17
+     },
+     "42080": {
+      "nome": "FRUTA DE LEITE",
+      "ibge": "3127073",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 5143,
+      "secoes": 23
+     },
+     "45454": {
+      "nome": "GALILÉIA",
+      "ibge": "3127305",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 5434,
+      "secoes": 20
+     },
+     "42102": {
+      "nome": "GAMELEIRAS",
+      "ibge": "3127339",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 4725,
+      "secoes": 20
+     },
+     "42129": {
+      "nome": "GLAUCILÂNDIA",
+      "ibge": "3127354",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 4010,
+      "secoes": 14
+     },
+     "42145": {
+      "nome": "GOIABEIRA",
+      "ibge": "3127370",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 3104,
+      "secoes": 9
+     },
+     "45497": {
+      "nome": "GONZAGA",
+      "ibge": "3127503",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 4583,
+      "secoes": 18
+     },
+     "45519": {
+      "nome": "GOUVEIA",
+      "ibge": "3127602",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 10625,
+      "secoes": 35
+     },
+     "45551": {
+      "nome": "GRÃO MOGOL",
+      "ibge": "3127800",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 12003,
+      "secoes": 42
+     },
+     "45594": {
+      "nome": "GUANHÃES",
+      "ibge": "3128006",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 25045,
+      "secoes": 88
+     },
+     "42188": {
+      "nome": "GUARACIAMA",
+      "ibge": "3128253",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 5315,
+      "secoes": 15
+     },
+     "45713": {
+      "nome": "GUARDA-MOR",
+      "ibge": "3128600",
+      "mesorregiao": "Noroeste de Minas",
+      "eleitores": 6295,
+      "secoes": 20
+     },
+     "45853": {
+      "nome": "IAPU",
+      "ibge": "3129301",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 8427,
+      "secoes": 26
+     },
+     "45918": {
+      "nome": "IBIAÍ",
+      "ibge": "3129608",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 6806,
+      "secoes": 21
+     },
+     "42200": {
+      "nome": "IBIRACATU",
+      "ibge": "3129657",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 5860,
+      "secoes": 21
+     },
+     "40240": {
+      "nome": "ICARAÍ DE MINAS",
+      "ibge": "3130051",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 8823,
+      "secoes": 32
+     },
+     "42226": {
+      "nome": "IMBÉ DE MINAS",
+      "ibge": "3130556",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 5725,
+      "secoes": 20
+     },
+     "42242": {
+      "nome": "INDAIABIRA",
+      "ibge": "3130655",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 6438,
+      "secoes": 21
+     },
+     "46175": {
+      "nome": "INHAPIM",
+      "ibge": "3130903",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 19666,
+      "secoes": 74
+     },
+     "40266": {
+      "nome": "IPABA",
+      "ibge": "3131158",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 13853,
+      "secoes": 42
+     },
+     "46230": {
+      "nome": "IPANEMA",
+      "ibge": "3131208",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 16009,
+      "secoes": 50
+     },
+     "46353": {
+      "nome": "ITABIRINHA",
+      "ibge": "3131802",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 8908,
+      "secoes": 37
+     },
+     "46396": {
+      "nome": "ITACAMBIRA",
+      "ibge": "3132008",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 4825,
+      "secoes": 25
+     },
+     "46418": {
+      "nome": "ITACARAMBI",
+      "ibge": "3132107",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 14164,
+      "secoes": 50
+     },
+     "46450": {
+      "nome": "ITAIPÉ",
+      "ibge": "3132305",
+      "mesorregiao": "Vale do Mucuri",
+      "eleitores": 9564,
+      "secoes": 30
+     },
+     "46493": {
+      "nome": "ITAMARANDIBA",
+      "ibge": "3132503",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 26424,
+      "secoes": 85
+     },
+     "46531": {
+      "nome": "ITAMBACURI",
+      "ibge": "3132701",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 18385,
+      "secoes": 65
+     },
+     "46639": {
+      "nome": "ITANHOMI",
+      "ibge": "3133204",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 9623,
+      "secoes": 33
+     },
+     "46655": {
+      "nome": "ITAOBIM",
+      "ibge": "3133303",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 16895,
+      "secoes": 54
+     },
+     "46795": {
+      "nome": "ITINGA",
+      "ibge": "3134004",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 11490,
+      "secoes": 39
+     },
+     "46817": {
+      "nome": "ITUETA",
+      "ibge": "3134103",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 5084,
+      "secoes": 19
+     },
+     "46930": {
+      "nome": "JACINTO",
+      "ibge": "3134707",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 9221,
+      "secoes": 32
+     },
+     "46990": {
+      "nome": "JAGUARAÇU",
+      "ibge": "3135001",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 3209,
+      "secoes": 11
+     },
+     "40282": {
+      "nome": "JAÍBA",
+      "ibge": "3135050",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 27130,
+      "secoes": 91
+     },
+     "40304": {
+      "nome": "JAMPRUCA",
+      "ibge": "3135076",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 4243,
+      "secoes": 15
+     },
+     "47015": {
+      "nome": "JANAÚBA",
+      "ibge": "3135100",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 55304,
+      "secoes": 197
+     },
+     "47031": {
+      "nome": "JANUÁRIA",
+      "ibge": "3135209",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 51291,
+      "secoes": 191
+     },
+     "42269": {
+      "nome": "JAPONVAR",
+      "ibge": "3135357",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 8549,
+      "secoes": 29
+     },
+     "42285": {
+      "nome": "JENIPAPO DE MINAS",
+      "ibge": "3135456",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 6076,
+      "secoes": 18
+     },
+     "47112": {
+      "nome": "JEQUITAÍ",
+      "ibge": "3135605",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 6548,
+      "secoes": 22
+     },
+     "47155": {
+      "nome": "JEQUITINHONHA",
+      "ibge": "3135803",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 18092,
+      "secoes": 59
+     },
+     "47198": {
+      "nome": "JOAÍMA",
+      "ibge": "3136009",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 11145,
+      "secoes": 40
+     },
+     "47210": {
+      "nome": "JOANÉSIA",
+      "ibge": "3136108",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 5118,
+      "secoes": 23
+     },
+     "47252": {
+      "nome": "JOÃO PINHEIRO",
+      "ibge": "3136306",
+      "mesorregiao": "Noroeste de Minas",
+      "eleitores": 38832,
+      "secoes": 129
+     },
+     "47295": {
+      "nome": "JORDÂNIA",
+      "ibge": "3136504",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 7734,
+      "secoes": 28
+     },
+     "42307": {
+      "nome": "JOSÉ GONÇALVES DE MINAS",
+      "ibge": "3136520",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 3806,
+      "secoes": 13
+     },
+     "42323": {
+      "nome": "JOSÉ RAYDAN",
+      "ibge": "3136553",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 4368,
+      "secoes": 15
+     },
+     "40924": {
+      "nome": "JOSENÓPOLIS",
+      "ibge": "3136579",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 3576,
+      "secoes": 13
+     },
+     "47350": {
+      "nome": "JURAMENTO",
+      "ibge": "3136801",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 4669,
+      "secoes": 15
+     },
+     "40940": {
+      "nome": "JUVENÍLIA",
+      "ibge": "3136959",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 5569,
+      "secoes": 22
+     },
+     "47392": {
+      "nome": "LADAINHA",
+      "ibge": "3137007",
+      "mesorregiao": "Vale do Mucuri",
+      "eleitores": 12287,
+      "secoes": 41
+     },
+     "47414": {
+      "nome": "LAGAMAR",
+      "ibge": "3137106",
+      "mesorregiao": "Noroeste de Minas",
+      "eleitores": 6403,
+      "secoes": 21
+     },
+     "47457": {
+      "nome": "LAGOA DOS PATOS",
+      "ibge": "3137304",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 3774,
+      "secoes": 14
+     },
+     "40347": {
+      "nome": "LAGOA GRANDE",
+      "ibge": "3137536",
+      "mesorregiao": "Noroeste de Minas",
+      "eleitores": 7611,
+      "secoes": 22
+     },
+     "47619": {
+      "nome": "LASSANCE",
+      "ibge": "3138104",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 6216,
+      "secoes": 20
+     },
+     "40967": {
+      "nome": "LEME DO PRADO",
+      "ibge": "3138351",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 4360,
+      "secoes": 15
+     },
+     "40380": {
+      "nome": "LONTRA",
+      "ibge": "3138658",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 8567,
+      "secoes": 26
+     },
+     "41009": {
+      "nome": "LUISLÂNDIA",
+      "ibge": "3138682",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 6783,
+      "secoes": 28
+     },
+     "47775": {
+      "nome": "MACHACALIS",
+      "ibge": "3138906",
+      "mesorregiao": "Vale do Mucuri",
+      "eleitores": 5799,
+      "secoes": 21
+     },
+     "47830": {
+      "nome": "MALACACHETA",
+      "ibge": "3139201",
+      "mesorregiao": "Vale do Mucuri",
+      "eleitores": 15507,
+      "secoes": 58
+     },
+     "40401": {
+      "nome": "MAMONAS",
+      "ibge": "3139250",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 6126,
+      "secoes": 24
+     },
+     "47856": {
+      "nome": "MANGA",
+      "ibge": "3139300",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 16127,
+      "secoes": 63
+     },
+     "47910": {
+      "nome": "MANTENA",
+      "ibge": "3139607",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 19156,
+      "secoes": 73
+     },
+     "48011": {
+      "nome": "MARILAC",
+      "ibge": "3140100",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 4681,
+      "secoes": 15
+     },
+     "48054": {
+      "nome": "MARLIÉRIA",
+      "ibge": "3140308",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 4514,
+      "secoes": 17
+     },
+     "40428": {
+      "nome": "MATA VERDE",
+      "ibge": "3140555",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 7529,
+      "secoes": 24
+     },
+     "48119": {
+      "nome": "MATERLÂNDIA",
+      "ibge": "3140605",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 4509,
+      "secoes": 18
+     },
+     "40444": {
+      "nome": "MATIAS CARDOSO",
+      "ibge": "3140852",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 7349,
+      "secoes": 28
+     },
+     "48194": {
+      "nome": "MATO VERDE",
+      "ibge": "3141009",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 10840,
+      "secoes": 41
+     },
+     "48275": {
+      "nome": "MEDINA",
+      "ibge": "3141405",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 16321,
+      "secoes": 54
+     },
+     "48291": {
+      "nome": "MENDES PIMENTEL",
+      "ibge": "3141504",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 4977,
+      "secoes": 20
+     },
+     "48330": {
+      "nome": "MESQUITA",
+      "ibge": "3141702",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 5447,
+      "secoes": 21
+     },
+     "48356": {
+      "nome": "MINAS NOVAS",
+      "ibge": "3141801",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 22788,
+      "secoes": 78
+     },
+     "48399": {
+      "nome": "MIRABELA",
+      "ibge": "3142007",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 10866,
+      "secoes": 39
+     },
+     "41068": {
+      "nome": "MIRAVÂNIA",
+      "ibge": "3142254",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 4128,
+      "secoes": 14
+     },
+     "48534": {
+      "nome": "MONTALVÂNIA",
+      "ibge": "3142700",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 13202,
+      "secoes": 55
+     },
+     "48577": {
+      "nome": "MONTE AZUL",
+      "ibge": "3142908",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 17843,
+      "secoes": 75
+     },
+     "41084": {
+      "nome": "MONTE FORMOSO",
+      "ibge": "3143153",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 4603,
+      "secoes": 15
+     },
+     "40460": {
+      "nome": "MONTEZUMA",
+      "ibge": "3143450",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 5966,
+      "secoes": 26
+     },
+     "48798": {
+      "nome": "MUTUM",
+      "ibge": "3144003",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 21564,
+      "secoes": 71
+     },
+     "48836": {
+      "nome": "NACIP RAYDAN",
+      "ibge": "3144201",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 2825,
+      "secoes": 9
+     },
+     "48852": {
+      "nome": "NANUQUE",
+      "ibge": "3144300",
+      "mesorregiao": "Vale do Mucuri",
+      "eleitores": 29314,
+      "secoes": 108
+     },
+     "40487": {
+      "nome": "NAQUE",
+      "ibge": "3144359",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 5485,
+      "secoes": 15
+     },
+     "41106": {
+      "nome": "NATALÂNDIA",
+      "ibge": "3144375",
+      "mesorregiao": "Noroeste de Minas",
+      "eleitores": 3571,
+      "secoes": 12
+     },
+     "41122": {
+      "nome": "NINHEIRA",
+      "ibge": "3144656",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 8803,
+      "secoes": 42
+     },
+     "41149": {
+      "nome": "NOVA BELÉM",
+      "ibge": "3144672",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 3553,
+      "secoes": 14
+     },
+     "48976": {
+      "nome": "NOVA MÓDICA",
+      "ibge": "3144904",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 3589,
+      "secoes": 14
+     },
+     "41165": {
+      "nome": "NOVA PORTEIRINHA",
+      "ibge": "3145059",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 6102,
+      "secoes": 26
+     },
+     "49050": {
+      "nome": "NOVO CRUZEIRO",
+      "ibge": "3145307",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 24963,
+      "secoes": 85
+     },
+     "40509": {
+      "nome": "NOVO ORIENTE DE MINAS",
+      "ibge": "3145356",
+      "mesorregiao": "Vale do Mucuri",
+      "eleitores": 9100,
+      "secoes": 26
+     },
+     "41181": {
+      "nome": "NOVORIZONTE",
+      "ibge": "3145372",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 4973,
+      "secoes": 15
+     },
+     "41203": {
+      "nome": "OLHOS D&apos;ÁGUA",
+      "ibge": "3145455",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 5281,
+      "secoes": 20
+     },
+     "49239": {
+      "nome": "OURO VERDE DE MINAS",
+      "ibge": "3146206",
+      "mesorregiao": "Vale do Mucuri",
+      "eleitores": 7237,
+      "secoes": 25
+     },
+     "41262": {
+      "nome": "PADRE CARVALHO",
+      "ibge": "3146255",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 5095,
+      "secoes": 19
+     },
+     "49255": {
+      "nome": "PADRE PARAÍSO",
+      "ibge": "3146305",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 14207,
+      "secoes": 46
+     },
+     "41289": {
+      "nome": "PAI PEDRO",
+      "ibge": "3146552",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 5550,
+      "secoes": 18
+     },
+     "40525": {
+      "nome": "PALMÓPOLIS",
+      "ibge": "3146750",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 6338,
+      "secoes": 20
+     },
+     "49395": {
+      "nome": "PARACATU",
+      "ibge": "3147006",
+      "mesorregiao": "Noroeste de Minas",
+      "eleitores": 68278,
+      "secoes": 197
+     },
+     "41300": {
+      "nome": "PATIS",
+      "ibge": "3147956",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 5226,
+      "secoes": 25
+     },
+     "49670": {
+      "nome": "PAULISTAS",
+      "ibge": "3148400",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 4222,
+      "secoes": 18
+     },
+     "49697": {
+      "nome": "PAVÃO",
+      "ibge": "3148509",
+      "mesorregiao": "Vale do Mucuri",
+      "eleitores": 6314,
+      "secoes": 19
+     },
+     "49719": {
+      "nome": "PEÇANHA",
+      "ibge": "3148608",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 11993,
+      "secoes": 45
+     },
+     "49735": {
+      "nome": "PEDRA AZUL",
+      "ibge": "3148707",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 18355,
+      "secoes": 68
+     },
+     "40541": {
+      "nome": "PEDRAS DE MARIA DA CRUZ",
+      "ibge": "3149150",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 8112,
+      "secoes": 30
+     },
+     "40568": {
+      "nome": "PERIQUITO",
+      "ibge": "3149952",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 6318,
+      "secoes": 21
+     },
+     "49999": {
+      "nome": "PESCADOR",
+      "ibge": "3150000",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 3581,
+      "secoes": 14
+     },
+     "41343": {
+      "nome": "PIEDADE DE CARATINGA",
+      "ibge": "3150158",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 7808,
+      "secoes": 26
+     },
+     "41360": {
+      "nome": "PINGO D&apos;ÁGUA",
+      "ibge": "3150539",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 4149,
+      "secoes": 14
+     },
+     "41386": {
+      "nome": "PINTÓPOLIS",
+      "ibge": "3150570",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 6546,
+      "secoes": 28
+     },
+     "50237": {
+      "nome": "PIRAPORA",
+      "ibge": "3151206",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 41904,
+      "secoes": 137
+     },
+     "50377": {
+      "nome": "POCRANE",
+      "ibge": "3151909",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 7548,
+      "secoes": 26
+     },
+     "41408": {
+      "nome": "PONTO CHIQUE",
+      "ibge": "3152131",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 3901,
+      "secoes": 13
+     },
+     "40584": {
+      "nome": "PONTO DOS VOLANTES",
+      "ibge": "3152170",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 9457,
+      "secoes": 31
+     },
+     "50431": {
+      "nome": "PORTEIRINHA",
+      "ibge": "3152204",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 31682,
+      "secoes": 113
+     },
+     "50474": {
+      "nome": "POTÉ",
+      "ibge": "3152402",
+      "mesorregiao": "Vale do Mucuri",
+      "eleitores": 12644,
+      "secoes": 41
+     },
+     "50652": {
+      "nome": "PRESIDENTE KUBITSCHEK",
+      "ibge": "3153301",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 3087,
+      "secoes": 12
+     },
+     "50679": {
+      "nome": "PRESIDENTE OLEGÁRIO",
+      "ibge": "3153400",
+      "mesorregiao": "Noroeste de Minas",
+      "eleitores": 16281,
+      "secoes": 51
+     },
+     "50857": {
+      "nome": "RESPLENDOR",
+      "ibge": "3154309",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 12729,
+      "secoes": 53
+     },
+     "40606": {
+      "nome": "RIACHINHO",
+      "ibge": "3154457",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 6015,
+      "secoes": 20
+     },
+     "50890": {
+      "nome": "RIACHO DOS MACHADOS",
+      "ibge": "3154507",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 8031,
+      "secoes": 31
+     },
+     "51012": {
+      "nome": "RIO DO PRADO",
+      "ibge": "3155108",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 4338,
+      "secoes": 13
+     },
+     "51110": {
+      "nome": "RIO PARDO DE MINAS",
+      "ibge": "3155603",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 22281,
+      "secoes": 108
+     },
+     "51292": {
+      "nome": "RUBELITA",
+      "ibge": "3156502",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 7524,
+      "secoes": 33
+     },
+     "51314": {
+      "nome": "RUBIM",
+      "ibge": "3156601",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 7158,
+      "secoes": 25
+     },
+     "51357": {
+      "nome": "SABINÓPOLIS",
+      "ibge": "3156809",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 12417,
+      "secoes": 44
+     },
+     "51390": {
+      "nome": "SALINAS",
+      "ibge": "3157005",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 33019,
+      "secoes": 107
+     },
+     "51411": {
+      "nome": "SALTO DA DIVISA",
+      "ibge": "3157104",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 4987,
+      "secoes": 18
+     },
+     "40649": {
+      "nome": "SANTA BÁRBARA DO LESTE",
+      "ibge": "3157252",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 6925,
+      "secoes": 24
+     },
+     "41483": {
+      "nome": "SANTA CRUZ DE SALINAS",
+      "ibge": "3157377",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 4496,
+      "secoes": 15
+     },
+     "51497": {
+      "nome": "SANTA EFIGÊNIA DE MINAS",
+      "ibge": "3157500",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 3985,
+      "secoes": 13
+     },
+     "51519": {
+      "nome": "SANTA FÉ DE MINAS",
+      "ibge": "3157609",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 3706,
+      "secoes": 14
+     },
+     "41505": {
+      "nome": "SANTA HELENA DE MINAS",
+      "ibge": "3157658",
+      "mesorregiao": "Vale do Mucuri",
+      "eleitores": 5344,
+      "secoes": 18
+     },
+     "51616": {
+      "nome": "SANTA MARIA DO SALTO",
+      "ibge": "3158102",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 4598,
+      "secoes": 16
+     },
+     "51632": {
+      "nome": "SANTA MARIA DO SUAÇUÍ",
+      "ibge": "3158201",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 12134,
+      "secoes": 43
+     },
+     "40681": {
+      "nome": "SANTANA DO PARAÍSO",
+      "ibge": "3158953",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 25815,
+      "secoes": 77
+     },
+     "40665": {
+      "nome": "SANTA RITA DE MINAS",
+      "ibge": "3159357",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 5935,
+      "secoes": 20
+     },
+     "51896": {
+      "nome": "SANTA RITA DO ITUETO",
+      "ibge": "3159506",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 5151,
+      "secoes": 24
+     },
+     "52051": {
+      "nome": "SANTO ANTÔNIO DO JACINTO",
+      "ibge": "3160306",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 9461,
+      "secoes": 30
+     },
+     "41521": {
+      "nome": "SANTO ANTÔNIO DO RETIRO",
+      "ibge": "3160454",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 6670,
+      "secoes": 26
+     },
+     "41548": {
+      "nome": "SÃO DOMINGOS DAS DORES",
+      "ibge": "3160959",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 5911,
+      "secoes": 20
+     },
+     "41564": {
+      "nome": "SÃO FÉLIX DE MINAS",
+      "ibge": "3161056",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 3799,
+      "secoes": 13
+     },
+     "52213": {
+      "nome": "SÃO FRANCISCO",
+      "ibge": "3161106",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 41950,
+      "secoes": 152
+     },
+     "52310": {
+      "nome": "SÃO GERALDO DA PIEDADE",
+      "ibge": "3161601",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 3667,
+      "secoes": 13
+     },
+     "41580": {
+      "nome": "SÃO GERALDO DO BAIXIO",
+      "ibge": "3161650",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 3221,
+      "secoes": 12
+     },
+     "52337": {
+      "nome": "SÃO GONÇALO DO ABAETÉ",
+      "ibge": "3161700",
+      "mesorregiao": "Noroeste de Minas",
+      "eleitores": 5648,
+      "secoes": 21
+     },
+     "40703": {
+      "nome": "SÃO JOÃO DA LAGOA",
+      "ibge": "3162252",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 5131,
+      "secoes": 18
+     },
+     "52477": {
+      "nome": "SÃO JOÃO DA PONTE",
+      "ibge": "3162401",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 22992,
+      "secoes": 83
+     },
+     "41602": {
+      "nome": "SÃO JOÃO DAS MISSÕES",
+      "ibge": "3162450",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 9981,
+      "secoes": 36
+     },
+     "40746": {
+      "nome": "SÃO JOÃO DO MANTENINHA",
+      "ibge": "3162575",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 5242,
+      "secoes": 19
+     },
+     "52515": {
+      "nome": "SÃO JOÃO DO ORIENTE",
+      "ibge": "3162609",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 6955,
+      "secoes": 22
+     },
+     "40762": {
+      "nome": "SÃO JOÃO DO PACUÍ",
+      "ibge": "3162658",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 4046,
+      "secoes": 16
+     },
+     "52531": {
+      "nome": "SÃO JOÃO DO PARAÍSO",
+      "ibge": "3162708",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 18054,
+      "secoes": 82
+     },
+     "52558": {
+      "nome": "SÃO JOÃO EVANGELISTA",
+      "ibge": "3162807",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 12840,
+      "secoes": 38
+     },
+     "52590": {
+      "nome": "SÃO JOSÉ DA SAFIRA",
+      "ibge": "3163003",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 4189,
+      "secoes": 15
+     },
+     "52655": {
+      "nome": "SÃO JOSÉ DO DIVINO",
+      "ibge": "3163300",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 3170,
+      "secoes": 12
+     },
+     "52698": {
+      "nome": "SÃO JOSÉ DO JACURI",
+      "ibge": "3163508",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 5252,
+      "secoes": 21
+     },
+     "52817": {
+      "nome": "SÃO PEDRO DO SUAÇUÍ",
+      "ibge": "3164100",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 4666,
+      "secoes": 15
+     },
+     "52833": {
+      "nome": "SÃO ROMÃO",
+      "ibge": "3164209",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 7275,
+      "secoes": 26
+     },
+     "42366": {
+      "nome": "SÃO SEBASTIÃO DO ANTA",
+      "ibge": "3164472",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 5604,
+      "secoes": 17
+     },
+     "52892": {
+      "nome": "SÃO SEBASTIÃO DO MARANHÃO",
+      "ibge": "3164506",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 8934,
+      "secoes": 34
+     },
+     "53090": {
+      "nome": "SARDOÁ",
+      "ibge": "3165503",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 4955,
+      "secoes": 16
+     },
+     "42404": {
+      "nome": "SETUBINHA",
+      "ibge": "3165552",
+      "mesorregiao": "Vale do Mucuri",
+      "eleitores": 9306,
+      "secoes": 29
+     },
+     "53171": {
+      "nome": "SENADOR MODESTINO GONÇALVES",
+      "ibge": "3165909",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 4784,
+      "secoes": 17
+     },
+     "53210": {
+      "nome": "SENHORA DO PORTO",
+      "ibge": "3166105",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 3323,
+      "secoes": 14
+     },
+     "53333": {
+      "nome": "SERRA DOS AIMORÉS",
+      "ibge": "3166709",
+      "mesorregiao": "Vale do Mucuri",
+      "eleitores": 6251,
+      "secoes": 26
+     },
+     "42382": {
+      "nome": "SERRANÓPOLIS DE MINAS",
+      "ibge": "3166956",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 4136,
+      "secoes": 16
+     },
+     "53538": {
+      "nome": "SOBRÁLIA",
+      "ibge": "3167707",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 4076,
+      "secoes": 18
+     },
+     "53597": {
+      "nome": "TAIOBEIRAS",
+      "ibge": "3168002",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 27594,
+      "secoes": 84
+     },
+     "42420": {
+      "nome": "TAPARUBA",
+      "ibge": "3168051",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 4088,
+      "secoes": 13
+     },
+     "53678": {
+      "nome": "TARUMIRIM",
+      "ibge": "3168408",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 10127,
+      "secoes": 44
+     },
+     "53732": {
+      "nome": "TIMÓTEO",
+      "ibge": "3168705",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 59600,
+      "secoes": 175
+     },
+     "53899": {
+      "nome": "TUMIRITINGA",
+      "ibge": "3169505",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 5517,
+      "secoes": 17
+     },
+     "53937": {
+      "nome": "TURMALINA",
+      "ibge": "3169703",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 16553,
+      "secoes": 56
+     },
+     "53996": {
+      "nome": "UBAÍ",
+      "ibge": "3170008",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 9797,
+      "secoes": 43
+     },
+     "40860": {
+      "nome": "UBAPORANGA",
+      "ibge": "3170057",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 10135,
+      "secoes": 41
+     },
+     "54054": {
+      "nome": "UMBURATIBA",
+      "ibge": "3170305",
+      "mesorregiao": "Vale do Mucuri",
+      "eleitores": 2736,
+      "secoes": 13
+     },
+     "54070": {
+      "nome": "UNAÍ",
+      "ibge": "3170404",
+      "mesorregiao": "Noroeste de Minas",
+      "eleitores": 64172,
+      "secoes": 191
+     },
+     "42463": {
+      "nome": "URUANA DE MINAS",
+      "ibge": "3170479",
+      "mesorregiao": "Noroeste de Minas",
+      "eleitores": 3686,
+      "secoes": 11
+     },
+     "40886": {
+      "nome": "URUCUIA",
+      "ibge": "3170529",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 7988,
+      "secoes": 27
+     },
+     "40908": {
+      "nome": "VARGEM ALEGRE",
+      "ibge": "3170578",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 5430,
+      "secoes": 21
+     },
+     "42480": {
+      "nome": "VARGEM GRANDE DO RIO PARDO",
+      "ibge": "3170651",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 4199,
+      "secoes": 18
+     },
+     "42501": {
+      "nome": "VARJÃO DE MINAS",
+      "ibge": "3170750",
+      "mesorregiao": "Noroeste de Minas",
+      "eleitores": 6717,
+      "secoes": 20
+     },
+     "54151": {
+      "nome": "VÁRZEA DA PALMA",
+      "ibge": "3170800",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 27190,
+      "secoes": 85
+     },
+     "54178": {
+      "nome": "VARZELÂNDIA",
+      "ibge": "3170909",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 17159,
+      "secoes": 54
+     },
+     "54194": {
+      "nome": "VAZANTE",
+      "ibge": "3171006",
+      "mesorregiao": "Noroeste de Minas",
+      "eleitores": 16950,
+      "secoes": 53
+     },
+     "42528": {
+      "nome": "VERDELÂNDIA",
+      "ibge": "3171030",
+      "mesorregiao": "Norte de Minas",
+      "eleitores": 6974,
+      "secoes": 27
+     },
+     "42544": {
+      "nome": "VEREDINHA",
+      "ibge": "3171071",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 5268,
+      "secoes": 18
+     },
+     "54313": {
+      "nome": "MATHIAS LOBATO",
+      "ibge": "3171501",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 3363,
+      "secoes": 16
+     },
+     "54330": {
+      "nome": "VIRGEM DA LAPA",
+      "ibge": "3171600",
+      "mesorregiao": "Jequitinhonha",
+      "eleitores": 10159,
+      "secoes": 31
+     },
+     "54372": {
+      "nome": "VIRGINÓPOLIS",
+      "ibge": "3171808",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 8530,
+      "secoes": 28
+     },
+     "54399": {
+      "nome": "VIRGOLÂNDIA",
+      "ibge": "3171907",
+      "mesorregiao": "Vale do Rio Doce",
+      "eleitores": 4613,
+      "secoes": 17
+     }
+    }
+   }
+  },
+  "resto": {
+   "chave": "SUL",
+   "nome": "Interior Sul"
+  },
+  "mesorregioes_ibge": [
+   "Jequitinhonha",
+   "Noroeste de Minas",
+   "Norte de Minas",
+   "Vale do Mucuri",
+   "Vale do Rio Doce"
+  ],
+  "gerado_em": "2026-10-08",
+  "validado": {
+   "eleicao": "ele2026/6257",
+   "em": "2026-10-08",
+   "urls_ok": 280,
+   "votos_grupo": {
+    "22": 876613,
+    "55": 26188,
+    "13": 1132007,
+    "27": 366,
+    "21": 372,
+    "16": 362,
+    "70": 58592,
+    "30": 8647,
+    "80": 855,
+    "35": 183,
+    "14": 28074,
+    "29": 117
+   }
+  }
+ }
+}

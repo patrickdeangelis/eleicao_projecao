@@ -9,19 +9,7 @@ import asyncio
 import threading
 import uvicorn
 import logging
-
-
-def pasta_dados_usuario() -> str:
-    """Pasta de dados do SPETR no executável: ~/.local/share/spetr, %APPDATA%\\SPETR ou Application Support."""
-    if sys.platform.startswith("win"):
-        pasta = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SPETR")
-    elif sys.platform == "darwin":
-        pasta = os.path.expanduser("~/Library/Application Support/SPETR")
-    else:
-        base = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
-        pasta = os.path.join(base, "spetr")
-    os.makedirs(pasta, exist_ok=True)
-    return pasta
+from spetr.caminhos import pasta_dados_usuario
 
 
 # Executável sem console (SPETR.app no macOS, ou Windows com SPETR_SEM_CONSOLE=1): stdout/stderr
