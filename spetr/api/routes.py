@@ -32,8 +32,14 @@ def setup_routes(
     repo: Optional[IRepository] = None,
     info_eleicao: Optional[Dict[str, Any]] = None,
     sessao: Optional[Any] = None,
+    publico: bool = False,
 ) -> APIRouter:
     router = APIRouter(prefix="/api/v1")
+
+    def bloquear_se_publico() -> None:
+        # Hospedagem pública: visitantes só leem; trocar/parar sessão e mudar a versão são do operador
+        if publico:
+            raise HTTPException(status_code=403, detail="Somente leitura nesta instância")
 
     def repositorio() -> Optional[IRepository]:
         return sessao.repo if sessao is not None else repo
@@ -52,6 +58,7 @@ def setup_routes(
             "simulador_url": sessao.simulador.url if sessao is not None and sessao.simulador else None,
             "ultimo_aviso": broadcaster.ultimo_aviso,
             "coleta_encerrada": broadcaster.coleta_encerrada,
+            "publico": publico,
         }
 
     # ---------------------------------------------------------------- sessão
@@ -64,6 +71,7 @@ def setup_routes(
 
     @router.post("/sessao/iniciar")
     async def iniciar_sessao(request: Request, corpo: Dict[str, Any] = Body(...)):
+        bloquear_se_publico()
         verificar_origem(request)
         if sessao is None:
             raise HTTPException(status_code=409, detail="Modo fixado na linha de comando")
@@ -77,6 +85,7 @@ def setup_routes(
 
     @router.post("/sessao/parar")
     async def parar_sessao(request: Request):
+        bloquear_se_publico()
         verificar_origem(request)
         if sessao is None:
             raise HTTPException(status_code=409, detail="Modo fixado na linha de comando")
@@ -85,6 +94,7 @@ def setup_routes(
     @router.post("/projecao/versao")
     async def definir_versao(request: Request, corpo: Dict[str, Any] = Body(...)):
         """Versão que define os números principais e a chamada: subestratificado ou normal."""
+        bloquear_se_publico()
         verificar_origem(request)
         from spetr.stats_engine.monte_carlo import VERSOES
         versao = str(corpo.get("versao", ""))

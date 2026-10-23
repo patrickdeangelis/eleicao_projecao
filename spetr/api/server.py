@@ -21,6 +21,7 @@ def create_api_app(
     broadcaster: Optional[SSEBroadcaster] = None,
     info_eleicao: Optional[Dict[str, Any]] = None,
     sessao: Optional[Any] = None,
+    publico: bool = False,
 ) -> FastAPI:
     """
     sessao: SessaoSPETR que controla o modo (coleta real ou simulação). Sem ela, a API
@@ -28,7 +29,8 @@ def create_api_app(
     """
     app = FastAPI(
         title="SPETR Local API",
-        docs_url="/docs",
+        docs_url=None if publico else "/docs",
+        openapi_url=None if publico else "/openapi.json",
         redoc_url=None
     )
 
@@ -41,7 +43,7 @@ def create_api_app(
         sessao.ao_mudar = broadcaster.ao_mudar_sessao
 
     # Registra rotas
-    api_router = setup_routes(broadcaster, repository, info_eleicao=info_eleicao, sessao=sessao)
+    api_router = setup_routes(broadcaster, repository, info_eleicao=info_eleicao, sessao=sessao, publico=publico)
     app.include_router(api_router)
 
     # Raiz: painel se houver sessão ativa; senão, a tela inicial de escolha do modo
@@ -56,6 +58,8 @@ def create_api_app(
 
     @app.get("/inicio")
     async def serve_inicio():
+        if publico:
+            return RedirectResponse("/", status_code=307)
         return FileResponse(UI_ASSETS_DIR / "inicio.html", headers={"Cache-Control": "no-store"})
 
     # Arquivos do painel: o navegador/janela sempre revalida (ETag/304), para nunca exibir

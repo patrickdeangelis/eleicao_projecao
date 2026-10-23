@@ -33,14 +33,14 @@ logging.basicConfig(
 logger = logging.getLogger("spetr.main")
 
 
-def rodar_servidor_e_worker(loop, sessao, api_app, porta: int, modo_inicial=None, opcoes_iniciais=None):
+def rodar_servidor_e_worker(loop, sessao, api_app, porta: int, modo_inicial=None, opcoes_iniciais=None, host: str = "127.0.0.1"):
     """Thread de segundo plano que gerencia o loop de eventos assíncrono."""
     asyncio.set_event_loop(loop)
 
     # Configuração do Uvicorn para rodar em localhost
     config = uvicorn.Config(
         api_app,
-        host="127.0.0.1",
+        host=host,
         port=porta,
         log_level="warning",
         access_log=False
@@ -82,6 +82,10 @@ def main():
     )
     parser.add_argument("--porta", type=int, default=48291, help="Porta local para a API e UI (padrão: 48291)")
     parser.add_argument("--simulacoes", type=int, default=10000, help="Número de simulações de Monte Carlo (padrão: 10000)")
+    parser.add_argument("--host", type=str, default="127.0.0.1",
+                        help="Endereço de escuta (padrão: 127.0.0.1; use 0.0.0.0 em contêiner/servidor)")
+    parser.add_argument("--publico", action="store_true",
+                        help="Hospedagem pública: painel somente leitura (bloqueia trocar/parar sessão), sem /docs. Implica --headless")
     parser.add_argument("--headless", action="store_true", help="Executar apenas servidor local sem abrir janela nativa")
     parser.add_argument("--modo", choices=("real", "replay"), default=None,
                         help="Inicia direto neste modo, sem a tela inicial")
@@ -104,6 +108,8 @@ def main():
     parser.add_argument("--db", type=str, default=None,
                         help="Arquivo SQLite de histórico (padrão: pasta atual; no executável, a pasta de dados do usuário)")
     args = parser.parse_args()
+    if args.publico and not args.modo:
+        parser.error("--publico exige --modo (a tela inicial fica desativada)")
     if args.db is None:
         args.db = caminho_banco_padrao()
 
@@ -126,7 +132,7 @@ def main():
     print("=" * 70)
     print(" SPETR // SISTEMA DE PROJEÇÃO ELEITORAL EM TEMPO REAL")
     print(f" Simulações Monte Carlo: {args.simulacoes:,} por ciclo")
-    print(f" Servidor local UI:      http://127.0.0.1:{args.porta}")
+    print(f" Servidor local UI:      http://{args.host}:{args.porta}")
     print(f" Banco de histórico:     {os.path.abspath(args.db)}")
     if modo_inicial == "replay":
         print(f" Modo:                   replay {args.fonte} ({args.velocidade})")
@@ -139,13 +145,13 @@ def main():
     # 1. Barramento, sessão (coleta real ou replay) e API
     bus = EventBus()
     sessao = SessaoSPETR(event_bus=bus, db_path=args.db, num_simulacoes=args.simulacoes, padroes_reais=padroes_reais)
-    api_app = create_api_app(event_bus=bus, sessao=sessao)
+    api_app = create_api_app(event_bus=bus, sessao=sessao, publico=args.publico)
 
     # 2. Dispara a thread de background (API + coleta)
     loop_worker = asyncio.new_event_loop()
     thread_worker = threading.Thread(
         target=rodar_servidor_e_worker,
-        args=(loop_worker, sessao, api_app, args.porta, modo_inicial, opcoes_iniciais),
+        args=(loop_worker, sessao, api_app, args.porta, modo_inicial, opcoes_iniciais, args.host),
         daemon=True
     )
     thread_worker.start()
@@ -155,7 +161,7 @@ def main():
     # 3. Modo Headless ou Desktop GUI
     # Verifica se há display gráfico disponível (DISPLAY ou WAYLAND_DISPLAY no Linux, ou Windows/macOS)
     sem_display = sys.platform.startswith("linux") and not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
-    if args.headless or sem_display:
+    if args.headless or args.publico or sem_display:
         if sem_display and not args.headless:
             logger.info("Nenhum servidor gráfico detectado ($DISPLAY ausente). Executando em modo headless.")
         print(f"\n[SPETR PRONTO] Acesse pelo navegador em: {url_ui}\nPressione Ctrl+C para encerrar.\n")

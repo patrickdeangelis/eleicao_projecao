@@ -26,3 +26,13 @@ Para abrir sem instalar nada, gere o executável e execute:
 .venv/bin/python -m PyInstaller spetr.spec --clean --noconfirm
 ./dist/spetr
 ```
+
+## Hospedagem (servidor público)
+
+```bash
+docker build -t eleicao-projecao .
+docker run -p 8000:8000 -v spetr-data:/data eleicao-projecao                      # coleta real 2026, 2º turno
+docker run -p 8000:8000 eleicao-projecao --modo real --ano 2026 --turno 1          # outro turno
+```
+
+`--publico` (já no `ENTRYPOINT`) deixa o painel somente leitura: `/sessao/iniciar`, `/sessao/parar` e `/projecao/versao` respondem 403 e `/docs` é desativado. A coleta começa sozinha ao subir. Use `--host 0.0.0.0` fora de contêiner para aceitar conexões externas. O histórico fica em `/data` (SQLite).

@@ -239,7 +239,7 @@ function renderCabecalho(info) {
     selo.classList.toggle('simulado', info.modo !== 'real');
   }
   const linkSim = document.getElementById('link-simulador');
-  if (info.simulador_url) { linkSim.hidden = false; linkSim.href = info.simulador_url; }
+  if (info.simulador_url && !info.publico) { linkSim.hidden = false; linkSim.href = info.simulador_url; }
   state.coletaEncerrada = Boolean(info.coleta_encerrada);
   if (info.ultimo_aviso) mostrarAviso(info.ultimo_aviso);
 
@@ -1641,6 +1641,7 @@ async function carregarInicial() {
       fetch('/api/v1/projecao/atual').then((r) => r.json()),
     ]);
     renderCabecalho(status);
+    if (status.publico) document.getElementById('link-trocar')?.remove();
     for (const r of hist) if (r.candidatos && r.candidatos.length) adicionarAoHistorico(r);
     if (atual && atual.candidatos && atual.candidatos.length) {
       state.atual = atual;
