@@ -49,7 +49,7 @@ class IRepository(Protocol):
         """Grava o resultado da projeção calculada."""
         ...
 
-    def obter_historico_projecoes(self, limite: int = 100) -> List[ResultadoProjecao]:
+    def obter_historico_projecoes(self, limite: int = 100, so_com_votos: bool = False) -> List[ResultadoProjecao]:
         """Retorna histórico de projeções para gráficos de evolução temporal."""
         ...
 

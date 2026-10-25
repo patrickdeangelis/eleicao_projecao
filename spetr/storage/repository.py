@@ -227,7 +227,7 @@ class ElectionRepository(IRepository):
         ).fetchone()
         return int(linha[0] or 0)
 
-    def obter_historico_projecoes(self, limite: int = 100) -> List[ResultadoProjecao]:
+    def obter_historico_projecoes(self, limite: int = 100, so_com_votos: bool = False) -> List[ResultadoProjecao]:
         """Recupera as últimas projeções calculadas."""
         conn = self.db.get_connection()
         cursor = conn.cursor()
@@ -235,7 +235,7 @@ class ElectionRepository(IRepository):
             f"""
             SELECT *, {SQL_RESUMO_ANALISE} AS analise_resumo
             FROM projecoes_historico
-            WHERE execucao_id = ?
+            WHERE execucao_id = ?{' AND total_validos_apurados > 0' if so_com_votos else ''}
             ORDER BY id DESC LIMIT ?
             """,
             (self.execucao_id, limite)

@@ -158,7 +158,8 @@ def setup_routes(
         r = repositorio()
         if r is None:
             return []
-        hist = await asyncio.to_thread(r.obter_historico_projecoes, limite)
+        # O painel ignora ciclos sem votos; mandá-los custava ~80 MB retidos por visita (5.000 linhas com análise)
+        hist = await asyncio.to_thread(r.obter_historico_projecoes, limite, True)
         return [serializar_resultado(p, completo=False) for p in hist]
 
     @router.get("/projecao/time-travel")
