@@ -57,6 +57,7 @@ class VectorAggregator:
         self.max_rejeicoes_seguidas = 3
         # Arquivo de cidade em apuração mais antigo que o da UF por mais que isso = lote defasado
         self.tolerancia_defasagem_s = 90.0
+        self.idade_max_arquivo_vazio_s = 6 * 3600.0
         self.defasagens_detectadas = 0
         self._defasagens_seguidas: Dict[str, int] = {}
 
@@ -101,6 +102,10 @@ class VectorAggregator:
             if t_mun is None:
                 continue
             atraso = (t_uf - t_mun).total_seconds()
+            # Cidade sem nenhuma seção apurada cujo arquivo é de outro dia (gerado antes da eleição, como
+            # os de teste do TSE) não está "atrasada": o TSE ainda não a atualizou, e não há avanço a perder.
+            if d["secoes_apuradas"] == 0 and atraso > self.idade_max_arquivo_vazio_s:
+                continue
             if atraso > self.tolerancia_defasagem_s:
                 piores.append((atraso, cod))
         if not piores:

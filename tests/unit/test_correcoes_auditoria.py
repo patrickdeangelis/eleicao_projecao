@@ -443,3 +443,20 @@ def test_compactacao_mantem_recentes_e_resumo_dos_antigos():
         # histórico (resumo) continua igual e o ciclo compactado ainda carrega
         hist = repo.obter_historico_projecoes()
         assert len(hist) == 30 and hist[0].analise["nacional"] == base.analise["nacional"]
+
+
+def test_arquivo_de_cidade_vazio_e_de_outro_dia_nao_conta_como_defasagem():
+    """Arquivos de teste do TSE (gerados dias antes) não podem travar a UF que já tem votos."""
+    agg = VectorAggregator(cidades_100k_map={"PB": ["20516"]})
+
+    def com_data(p, dg, hg):
+        return {**p, "dg": dg, "hg": hg}
+
+    lote = {
+        "UF_PB": com_data(_payload(10000, 2000, 400000, 260000), "25/10/2026", "17:07:00"),
+        # Cidade sem nenhuma seção apurada, arquivo de 12 dias antes
+        "MUN_PB_20516": com_data(_payload(2000, 0, 0, 0), "13/10/2026", "17:43:48"),
+    }
+    snaps = agg.processar_lote_bruto(lote)
+    assert agg.defasagens_detectadas == 0
+    assert snaps["PB_INTERIOR"].secoes_apuradas == 2000  # tudo no Interior, sem congelar em zero

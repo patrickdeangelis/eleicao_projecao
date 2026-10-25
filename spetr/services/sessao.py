@@ -209,7 +209,14 @@ class SessaoSPETR:
             event_bus=self.bus, db_path=self.db_path, num_simulacoes=self.num_simulacoes,
             tse_base_url=tse_url, ano_eleicao=ano, codigo_eleicao=eleicao, codigo_cargo=cargo,
             turno=turno, formato=formato, ambiente=ambiente,
-            http_client=TSEHttpClient(verificador_jws=verificador), referencia="auto",
+            http_client=TSEHttpClient(
+                verificador_jws=verificador,
+                # Limite do TSE: 100 req/s por IP (bloqueio de 10 min). 50 req/s deixa folga, e a maioria das
+                # respostas é 304 (ETag), então o ciclo completo cabe em poucos segundos.
+                pacing=PacingManager(max_concurrent=40, max_rate_per_sec=50.0),
+            ),
+            intervalo_tier1=10.0, intervalo_tier2=20.0, intervalo_exterior=60.0, intervalo_subestratos=30.0,
+            referencia="auto",
         )
         self.info = {
             "ano": ano, "codigo": eleicao, "cargo": cargo, "turno": turno,

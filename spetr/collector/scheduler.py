@@ -280,6 +280,7 @@ class TieredScheduler(ICollector):
         logger.info("Iniciando loop do TieredScheduler...")
 
         while self._rodando:
+            inicio_ciclo = time.monotonic()
             try:
                 if not await self.resolver_eleicao():
                     await self._publicar_erro("Código da eleição indefinido; nova tentativa no próximo ciclo")
@@ -350,7 +351,8 @@ class TieredScheduler(ICollector):
                 logger.error(f"Erro no ciclo de coleta do scheduler: {e}", exc_info=True)
                 await self._publicar_erro(str(e))
 
-            await asyncio.sleep(self.intervalo_tier1)
+            # Intervalo entre inícios de ciclo (não entre o fim de um e o início do próximo)
+            await asyncio.sleep(max(min(1.0, self.intervalo_tier1), self.intervalo_tier1 - (time.monotonic() - inicio_ciclo)))
 
     def _todas_ufs_concluidas(self, batch: Dict[str, Dict[str, Any]], falhas: List[str]) -> bool:
         """True quando o arquivo de cada UF veio (sem falha neste ciclo) com 100% das seções apuradas."""
