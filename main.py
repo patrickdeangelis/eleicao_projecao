@@ -86,6 +86,8 @@ def main():
                         help="Endereço de escuta (padrão: 127.0.0.1; use 0.0.0.0 em contêiner/servidor)")
     parser.add_argument("--publico", action="store_true",
                         help="Hospedagem pública: painel somente leitura (bloqueia trocar/parar sessão), sem /docs. Implica --headless")
+    parser.add_argument("--execucao", type=str, default=None,
+                        help="Id fixo da execução: o histórico do pleito continua entre reinícios (padrão com --publico: 'publico')")
     parser.add_argument("--headless", action="store_true", help="Executar apenas servidor local sem abrir janela nativa")
     parser.add_argument("--modo", choices=("real", "replay"), default=None,
                         help="Inicia direto neste modo, sem a tela inicial")
@@ -144,7 +146,8 @@ def main():
 
     # 1. Barramento, sessão (coleta real ou replay) e API
     bus = EventBus()
-    sessao = SessaoSPETR(event_bus=bus, db_path=args.db, num_simulacoes=args.simulacoes, padroes_reais=padroes_reais)
+    sessao = SessaoSPETR(event_bus=bus, db_path=args.db, num_simulacoes=args.simulacoes, padroes_reais=padroes_reais,
+                         execucao_id=args.execucao or ('publico' if args.publico else None))
     api_app = create_api_app(event_bus=bus, sessao=sessao, publico=args.publico)
 
     # 2. Dispara a thread de background (API + coleta)

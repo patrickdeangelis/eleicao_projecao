@@ -45,6 +45,7 @@ class SessaoSPETR:
         db_path: str = "spetr_eleicoes.sqlite",
         num_simulacoes: int = 10000,
         padroes_reais: Optional[Dict[str, Any]] = None,
+        execucao_id: Optional[str] = None,
     ):
         self.bus = event_bus
         self.db_path = db_path
@@ -55,6 +56,8 @@ class SessaoSPETR:
             "ambiente": "oficial", "formato": "", "jws": "",
             **(padroes_reais or {}),
         }
+        # Id fixo (hospedagem): o histórico do pleito continua entre reinícios do servidor
+        self.execucao_id = execucao_id
         self.coordinator: Optional[PipelineCoordinator] = None
         self.simulador: Optional[SimuladorLocal] = None
         self.modo: Optional[str] = None
@@ -217,6 +220,7 @@ class SessaoSPETR:
             ),
             intervalo_tier1=10.0, intervalo_tier2=20.0, intervalo_exterior=60.0, intervalo_subestratos=30.0,
             referencia="auto",
+            execucao_id=f"{self.execucao_id}-{ano}-t{turno}-c{cargo}" if self.execucao_id else None,
         )
         self.info = {
             "ano": ano, "codigo": eleicao, "cargo": cargo, "turno": turno,

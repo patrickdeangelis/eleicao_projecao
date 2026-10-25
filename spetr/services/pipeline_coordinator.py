@@ -47,6 +47,7 @@ class PipelineCoordinator:
         rotulo_eleicao: Optional[str] = None,
         referencia: Optional[str] = None,
         parar_ao_concluir: bool = True,
+        execucao_id: Optional[str] = None,
     ):
         self.bus = event_bus or EventBus()
         self.db = SQLiteDatabase(db_path)
@@ -70,7 +71,14 @@ class PipelineCoordinator:
             self.db,
             event_bus=self.bus,
             eleicao=rotulo_eleicao or f"{ambiente}/ele{ano_eleicao}/{codigo_eleicao or 'auto'}/c{codigo_cargo}/t{turno}",
+            execucao_id=execucao_id,
         )
+        if execucao_id:
+            # Execução com id fixo (servidor): o histórico sobrevive a reinícios e a contagem de ciclos continua
+            adotadas = self.repo.adotar_execucoes_anteriores()
+            self.scheduler._ciclo_contador = self.repo.ultimo_ciclo()
+            if adotadas:
+                logger.info(f"Histórico retomado: {adotadas} projeção(ões) anteriores deste pleito.")
         self.aggregator = VectorAggregator(event_bus=self.bus)
         self.engine = MonteCarloProjectionEngine(event_bus=self.bus, num_simulacoes=num_simulacoes)
 

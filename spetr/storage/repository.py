@@ -188,6 +188,31 @@ class ElectionRepository(IRepository):
             )
         return cur.rowcount
 
+    def adotar_execucoes_anteriores(self) -> int:
+        """
+        Para execuções com id fixo (hospedagem): reúne sob esta execução o histórico gravado antes por
+        outras execuções do mesmo pleito, de modo que reiniciar o servidor não zere o painel.
+        Retorna as projeções adotadas.
+        """
+        conn = self.db.get_connection()
+        with conn:
+            cur = conn.execute(
+                "UPDATE projecoes_historico SET execucao_id = ? WHERE eleicao = ? AND execucao_id != ?",
+                (self.execucao_id, self.eleicao, self.execucao_id),
+            )
+            conn.execute(
+                "UPDATE snapshots_apuracao SET execucao_id = ? WHERE eleicao = ? AND execucao_id != ?",
+                (self.execucao_id, self.eleicao, self.execucao_id),
+            )
+        return cur.rowcount
+
+    def ultimo_ciclo(self) -> int:
+        """Maior ciclo já gravado por esta execução (0 se nenhum), para a contagem continuar após um reinício."""
+        linha = self.db.get_connection().execute(
+            "SELECT MAX(ciclo_id) FROM projecoes_historico WHERE execucao_id = ?", (self.execucao_id,)
+        ).fetchone()
+        return int(linha[0] or 0)
+
     def obter_historico_projecoes(self, limite: int = 100) -> List[ResultadoProjecao]:
         """Recupera as últimas projeções calculadas."""
         conn = self.db.get_connection()

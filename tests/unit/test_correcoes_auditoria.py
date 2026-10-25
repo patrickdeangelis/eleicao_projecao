@@ -460,3 +460,26 @@ def test_arquivo_de_cidade_vazio_e_de_outro_dia_nao_conta_como_defasagem():
     snaps = agg.processar_lote_bruto(lote)
     assert agg.defasagens_detectadas == 0
     assert snaps["PB_INTERIOR"].secoes_apuradas == 2000  # tudo no Interior, sem congelar em zero
+
+
+def test_historico_sobrevive_a_reinicio_com_execucao_fixa():
+    from spetr.storage.database import SQLiteDatabase
+    from spetr.storage.repository import ElectionRepository
+
+    eng = MonteCarloProjectionEngine(num_simulacoes=200, seed=1)
+    r = eng.calcular(_snapshots(["SP"], 0.5, {"13": 0.5, "22": 0.5}))
+    with tempfile.TemporaryDirectory() as tmp:
+        db = SQLiteDatabase(os.path.join(tmp, "h.sqlite"))
+        pleito = "oficial/ele2026/auto/c1/t2"
+        # Servidor antes do reinício (id aleatório) e outro pleito que não deve ser tocado
+        antes = ElectionRepository(db, eleicao=pleito, execucao_id="antigo")
+        for ciclo in (1, 2, 3):
+            antes.salvar_projecao(dataclasses.replace(r, ciclo_id=ciclo, timestamp=f"2026-10-25 17:0{ciclo}:00"))
+        ElectionRepository(db, eleicao="outro", execucao_id="x").salvar_projecao(r)
+
+        depois = ElectionRepository(db, eleicao=pleito, execucao_id="publico-2026-t2-c1")
+        assert depois.obter_historico_projecoes() == []
+        assert depois.adotar_execucoes_anteriores() == 3
+        assert [h.ciclo_id for h in depois.obter_historico_projecoes()] == [1, 2, 3]
+        assert depois.ultimo_ciclo() == 3
+        assert len(ElectionRepository(db, eleicao="outro", execucao_id="x").obter_historico_projecoes()) == 1
