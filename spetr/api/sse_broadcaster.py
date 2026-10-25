@@ -3,6 +3,7 @@ Distribuidor de Server-Sent Events (SSE) para a interface do SPETR.
 """
 import asyncio
 import json
+import time
 from typing import Set, Dict, Any, Optional
 import logging
 
@@ -73,6 +74,7 @@ class SSEBroadcaster:
         self.bus = event_bus
         self._queues: Set[asyncio.Queue] = set()
         self.ultimo_resultado_json: Optional[str] = None
+        self.ultimo_resultado_em: Optional[float] = None  # time.monotonic() do último ciclo calculado
         self.ultimo_aviso: Optional[Dict[str, Any]] = None
         self.coleta_encerrada: Optional[Dict[str, Any]] = None
 
@@ -83,6 +85,7 @@ class SSEBroadcaster:
 
     async def ao_calcular_projecao(self, evento: ProjectionCalculatedEvent) -> None:
         self.ultimo_resultado_json = json.dumps(serializar_resultado(evento.resultado), separators=(",", ":"))
+        self.ultimo_resultado_em = time.monotonic()
         await self.broadcast(self.ultimo_resultado_json)
 
     async def ao_erro_coleta(self, evento: CollectionErrorEvent) -> None:

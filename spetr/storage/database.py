@@ -50,8 +50,9 @@ class SQLiteDatabase:
             # Ativa modo WAL e otimizações de I/O
             conn.execute("PRAGMA journal_mode=WAL;")
             conn.execute("PRAGMA synchronous=NORMAL;")
-            conn.execute("PRAGMA cache_size=-64000;")  # 64MB de cache de memória
-            conn.execute("PRAGMA temp_store=MEMORY;")
+            # Uma conexão por thread do pool: 64 MB cada somavam >1 GB depois de algumas horas
+            conn.execute("PRAGMA cache_size=-8000;")  # 8MB de cache de memória por conexão
+            conn.execute("PRAGMA wal_autocheckpoint=500;")
             self._local.conn = conn
         return self._local.conn
 

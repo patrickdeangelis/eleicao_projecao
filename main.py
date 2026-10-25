@@ -7,6 +7,7 @@ import os
 import argparse
 import asyncio
 import threading
+from concurrent.futures import ThreadPoolExecutor
 import uvicorn
 import logging
 from spetr.caminhos import pasta_dados_usuario
@@ -36,6 +37,8 @@ logger = logging.getLogger("spetr.main")
 def rodar_servidor_e_worker(loop, sessao, api_app, porta: int, modo_inicial=None, opcoes_iniciais=None, host: str = "127.0.0.1"):
     """Thread de segundo plano que gerencia o loop de eventos assíncrono."""
     asyncio.set_event_loop(loop)
+    # asyncio.to_thread (banco) usa este pool; cada thread mantém uma conexão SQLite, então poucas bastam
+    loop.set_default_executor(ThreadPoolExecutor(max_workers=4, thread_name_prefix="spetr"))
 
     # Configuração do Uvicorn para rodar em localhost
     config = uvicorn.Config(

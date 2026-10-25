@@ -3,6 +3,7 @@ Rotas da API Local FastAPI do SPETR.
 """
 import asyncio
 import json
+import time
 from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
@@ -46,6 +47,16 @@ def setup_routes(
 
     def info() -> Dict[str, Any]:
         return sessao.info if sessao is not None else (info_eleicao or {})
+
+    @router.get("/healthz")
+    async def healthz(max_idade: float = Query(default=120.0, ge=5.0, le=3600.0)):
+        """Saúde da coleta: 200 se o último ciclo foi calculado há menos de `max_idade` segundos."""
+        em = broadcaster.ultimo_resultado_em
+        if em is None:
+            return JSONResponse(status_code=503, content={"ok": False, "motivo": "sem ciclo calculado ainda"})
+        idade = time.monotonic() - em
+        corpo = {"ok": idade <= max_idade, "idade_ultimo_ciclo_s": round(idade, 1)}
+        return JSONResponse(status_code=200 if corpo["ok"] else 503, content=corpo)
 
     @router.get("/status")
     async def get_status():

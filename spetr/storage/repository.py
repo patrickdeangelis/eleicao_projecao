@@ -52,6 +52,8 @@ class ElectionRepository(IRepository):
         self.eleicao = eleicao
         self.execucao_id = execucao_id or uuid.uuid4().hex[:12]
         self._salvas = 0
+        # Último valor gravado de cada estrato: só grava o que mudou (antes eram ~300 linhas por ciclo, mesmo parado)
+        self._ultimo_snapshot: Dict[str, tuple] = {}
 
         if self.bus is not None:
             self.bus.subscribe(ProjectionCalculatedEvent, self._ao_calcular_projecao)
@@ -67,6 +69,7 @@ class ElectionRepository(IRepository):
         if self._salvas % COMPACTAR_A_CADA == 0:
             try:
                 await asyncio.to_thread(self.compactar_analises)
+                await asyncio.to_thread(self.db.get_connection().execute, "PRAGMA wal_checkpoint(PASSIVE)")
             except Exception as e:
                 logger.error(f"Erro ao compactar análises antigas: {e}", exc_info=True)
 
@@ -78,6 +81,17 @@ class ElectionRepository(IRepository):
 
     def salvar_snapshots(self, snapshots: List[SnapshotParcial]) -> None:
         """Insere lote de snapshots em transação atômica."""
+        if not snapshots:
+            return
+
+        mudados = []
+        for s in snapshots:
+            chave = (s.secoes_apuradas, s.votos_validos, s.comparecimento, s.secoes_total,
+                     tuple(sorted(s.votos_candidatos.items())))
+            if self._ultimo_snapshot.get(s.estrato_id) != chave:
+                self._ultimo_snapshot[s.estrato_id] = chave
+                mudados.append(s)
+        snapshots = mudados
         if not snapshots:
             return
 
